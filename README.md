@@ -16,7 +16,24 @@ Supported credential formats (target): W3C VC JSON-LD (`ldp_vc`) and SD-JWT VC.
 
 ## Status
 
-Planning stage — no code yet.
+The playground UI (selector, live run screen, protocol inspector, run report) works end to end against mocks. The BFF, protocol tap and the real Inji stack are not built yet.
+
+## Getting started
+
+Needs Node 20+ and pnpm.
+
+```sh
+pnpm install
+pnpm dev          # playground UI on http://localhost:5173, API served by mocks
+pnpm test         # unit tests (Vitest)
+pnpm e2e          # browser tests (Playwright; run `pnpm exec playwright install chromium` once)
+```
+
+| Path | What it is |
+| --- | --- |
+| [`apps/playground-ui`](apps/playground-ui) | Vite + React UI ([details](apps/playground-ui/README.md)) |
+| [`packages/shared`](packages/shared) | Domain types, zod schemas, REST and WebSocket contracts shared with the BFF |
+| [`catalog/`](catalog) | One YAML file per issuer / wallet / verifier; adding a product = adding a file |
 
 ## Docs
 

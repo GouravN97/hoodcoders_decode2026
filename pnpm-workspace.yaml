@@ -1,0 +1,13 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Only resolve package versions published at least 14 days ago.
+minimumReleaseAge: 20160
+
+# Pin exact versions when adding dependencies.
+saveExact: true
+
+allowBuilds:
+  esbuild: true
+  msw: true

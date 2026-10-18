@@ -1,0 +1,20 @@
+# Inji Web — browser wallet backed by Mimoto. Issuance starts inside Inji Web (armed window).
+id: inji-web
+role: wallet
+displayName: Inji Web
+vendor: inji
+adapter: InjiWebWalletAdapter
+publicUrl: https://injiweb.playground.local
+capabilities:
+  formats: [ldp_vc, vc+sd-jwt]
+  proofSuites: [Ed25519Signature2020, ES256]
+  grantTypes: [authorization_code]
+  vciProfiles: [oid4vci-draft13]
+  vpProfiles: [oid4vp-draft23]
+  queryLanguages: [presentation_exchange]
+  responseModes: [direct_post]
+  presentationFlows: [cross-device-qr, same-device-deeplink]
+  deliveryChannels: [open-url]
+  automation: human-in-the-loop
+  supportsTamper: false
+notes: ⚠️ presentation support depends on the pinned Inji Web version.

@@ -1,0 +1,20 @@
+# Inji Wallet mobile app — a person scans QR codes with an Android phone.
+id: inji-wallet-mobile
+role: wallet
+displayName: Inji Wallet (mobile)
+vendor: inji
+adapter: InjiMobileWalletAdapter
+publicUrl: https://mimoto.playground.local
+capabilities:
+  formats: [ldp_vc, vc+sd-jwt, mso_mdoc]
+  proofSuites: [Ed25519Signature2020, ES256]
+  grantTypes: [pre-authorized_code, authorization_code]
+  vciProfiles: [oid4vci-draft13]
+  vpProfiles: [oid4vp-draft23]
+  queryLanguages: [presentation_exchange]
+  responseModes: [direct_post]
+  presentationFlows: [cross-device-qr, same-device-deeplink]
+  deliveryChannels: [qr, deeplink]
+  automation: human-in-the-loop
+  supportsTamper: false
+notes: inji-openid4vp is documented against draft 23 / presentation_definition.

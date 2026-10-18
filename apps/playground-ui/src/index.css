@@ -1,0 +1,89 @@
+@import 'tailwindcss';
+
+/* Semantic colour tokens; components use these (bg-surface, text-muted, ...) rather than raw palette colours. */
+:root {
+  color-scheme: light;
+  --c-bg: #f6f7f9;
+  --c-surface: #ffffff;
+  --c-surface-2: #f1f3f6;
+  --c-border: #dde1e7;
+  --c-fg: #14181f;
+  --c-muted: #5b6472;
+  --c-accent: #1d4ed8;
+  --c-accent-fg: #ffffff;
+  --c-accent-soft: #e6edfd;
+  --c-ok: #15803d;
+  --c-ok-soft: #e3f5e9;
+  --c-bad: #b91c1c;
+  --c-bad-soft: #fbe7e7;
+  --c-warn: #a15c07;
+  --c-warn-soft: #fdf1dc;
+  --c-code: #f3f4f6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --c-bg: #0e1116;
+    --c-surface: #161a21;
+    --c-surface-2: #1d222b;
+    --c-border: #2c333e;
+    --c-fg: #e6e9ee;
+    --c-muted: #9aa3b2;
+    --c-accent: #6b9bff;
+    --c-accent-fg: #0b1220;
+    --c-accent-soft: #1b2a4a;
+    --c-ok: #4ade80;
+    --c-ok-soft: #12301f;
+    --c-bad: #f87171;
+    --c-bad-soft: #3a1717;
+    --c-warn: #fbbf24;
+    --c-warn-soft: #3a2a0c;
+    --c-code: #11151b;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-surface: var(--c-surface);
+  --color-surface-2: var(--c-surface-2);
+  --color-border: var(--c-border);
+  --color-fg: var(--c-fg);
+  --color-muted: var(--c-muted);
+  --color-accent: var(--c-accent);
+  --color-accent-fg: var(--c-accent-fg);
+  --color-accent-soft: var(--c-accent-soft);
+  --color-ok: var(--c-ok);
+  --color-ok-soft: var(--c-ok-soft);
+  --color-bad: var(--c-bad);
+  --color-bad-soft: var(--c-bad-soft);
+  --color-warn: var(--c-warn);
+  --color-warn-soft: var(--c-warn-soft);
+  --color-code: var(--c-code);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--c-bg);
+    color: var(--c-fg);
+  }
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

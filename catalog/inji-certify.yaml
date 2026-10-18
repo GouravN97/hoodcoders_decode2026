@@ -1,0 +1,21 @@
+# Inji Certify — OpenID4VCI issuer. Schema: CatalogFileSchema in packages/shared/src/catalog.ts
+id: inji-certify
+role: issuer
+displayName: Inji Certify
+vendor: inji
+adapter: InjiCertifyIssuerAdapter
+publicUrl: https://certify.playground.local
+internalUrl: http://certify:8090
+versionProbe:
+  kind: actuator
+  value: /v1/certify/actuator/info
+capabilities:
+  formats: [ldp_vc, vc+sd-jwt, mso_mdoc]
+  proofSuites: [Ed25519Signature2020, ES256]
+  grantTypes: [pre-authorized_code, authorization_code]
+  vciProfiles: [oid4vci-draft13]
+  didMethods: [did:web]
+  deliveryChannels: [api]
+  automation: headless
+  supportsTamper: false
+notes: SD-JWT is issued as vc+sd-jwt only.

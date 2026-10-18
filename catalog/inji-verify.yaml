@@ -1,0 +1,23 @@
+# Inji Verify — OpenID4VP verifier service.
+id: inji-verify
+role: verifier
+displayName: Inji Verify
+vendor: inji
+adapter: InjiVerifyServiceAdapter
+publicUrl: https://verify.playground.local
+internalUrl: http://inji-verify-service:8080
+versionProbe:
+  kind: actuator
+  value: /v1/verify/actuator/info
+capabilities:
+  formats: [ldp_vc, vc+sd-jwt]
+  proofSuites: [Ed25519Signature2020, ES256, RsaSignature2018]
+  vpProfiles: [oid4vp-draft23]
+  queryLanguages: [presentation_exchange]
+  responseModes: [direct_post]
+  clientIdSchemes: [pre-registered, did]
+  presentationFlows: [cross-device-qr, same-device-deeplink]
+  deliveryChannels: [qr, deeplink]
+  automation: headless
+  supportsTamper: false
+notes: ⚠️ 0.18.x uses Presentation Exchange; 1.0.x uses DCQL. Pinned version still to be decided.

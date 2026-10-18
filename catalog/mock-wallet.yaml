@@ -1,0 +1,21 @@
+# Headless mock wallet — runs without a phone; used for CI, tamper and repeatable demos.
+id: mock-wallet
+role: wallet
+displayName: Mock wallet
+vendor: mock
+adapter: MockWalletAdapter
+publicUrl: https://mock-wallet.playground.local
+internalUrl: http://mock-wallet:7003
+capabilities:
+  formats: [ldp_vc, vc+sd-jwt, dc+sd-jwt]
+  proofSuites: [Ed25519Signature2020, ES256, EdDSA]
+  grantTypes: [pre-authorized_code]
+  vciProfiles: [oid4vci-draft13, oid4vci-1.0]
+  vpProfiles: [oid4vp-draft21, oid4vp-draft23, oid4vp-1.0]
+  queryLanguages: [presentation_exchange, dcql]
+  responseModes: [direct_post, direct_post.jwt]
+  didMethods: [did:jwk, did:key]
+  presentationFlows: [cross-device-qr]
+  deliveryChannels: [api]
+  automation: headless
+  supportsTamper: true
