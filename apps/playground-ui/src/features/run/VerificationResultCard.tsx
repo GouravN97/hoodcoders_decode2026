@@ -27,11 +27,16 @@ export function VerificationResultCard({ run }: { run: RunDetail }) {
   const tone = TONE[outcome];
   const matched = outcome === run.config.expectedOutcome;
 
+  // Enters once per run: opacity always fades in; the rise and blur only without reduced motion.
   return (
     <section
       aria-label="Verification result"
       aria-live="polite"
-      className={cx('overflow-hidden rounded-xl border', tone.box)}
+      className={cx(
+        'overflow-hidden rounded-xl border transition-[opacity,translate,filter] duration-300 ease-out',
+        'starting:opacity-0 motion-safe:starting:translate-y-3 motion-safe:starting:blur-[4px]',
+        tone.box,
+      )}
       data-testid="verification-result"
       data-outcome={outcome}
     >

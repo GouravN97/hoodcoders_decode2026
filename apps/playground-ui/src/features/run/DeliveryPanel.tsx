@@ -2,7 +2,7 @@ import type { DeliveryInstruction, DeliveryPurpose } from '@playground/shared';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useState } from 'react';
 import { ExternalIcon } from '../../components/icons';
-import { Card, CopyButton, SectionTitle } from '../../components/ui';
+import { buttonClass, Card, CopyButton, SectionTitle } from '../../components/ui';
 
 const TITLE: Record<DeliveryPurpose, Record<DeliveryInstruction['kind'], string>> = {
   issuance: {
@@ -58,7 +58,7 @@ export function DeliveryPanel({ purpose, instruction }: { purpose: DeliveryPurpo
               href={instruction.url}
               target={instruction.kind === 'open-url' ? '_blank' : undefined}
               rel="noreferrer"
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-accent px-3.5 text-sm font-medium text-accent-fg hover:brightness-110"
+              className={buttonClass({ variant: 'primary', className: 'pr-3' })}
             >
               {instruction.kind === 'deeplink' ? 'Open in wallet' : 'Open wallet'} <ExternalIcon />
             </a>

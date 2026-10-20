@@ -6,7 +6,7 @@ import { Button, Card, Spinner } from '../../components/ui';
 export function HoldConfirmCard({ runId, walletName }: { runId: string; walletName: string }) {
   const confirm = useManualEvidence(runId);
   return (
-    <Card className="border-accent/40" aria-label="Confirm credential received">
+    <Card highlight aria-label="Confirm credential received">
       <div className="flex flex-col gap-3 p-4">
         <div className="flex items-start gap-3">
           <span className="mt-0.5 text-accent">

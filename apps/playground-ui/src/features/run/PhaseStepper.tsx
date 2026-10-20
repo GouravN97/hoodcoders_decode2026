@@ -2,13 +2,14 @@ import { formatDuration, phaseLabel, RUN_PHASES, stepLabel, type RunDetail } fro
 import { cx } from '../../components/ui';
 import { EvidenceIcon, phaseStatus, STATUS_LABEL, StatusIcon } from './status';
 
+// Top edge only: a plain border-* colour would fight the card's border-border and win or lose by CSS order.
 const PHASE_TONE = {
-  done: 'border-ok',
-  failed: 'border-bad',
-  inconclusive: 'border-warn',
-  active: 'border-accent',
-  skipped: 'border-border',
-  pending: 'border-border',
+  done: 'border-t-ok',
+  failed: 'border-t-bad',
+  inconclusive: 'border-t-warn',
+  active: 'border-t-accent',
+  skipped: 'border-t-border',
+  pending: 'border-t-border',
 } as const;
 
 export function PhaseStepper({

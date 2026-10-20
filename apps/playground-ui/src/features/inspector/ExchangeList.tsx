@@ -42,7 +42,7 @@ export function ExchangeList({
       {shown.length === 0 ? (
         <EmptyState title="No messages yet">Messages appear here as the protocol tap records them.</EmptyState>
       ) : (
-        <ol className="min-h-0 flex-1 overflow-y-auto" aria-label="Protocol messages">
+        <ol className="min-h-0 flex-1 overflow-y-auto overscroll-contain" aria-label="Protocol messages">
           {shown.map((ex) => {
             const named = namedMessages(ex).filter((k) => artifactLabel(k) !== protocolStepLabel(ex.step));
             const selected = ex.id === selectedId;
@@ -63,7 +63,7 @@ export function ExchangeList({
                     <span className="font-mono">#{ex.seq}</span>
                     <span className="font-mono">{new Date(ex.ts).toLocaleTimeString(undefined, { hour12: false })}</span>
                     <span className="flex min-w-0 items-center gap-1 truncate">
-                      {partyLabel(ex.from)} <ArrowRightIcon width={11} height={11} /> {partyLabel(ex.component)}
+                      {partyLabel(ex.from)} <ArrowRightIcon width={11} height={11} strokeWidth={1.5} /> {partyLabel(ex.component)}
                     </span>
                     <span className="ml-auto">
                       <StatusChip ex={ex} />

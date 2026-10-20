@@ -25,7 +25,7 @@ export function ProtocolInspector({
         aside={
           <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted">
             <input type="checkbox" checked={reveal} onChange={(e) => setReveal(e.target.checked)} className="accent-[var(--c-accent)]" />
-            <EyeIcon width={14} height={14} /> Reveal secrets
+            <EyeIcon width={14} height={14} strokeWidth={1.5} /> Reveal secrets
           </label>
         }
       >

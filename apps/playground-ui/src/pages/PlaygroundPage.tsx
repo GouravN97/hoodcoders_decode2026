@@ -86,7 +86,7 @@ export function PlaygroundPage() {
           </p>
           <div className="flex shrink-0 items-center gap-3">
             {createRun.isError && <span className="text-xs text-bad">{createRun.error.message}</span>}
-            <Button variant="primary" size="lg" className="px-4 sm:px-5" onClick={start} disabled={!config || createRun.isPending}>
+            <Button variant="primary" size="lg" className="pl-3.5 pr-4 sm:pl-4.5 sm:pr-5" onClick={start} disabled={!config || createRun.isPending}>
               {createRun.isPending ? <Spinner /> : <PlayIcon />}
               Run
             </Button>

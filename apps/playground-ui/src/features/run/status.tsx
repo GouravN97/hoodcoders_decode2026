@@ -16,17 +16,17 @@ export function StatusIcon({ status, className }: { status: StepStatus; classNam
   const ring = 'grid size-5 shrink-0 place-items-center rounded-full';
   switch (status) {
     case 'done':
-      return <span className={cx(ring, 'bg-ok text-surface', className)}><CheckIcon width={12} height={12} strokeWidth={3} /></span>;
+      return <span className={cx(ring, 'bg-ok text-surface', className)}><CheckIcon width={12} height={12} strokeWidth={1.5} /></span>;
     case 'failed':
-      return <span className={cx(ring, 'bg-bad text-surface', className)}><XIcon width={12} height={12} strokeWidth={3} /></span>;
+      return <span className={cx(ring, 'bg-bad text-surface', className)}><XIcon width={12} height={12} strokeWidth={1.5} /></span>;
     case 'inconclusive':
-      return <span className={cx(ring, 'bg-warn text-surface', className)}><AlertIcon width={12} height={12} strokeWidth={2.5} /></span>;
+      return <span className={cx(ring, 'bg-warn text-surface', className)}><AlertIcon width={12} height={12} strokeWidth={1.5} /></span>;
     case 'active':
       return <span className={cx(ring, 'bg-accent-soft text-accent', className)}><Spinner className="size-3.5" /></span>;
     case 'skipped':
-      return <span className={cx(ring, 'border border-border text-muted', className)}><DashIcon width={12} height={12} /></span>;
+      return <span className={cx(ring, 'border border-border text-muted', className)}><DashIcon width={12} height={12} strokeWidth={1.5} /></span>;
     case 'pending':
-      return <span className={cx(ring, 'border border-dashed border-border text-muted', className)}><ClockIcon width={11} height={11} /></span>;
+      return <span className={cx(ring, 'border border-dashed border-border text-muted', className)}><ClockIcon width={11} height={11} strokeWidth={1.5} /></span>;
   }
 }
 
@@ -40,7 +40,7 @@ export function EvidenceIcon({ kind }: { kind: EvidenceKind }) {
   const { label, Icon } = EVIDENCE[kind];
   return (
     <span title={label} className="inline-flex text-muted">
-      <Icon width={13} height={13} />
+      <Icon width={13} height={13} strokeWidth={1.5} />
       <span className="sr-only">{label}</span>
     </span>
   );

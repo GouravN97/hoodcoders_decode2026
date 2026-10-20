@@ -28,9 +28,10 @@ export function Badge({ tone = 'neutral', children, title, mono }: { tone?: Tone
   );
 }
 
-export function Card({ children, className, as: As = 'section', ...rest }: { children: ReactNode; className?: string; as?: 'section' | 'div' | 'article'; id?: string; 'aria-label'?: string }) {
+// cx does not merge conflicting utilities, so the border colour is a prop rather than a className override.
+export function Card({ children, className, highlight, as: As = 'section', ...rest }: { children: ReactNode; className?: string; highlight?: boolean; as?: 'section' | 'div' | 'article'; id?: string; 'aria-label'?: string }) {
   return (
-    <As className={cx('rounded-xl border border-border bg-surface', className)} {...rest}>
+    <As className={cx('rounded-xl border bg-surface', highlight ? 'border-accent/40' : 'border-border', className)} {...rest}>
       {children}
     </As>
   );
@@ -53,26 +54,28 @@ const BUTTON: Record<ButtonVariant, string> = {
   danger: 'border border-border bg-surface text-bad hover:bg-bad-soft disabled:opacity-50',
 };
 
+type ButtonSize = 'sm' | 'md' | 'lg';
+
+/** Button styling for elements that must stay links (<a>, <Link>) but look and press like a Button. */
+export function buttonClass({ variant = 'secondary', size = 'md', className }: { variant?: ButtonVariant; size?: ButtonSize; className?: string } = {}) {
+  return cx(
+    // Press scales to 0.96 over 150ms; not-disabled (not enabled) so links press too.
+    'inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-[filter,background-color,color,scale] duration-150 ease-out [-webkit-tap-highlight-color:transparent] motion-safe:not-disabled:active:scale-[0.96] disabled:cursor-not-allowed',
+    size === 'sm' && 'h-7 px-2.5 text-xs',
+    size === 'md' && 'h-9 px-3.5 text-sm',
+    size === 'lg' && 'h-11 px-5 text-[15px]',
+    BUTTON[variant],
+    className,
+  );
+}
+
 export function Button({
   variant = 'secondary',
   size = 'md',
   className,
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: 'sm' | 'md' | 'lg' }) {
-  return (
-    <button
-      type="button"
-      className={cx(
-        'inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-[filter,background-color] disabled:cursor-not-allowed',
-        size === 'sm' && 'h-7 px-2.5 text-xs',
-        size === 'md' && 'h-9 px-3.5 text-sm',
-        size === 'lg' && 'h-11 px-5 text-[15px]',
-        BUTTON[variant],
-        className,
-      )}
-      {...rest}
-    />
-  );
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize }) {
+  return <button type="button" className={buttonClass({ variant, size, className })} {...rest} />;
 }
 
 export function Spinner({ className }: { className?: string }) {
