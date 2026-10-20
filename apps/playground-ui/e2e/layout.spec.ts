@@ -11,11 +11,11 @@ const noHorizontalScroll = async (page: import('@playwright/test').Page) => {
 
 test('selector and run page fit the viewport without horizontal scroll', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('radio', { name: /Inji Certify/ })).toBeChecked();
+  await expect(page.getByRole('combobox', { name: 'Issuer', exact: true })).toBeVisible();
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/selector-${test.info().project.name}.png`, fullPage: true });
 
-  await startRun(page, { wallet: /Mock wallet/, format: 'vc+sd-jwt' });
+  await startRun(page, { wallet: 'Mock wallet', format: 'vc+sd-jwt' });
   await expect(page.getByTestId('verification-result')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('report-verdict')).toBeVisible();
   await noHorizontalScroll(page);
@@ -23,7 +23,7 @@ test('selector and run page fit the viewport without horizontal scroll', async (
 });
 
 test('inspector detail stays inside its card on narrow screens', async ({ page }) => {
-  await startRun(page, { wallet: /Mock wallet/, format: 'vc+sd-jwt' });
+  await startRun(page, { wallet: 'Mock wallet', format: 'vc+sd-jwt' });
   await expect(page.getByTestId('report-verdict')).toBeVisible({ timeout: 20_000 });
   const card = await page.getByRole('region', { name: 'Protocol inspector' }).boundingBox();
   const panel = await page.getByRole('tabpanel').boundingBox();

@@ -46,6 +46,10 @@ function CatalogStats({ entries, formats, loading }: { entries: CatalogEntry[]; 
   );
 }
 
+/** "a", "a and b", "a, b and c" */
+const listJoin = (items: string[]) =>
+  items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
+
 export function PlaygroundPage() {
   const catalog = useCatalog();
   const selection = useSelection();
@@ -59,6 +63,7 @@ export function PlaygroundPage() {
   const issuer = pick('issuer');
   const wallet = pick('wallet');
   const verifier = pick('verifier');
+  const missingRoles = (['issuer', 'wallet', 'verifier'] as const).filter((r) => !{ issuer, wallet, verifier }[r]);
 
   const configs = useCredentialConfigurations(issuer?.id);
   const formats = useMemo(() => commonFormats([issuer, wallet, verifier]), [issuer, wallet, verifier]);
@@ -69,7 +74,7 @@ export function PlaygroundPage() {
   const config = buildRunConfig(selection, issuer, wallet, verifier, credentialConfig, params.get('scenario'));
 
   const start = () => {
-    if (!config) return;
+    if (missingRoles.length > 0 || !config) return;
     createRun.mutate(config, {
       onSuccess: ({ id }) => {
         addRecent({
@@ -128,12 +133,14 @@ export function PlaygroundPage() {
                 {selection.format && <span className="text-muted">· {formatLabel(selection.format)}</span>}
               </>
             ) : (
-              <span className="text-muted">Choose an issuer, a wallet and a verifier</span>
+              <span className="text-muted" data-testid="missing-roles">
+                Choose {listJoin(missingRoles.map((r) => `${r === 'issuer' ? 'an' : 'a'} ${r}`))} to run
+              </span>
             )}
           </p>
           <div className="flex shrink-0 items-center gap-3">
             {createRun.isError && <span className="text-xs text-bad">{createRun.error.message}</span>}
-            <Button variant="primary" size="lg" className="pl-3.5 pr-4 sm:pl-4.5 sm:pr-5" onClick={start} disabled={!config || createRun.isPending}>
+            <Button variant="primary" size="lg" className="pl-3.5 pr-4 sm:pl-4.5 sm:pr-5" onClick={start} disabled={missingRoles.length > 0 || !config || createRun.isPending}>
               {createRun.isPending ? <Spinner /> : <PlayIcon />}
               Run
             </Button>

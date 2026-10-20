@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { mockCatalog } from '../../mocks/catalog';
@@ -11,26 +11,42 @@ describe('RoleSelectorBoard', () => {
     useSelection.setState({ issuerId: undefined, walletId: undefined, verifierId: undefined });
   });
 
-  it('renders one column per role from the catalog and defaults each selection', () => {
+  it('renders one dropdown per role, each starting at None', () => {
     render(<RoleSelectorBoard catalog={mockCatalog} />);
-    for (const role of ['Issuer', 'Wallet', 'Verifier']) expect(screen.getByRole('group', { name: new RegExp(role) })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /Inji Certify/ })).toBeChecked();
-    expect(screen.getByRole('radio', { name: /Inji Verify/ })).toBeChecked();
-    expect(useSelection.getState().walletId).toBeDefined();
+    for (const role of ['Issuer', 'Wallet', 'Verifier']) {
+      const select = screen.getByRole('combobox', { name: role });
+      expect(select).toHaveValue('');
+      expect(screen.getByText(`No ${role.toLowerCase()} selected`)).toBeInTheDocument();
+    }
+    const state = useSelection.getState();
+    expect([state.issuerId, state.walletId, state.verifierId]).toEqual([undefined, undefined, undefined]);
   });
 
-  it('selects a wallet on click', async () => {
+  it('lists every catalog entry for the role and selects one', async () => {
     render(<RoleSelectorBoard catalog={mockCatalog} />);
-    const wallets = screen.getByRole('group', { name: /Wallet/ });
-    await userEvent.click(within(wallets).getByText('Mock wallet'));
+    const wallets = screen.getByRole('combobox', { name: 'Wallet' });
+    expect([...wallets.querySelectorAll('option')].map((o) => o.textContent)).toEqual([
+      'None',
+      'Inji Wallet (mobile)',
+      'Inji Web',
+      'Mock wallet',
+    ]);
+    await userEvent.selectOptions(wallets, 'Mock wallet');
     expect(useSelection.getState().walletId).toBe('mock-wallet');
-    expect(within(wallets).getByRole('radio', { name: /Mock wallet/ })).toBeChecked();
+    expect(screen.getByTestId('selected-wallet')).toHaveTextContent('Mock wallet');
+  });
+
+  it('goes back to None when None is chosen', async () => {
+    useSelection.setState({ issuerId: 'inji-certify' });
+    render(<RoleSelectorBoard catalog={mockCatalog} />);
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Issuer' }), 'None');
+    expect(useSelection.getState().issuerId).toBeUndefined();
   });
 
   it('disables an offline implementation and says why', () => {
     const catalog = mockCatalog.map((c) => (c.id === 'inji-web' ? { ...c, health: 'down' as const } : c));
     render(<RoleSelectorBoard catalog={catalog} />);
-    expect(screen.getByRole('radio', { name: /Inji Web/ })).toBeDisabled();
+    expect(screen.getByRole('option', { name: 'Inji Web (unavailable)' })).toBeDisabled();
     expect(screen.getByText('Inji Web is not responding')).toBeInTheDocument();
   });
 });

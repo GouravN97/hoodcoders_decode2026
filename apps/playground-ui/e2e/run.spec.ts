@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { startRun, step } from './helpers';
 
 test('JSON-LD run with Inji Wallet: QR, manual confirm, credential card, Valid banner, report', async ({ page }) => {
-  await startRun(page, { wallet: /Inji Wallet \(mobile\)/, format: 'ldp_vc' });
+  await startRun(page, { wallet: 'Inji Wallet (mobile)', format: 'ldp_vc' });
 
   // Issuance: the offer is shown as a QR code for the phone.
   await expect(page.getByRole('heading', { name: 'Scan to receive the credential' })).toBeVisible();
@@ -53,7 +53,7 @@ test('JSON-LD run with Inji Wallet: QR, manual confirm, credential card, Valid b
 });
 
 test('inspector shows each message raw and decoded, with secrets masked', async ({ page }) => {
-  await startRun(page, { wallet: /Mock wallet/, format: 'vc+sd-jwt' });
+  await startRun(page, { wallet: 'Mock wallet', format: 'vc+sd-jwt' });
   await expect(page.getByTestId('verification-result')).toHaveAttribute('data-outcome', 'VALID', { timeout: 20_000 });
 
   const inspector = page.getByRole('region', { name: 'Protocol inspector' });
@@ -84,7 +84,7 @@ test('inspector shows each message raw and decoded, with secrets masked', async 
 });
 
 test('Valid-but-Expired SD-JWT run passes when expiry is expected', async ({ page }) => {
-  await startRun(page, { wallet: /Mock wallet/, format: 'vc+sd-jwt', expected: 'Valid but expired' });
+  await startRun(page, { wallet: 'Mock wallet', format: 'vc+sd-jwt', expected: 'Valid but expired' });
   const banner = page.getByTestId('verification-result');
   await expect(banner).toHaveAttribute('data-outcome', 'EXPIRED', { timeout: 20_000 });
   await expect(banner.getByRole('paragraph').filter({ hasText: /^Valid but expired$/ })).toBeVisible();
@@ -93,13 +93,13 @@ test('Valid-but-Expired SD-JWT run passes when expiry is expected', async ({ pag
 });
 
 test('Invalid result is shown when a tampered credential is expected', async ({ page }) => {
-  await startRun(page, { wallet: /Mock wallet/, format: 'ldp_vc', expected: 'Invalid' });
+  await startRun(page, { wallet: 'Mock wallet', format: 'ldp_vc', expected: 'Invalid' });
   await expect(page.getByTestId('verification-result')).toHaveAttribute('data-outcome', 'INVALID', { timeout: 20_000 });
   await expect(page.getByTestId('report-verdict')).toContainText('Pass');
 });
 
 test('a failed token exchange names the failed step on screen and in the report', async ({ page }) => {
-  await startRun(page, { wallet: /Mock wallet/, format: 'ldp_vc', scenario: 'fail-at-token' });
+  await startRun(page, { wallet: 'Mock wallet', format: 'ldp_vc', scenario: 'fail-at-token' });
   const alert = page.getByRole('alert', { name: /Token exchange failed/ });
   await expect(alert).toBeVisible({ timeout: 20_000 });
   await expect(alert).toContainText('invalid_grant');
@@ -115,7 +115,7 @@ test('a failed token exchange names the failed step on screen and in the report'
 });
 
 test('cancelling a run stops it and still produces a report', async ({ page }) => {
-  await startRun(page, { wallet: /Inji Wallet \(mobile\)/, format: 'ldp_vc' });
+  await startRun(page, { wallet: 'Inji Wallet (mobile)', format: 'ldp_vc' });
   await expect(page.getByRole('button', { name: 'I can see the credential in my wallet' })).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Cancel run' }).click();
   await expect(page.getByText('Cancelled', { exact: true })).toBeVisible();
