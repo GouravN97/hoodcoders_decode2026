@@ -1,14 +1,50 @@
-import { formatLabel, type Role } from '@playground/shared';
+import { formatLabel, type CatalogEntry, type Role } from '@playground/shared';
 import { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useCatalog, useCreateRun, useCredentialConfigurations } from '../api/queries';
-import { ArrowRightIcon, PlayIcon } from '../components/icons';
-import { Button, ErrorNote, Spinner } from '../components/ui';
+import { ArrowRightIcon, IssuerIcon, LayersIcon, PlayIcon, ShieldIcon, WalletIcon } from '../components/icons';
+import { Badge, Button, ErrorNote, PageHeader, Spinner, StatCard } from '../components/ui';
 import { buildRunConfig, commonFormats, supportedFlows } from '../features/selector/compat';
 import { CompatibilityHint } from '../features/selector/CompatibilityHint';
 import { RoleSelectorBoard } from '../features/selector/RoleSelectorBoard';
 import { RunConfigPanel } from '../features/selector/RunConfigPanel';
+import { useRecentRuns } from '../store/recentRuns';
 import { selectedIdFor, useSelection } from '../store/selection';
+
+const ROLE_STAT: Record<Role, { label: string; Icon: typeof IssuerIcon }> = {
+  issuer: { label: 'Issuers', Icon: IssuerIcon },
+  wallet: { label: 'Wallets', Icon: WalletIcon },
+  verifier: { label: 'Verifiers', Icon: ShieldIcon },
+};
+
+function CatalogStats({ entries, formats, loading }: { entries: CatalogEntry[]; formats: string[]; loading: boolean }) {
+  const dash = loading ? '…' : '—';
+  return (
+    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Catalog overview">
+      {(Object.keys(ROLE_STAT) as Role[]).map((role) => {
+        const { label, Icon } = ROLE_STAT[role];
+        const ofRole = entries.filter((c) => c.role === role);
+        const online = ofRole.filter((c) => c.health === 'up').length;
+        return (
+          <StatCard
+            key={role}
+            icon={<Icon width={15} height={15} />}
+            label={label}
+            value={ofRole.length || dash}
+            chip={ofRole.length > 0 && <Badge tone={online === ofRole.length ? 'ok' : online === 0 ? 'bad' : 'warn'}>{online} online</Badge>}
+            footer={ofRole.map((c) => c.displayName).join(', ') || 'None in the catalog'}
+          />
+        );
+      })}
+      <StatCard
+        icon={<LayersIcon width={15} height={15} />}
+        label="Formats in common"
+        value={loading ? dash : formats.length}
+        footer={formats.length > 0 ? formats.join(', ') : 'For the current selection'}
+      />
+    </div>
+  );
+}
 
 export function PlaygroundPage() {
   const catalog = useCatalog();
@@ -16,6 +52,7 @@ export function PlaygroundPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const createRun = useCreateRun();
+  const addRecent = useRecentRuns((s) => s.add);
 
   const entries = useMemo(() => catalog.data ?? [], [catalog.data]);
   const pick = (role: Role) => entries.find((c) => c.role === role && c.id === selectedIdFor(selection, role));
@@ -33,22 +70,32 @@ export function PlaygroundPage() {
 
   const start = () => {
     if (!config) return;
-    createRun.mutate(config, { onSuccess: ({ id }) => navigate(`/runs/${id}`) });
+    createRun.mutate(config, {
+      onSuccess: ({ id }) => {
+        addRecent({
+          id,
+          title: [issuer, wallet, verifier].map((c) => c?.displayName).join(' → '),
+          wallet: wallet?.displayName ?? config.walletId,
+          formatLabel: formatLabel(config.format),
+          startedAt: Date.now(),
+        });
+        navigate(`/runs/${id}`);
+      },
+    });
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-6 sm:px-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold tracking-tight">New interop run</h1>
-        <p className="max-w-2xl text-sm text-muted">
-          Pick who plays each role, choose a credential format, then run a live issue → hold → present → verify cycle
-          and watch every protocol message.
-        </p>
-      </header>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <PageHeader
+        title="New interop run"
+        description="Pick who plays each role, choose a credential format, then run a live issue → hold → present → verify cycle and watch every protocol message."
+      />
+
+      <CatalogStats entries={entries} formats={formats} loading={catalog.isPending} />
 
       {catalog.isError && <ErrorNote title="Could not load the catalog" error={catalog.error} />}
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid grid-cols-1 items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_20rem]">
         {catalog.isPending ? (
           <div className="flex h-60 items-center justify-center gap-2 rounded-xl border border-border bg-surface text-sm text-muted">
             <Spinner /> Loading catalog…
@@ -56,7 +103,7 @@ export function PlaygroundPage() {
         ) : (
           <RoleSelectorBoard catalog={entries} />
         )}
-        <div className="flex flex-col gap-3 lg:sticky lg:top-4">
+        <div className="flex flex-col gap-3 2xl:sticky 2xl:top-4">
           <RunConfigPanel
             formats={formats}
             flows={flows}
@@ -68,7 +115,7 @@ export function PlaygroundPage() {
         </div>
       </div>
 
-      <div className="sticky bottom-0 z-10 -mx-4 border-t border-border bg-bg/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+      <div className="sticky bottom-0 z-10 -mx-4 border-t border-border bg-bg/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <div className="flex items-center justify-between gap-3">
           <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs sm:text-sm" aria-live="polite">
             {issuer && wallet && verifier ? (

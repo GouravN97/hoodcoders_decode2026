@@ -1,46 +1,29 @@
 @import 'tailwindcss';
 
-/* Semantic colour tokens; components use these (bg-surface, text-muted, ...) rather than raw palette colours. */
+/* Semantic colour tokens; components use these (bg-surface, text-muted, ...) rather than raw palette colours.
+   Palette follows the Dashdark X admin kit: deep indigo canvas, magenta primary, cyan secondary. Dark only. */
 :root {
-  color-scheme: light;
-  --c-bg: #f6f7f9;
-  --c-surface: #ffffff;
-  --c-surface-2: #f1f3f6;
-  --c-border: #dde1e7;
-  --c-fg: #14181f;
-  --c-muted: #5b6472;
-  --c-accent: #1d4ed8;
+  color-scheme: dark;
+  --c-bg: #0d0926;
+  --c-surface: #160e3a;
+  --c-surface-2: #1f1650;
+  --c-border: #2b2357;
+  --c-fg: #f4f2ff;
+  --c-muted: #a39ec9;
+  /* Magenta for text, rings and marks; the deeper shade carries white text at 4.5:1 or better. */
+  --c-accent: #cb3cff;
+  --c-accent-strong: #b02ee8;
   --c-accent-fg: #ffffff;
-  --c-accent-soft: #e6edfd;
-  --c-ok: #15803d;
-  --c-ok-soft: #e3f5e9;
-  --c-bad: #b91c1c;
-  --c-bad-soft: #fbe7e7;
-  --c-warn: #a15c07;
-  --c-warn-soft: #fdf1dc;
-  --c-code: #f3f4f6;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --c-bg: #0e1116;
-    --c-surface: #161a21;
-    --c-surface-2: #1d222b;
-    --c-border: #2c333e;
-    --c-fg: #e6e9ee;
-    --c-muted: #9aa3b2;
-    --c-accent: #6b9bff;
-    --c-accent-fg: #0b1220;
-    --c-accent-soft: #1b2a4a;
-    --c-ok: #4ade80;
-    --c-ok-soft: #12301f;
-    --c-bad: #f87171;
-    --c-bad-soft: #3a1717;
-    --c-warn: #fbbf24;
-    --c-warn-soft: #3a2a0c;
-    --c-code: #11151b;
-  }
+  --c-accent-soft: #2f1556;
+  --c-accent-2: #00c2ff;
+  --c-violet: #7f25fb;
+  --c-ok: #14ca74;
+  --c-ok-soft: #12313f;
+  --c-bad: #ff5a65;
+  --c-bad-soft: #3a1238;
+  --c-warn: #fdb52a;
+  --c-warn-soft: #362530;
+  --c-code: #0f0a2c;
 }
 
 @theme inline {
@@ -51,6 +34,9 @@
   --color-fg: var(--c-fg);
   --color-muted: var(--c-muted);
   --color-accent: var(--c-accent);
+  --color-accent-strong: var(--c-accent-strong);
+  --color-accent-2: var(--c-accent-2);
+  --color-violet: var(--c-violet);
   --color-accent-fg: var(--c-accent-fg);
   --color-accent-soft: var(--c-accent-soft);
   --color-ok: var(--c-ok);
@@ -60,7 +46,7 @@
   --color-warn: var(--c-warn);
   --color-warn-soft: var(--c-warn-soft);
   --color-code: var(--c-code);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Mona Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
   /* Strong ease-out for UI motion; overrides Tailwind's weak default so `ease-out` means this everywhere. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);

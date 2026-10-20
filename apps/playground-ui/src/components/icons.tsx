@@ -56,3 +56,27 @@ export const ExternalIcon = (p: SVGProps<SVGSVGElement>) => (
 export const EyeIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="2.75" /></svg>
 );
+export const MenuIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M4 6.5h16M4 12h16M4 17.5h16" /></svg>
+);
+export const GridIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><rect x="4" y="4" width="6.5" height="6.5" rx="1.5" /><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" /><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" /><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" /></svg>
+);
+export const IssuerIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M6 3.5h8.5L19 8v12.5H6V3.5Z" /><path d="M14 3.5V8.5h5M9.5 13h6M9.5 16.5h4" /></svg>
+);
+export const WalletIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3" /><rect x="4" y="8" width="16.5" height="11" rx="2.5" /><path d="M16 13.5h.01" /></svg>
+);
+export const ShieldIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M12 3.5 5 6v5.5c0 4.5 3 7.7 7 9 4-1.3 7-4.5 7-9V6l-7-2.5Z" /><path d="m9 12 2.2 2.2L15.5 10" /></svg>
+);
+export const LayersIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M12 4 3.5 8.5 12 13l8.5-4.5L12 4Z" /><path d="m3.5 12.5 8.5 4.5 8.5-4.5M3.5 16.5 12 21l8.5-4.5" /></svg>
+);
+export const MessagesIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M4.5 5.5h15v10h-9l-4.5 3.5v-3.5H4.5v-10Z" /><path d="M8.5 9.5h7M8.5 12h4" /></svg>
+);
+export const ActivityIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M3.5 12.5h4l2-5 4.5 10 2-5h4.5" /></svg>
+);

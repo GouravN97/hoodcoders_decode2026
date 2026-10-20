@@ -1,5 +1,12 @@
 import { expect, type Page } from '@playwright/test';
 
+/** Clicks an implementation card like a person would (its radio is visually hidden), then checks it took. */
+async function pickImplementation(page: Page, name: RegExp) {
+  const radio = page.getByRole('radio', { name });
+  await page.locator('label').filter({ has: radio }).click();
+  await expect(radio).toBeChecked();
+}
+
 /** Opens the selector with mock runs sped up, picks roles and settings, and presses Run. */
 export async function startRun(
   page: Page,
@@ -7,9 +14,9 @@ export async function startRun(
 ) {
   const qs = new URLSearchParams({ simSpeed: '4', ...(opts.scenario ? { scenario: opts.scenario } : {}) });
   await page.goto(`/?${qs}`);
-  await page.getByRole('radio', { name: /Inji Certify/ }).check({ force: true });
-  await page.getByRole('radio', { name: opts.wallet }).check({ force: true });
-  await page.getByRole('radio', { name: /Inji Verify/ }).check({ force: true });
+  await pickImplementation(page, /Inji Certify/);
+  await pickImplementation(page, opts.wallet);
+  await pickImplementation(page, /Inji Verify/);
   await page.getByRole('radiogroup', { name: 'Credential format' }).getByText(opts.format, { exact: true }).click();
   if (opts.expected) {
     await page.getByRole('radiogroup', { name: 'Expected result' }).getByText(opts.expected, { exact: true }).click();

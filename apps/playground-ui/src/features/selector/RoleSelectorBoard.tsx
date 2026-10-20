@@ -34,8 +34,8 @@ export function RoleSelectorBoard({ catalog }: { catalog: CatalogEntry[] }) {
         return (
           <Card key={role} as="div" className="flex flex-col">
             <fieldset className="flex flex-1 flex-col">
-              <legend className="w-full border-b border-border px-4 py-2.5">
-                <span className="block text-[13px] font-semibold">{roleLabel(role)}</span>
+              <legend className="w-full px-4 pb-1 pt-3.5">
+                <span className="block text-sm font-semibold">{roleLabel(role)}</span>
                 <span className="block text-xs text-muted">{ROLE_HINT[role]}</span>
               </legend>
               <div className="flex flex-col gap-2 p-3">
