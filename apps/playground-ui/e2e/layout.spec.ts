@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { startRun } from './helpers';
+import { openSection, startRun } from './helpers';
 
 const noHorizontalScroll = async (page: import('@playwright/test').Page) => {
   const { scroll, client } = await page.evaluate(() => ({
@@ -25,7 +25,9 @@ test('selector and run page fit the viewport without horizontal scroll', async (
 test('inspector detail stays inside its card on narrow screens', async ({ page }) => {
   await startRun(page, { wallet: 'Mock wallet', format: 'vc+sd-jwt' });
   await expect(page.getByTestId('report-verdict')).toBeVisible({ timeout: 20_000 });
-  const card = await page.getByRole('region', { name: 'Protocol inspector' }).boundingBox();
-  const panel = await page.getByRole('tabpanel').boundingBox();
+  await openSection(page, 'Protocol inspector');
+  const inspector = page.getByRole('region', { name: 'Protocol inspector' });
+  const card = await inspector.boundingBox();
+  const panel = await inspector.getByRole('tabpanel').boundingBox();
   expect(panel!.x + panel!.width).toBeLessThanOrEqual(card!.x + card!.width + 1);
 });

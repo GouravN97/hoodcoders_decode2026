@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { startRun, step } from './helpers';
+import { openSection, startRun, step } from './helpers';
 
 test('JSON-LD run with Inji Wallet: QR, manual confirm, credential card, Valid banner, report', async ({ page }) => {
   await startRun(page, { wallet: 'Inji Wallet (mobile)', format: 'ldp_vc' });
@@ -10,6 +10,7 @@ test('JSON-LD run with Inji Wallet: QR, manual confirm, credential card, Valid b
   await expect(step(page, 'oid4vci.credential')).toHaveAttribute('data-status', 'done', { timeout: 15_000 });
 
   // Hold: a person confirms the credential reached the wallet.
+  await openSection(page, 'Issued credential');
   const card = page.getByRole('region', { name: 'Issued credential' });
   await expect(card.getByText('Ramesh Kumar')).toBeVisible();
   await expect(card.getByText('Ed25519Signature2020')).toBeVisible();
@@ -22,6 +23,7 @@ test('JSON-LD run with Inji Wallet: QR, manual confirm, credential card, Valid b
   await expect(banner.getByRole('paragraph').filter({ hasText: /^Valid$/ })).toBeVisible();
 
   // Inspector: the five named messages are listed in order.
+  await openSection(page, 'Protocol inspector');
   const list = page.getByRole('list', { name: 'Protocol messages' });
   for (const name of ['Credential offer', 'Authorization request', 'Presentation definition', 'vp_token', 'Verification result']) {
     await expect(list.getByText(name, { exact: true }).first()).toBeVisible();
@@ -31,6 +33,7 @@ test('JSON-LD run with Inji Wallet: QR, manual confirm, credential card, Valid b
   expect(seqs.map((s) => Number(s.slice(1)))).toEqual([...seqs.map((s) => Number(s.slice(1)))].sort((a, b) => a - b));
 
   // Report: all seven fields, then both downloads.
+  await openSection(page, 'Report');
   const report = page.getByRole('region', { name: 'Run report' });
   await expect(report.getByTestId('report-verdict')).toContainText('Pass');
   const fields = report.getByRole('definition');
@@ -56,6 +59,7 @@ test('inspector shows each message raw and decoded, with secrets masked', async 
   await startRun(page, { wallet: 'Mock wallet', format: 'vc+sd-jwt' });
   await expect(page.getByTestId('verification-result')).toHaveAttribute('data-outcome', 'VALID', { timeout: 20_000 });
 
+  await openSection(page, 'Protocol inspector');
   const inspector = page.getByRole('region', { name: 'Protocol inspector' });
   const list = inspector.getByRole('list', { name: 'Protocol messages' });
 
@@ -110,7 +114,9 @@ test('a failed token exchange names the failed step on screen and in the report'
   await expect(report.getByTestId('report-verdict')).toContainText('Fail');
   await expect(report.getByText(/Token exchange:/)).toBeVisible();
 
+  // Jumping to the failed message switches the side menu to the inspector.
   await alert.getByRole('button', { name: 'Show the message' }).click();
+  await expect(page.getByRole('tab', { name: /^Protocol inspector/ })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('region', { name: 'Protocol inspector' }).getByText('400', { exact: true }).last()).toBeVisible();
 });
 
@@ -120,4 +126,30 @@ test('cancelling a run stops it and still produces a report', async ({ page }) =
   await page.getByRole('button', { name: 'Cancel run' }).click();
   await expect(page.getByText('Cancelled', { exact: true })).toBeVisible();
   await expect(page.getByTestId('report-verdict')).toContainText('Fail');
+});
+
+test('side menu shows one section at a time and remembers the choice in the URL', async ({ page }) => {
+  await startRun(page, { wallet: 'Mock wallet', format: 'vc+sd-jwt' });
+  await expect(page.getByTestId('report-verdict')).toBeVisible({ timeout: 20_000 });
+
+  // A finished run opens on the report; the other sections are hidden.
+  const credential = page.getByRole('region', { name: 'Issued credential' });
+  const inspector = page.getByRole('region', { name: 'Protocol inspector' });
+  const report = page.getByRole('region', { name: 'Run report' });
+  await expect(report).toBeVisible();
+  await expect(credential).toBeHidden();
+  await expect(inspector).toBeHidden();
+  await expect(page.getByRole('tab', { name: /^Protocol inspector/ })).toContainText('14 messages');
+
+  await openSection(page, 'Issued credential');
+  await expect(credential).toBeVisible();
+  await expect(report).toBeHidden();
+  await expect(page).toHaveURL(/[?&]view=credential/);
+
+  // Arrow keys move through the menu.
+  await page.keyboard.press('ArrowDown');
+  await expect(inspector).toBeVisible();
+  await expect(credential).toBeHidden();
+
+  await expect(page).toHaveURL(/[?&]view=inspector/);
 });

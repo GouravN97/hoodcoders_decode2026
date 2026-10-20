@@ -1,8 +1,10 @@
+import { formatLabel, verdictLabel } from '@playground/shared';
 import { useCallback } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { ApiRequestError } from '../api/client';
 import { useCatalog, useExchanges, useRun } from '../api/queries';
-import { EmptyState, ErrorNote, Spinner } from '../components/ui';
+import { CredentialIcon, MessagesIcon, ReportIcon } from '../components/icons';
+import { Card, EmptyState, ErrorNote, Spinner } from '../components/ui';
 import { USE_MOCKS } from '../config';
 import { ProtocolInspector } from '../features/inspector/ProtocolInspector';
 import { RunReportView } from '../features/report/RunReportView';
@@ -11,6 +13,7 @@ import { DeliveryPanel } from '../features/run/DeliveryPanel';
 import { HoldConfirmCard } from '../features/run/HoldConfirmCard';
 import { PhaseStepper } from '../features/run/PhaseStepper';
 import { RunHeader } from '../features/run/RunHeader';
+import { RunSections, type RunSectionId } from '../features/run/RunSections';
 import { RunStats } from '../features/run/RunStats';
 import { StepErrorPanel } from '../features/run/StepErrorPanel';
 import { VerificationResultCard } from '../features/run/VerificationResultCard';
@@ -25,14 +28,26 @@ export function RunPage() {
   const catalog = useCatalog();
   const [params, setParams] = useSearchParams();
   const selectedExchangeId = params.get('ex');
+  const viewParam = params.get('view');
+  const pinnedView = viewParam === 'credential' || viewParam === 'inspector' || viewParam === 'report' ? viewParam : null;
 
+  const showSection = useCallback(
+    (view: RunSectionId) =>
+      setParams((p) => {
+        p.set('view', view);
+        return p;
+      }, { replace: true }),
+    [setParams],
+  );
   const selectExchange = useCallback(
     (exchangeId: string, scroll = false) => {
       setParams((p) => {
         p.set('ex', exchangeId);
+        if (scroll) p.set('view', 'inspector');
         return p;
       }, { replace: true });
-      if (scroll) document.getElementById('inspector')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // After the inspector panel is shown.
+      if (scroll) requestAnimationFrame(() => document.getElementById('run-sections')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     },
     [setParams],
   );
@@ -71,36 +86,78 @@ export function RunPage() {
     wallet?.capabilities.automation === 'human-in-the-loop' &&
     data.steps.some((s) => s.step === 'credential_held' && s.status === 'active');
 
+  // Until the user picks a section: the inspector while the run is live, the report once it has finished.
+  const view: RunSectionId = pinnedView ?? (terminal ? 'report' : 'inspector');
+  const messageCount = exchanges.data?.length ?? 0;
+
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <RunHeader run={data} catalog={catalog.data ?? []} />
       <RunStats run={data} exchanges={exchanges.data ?? []} />
       <PhaseStepper run={data} selectedExchangeId={selectedExchangeId} onSelectExchange={jumpToExchange} />
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
-        <div className="flex flex-col gap-4">
-          <VerificationResultCard run={data} />
-          <StepErrorPanel steps={data.steps} onSelectExchange={jumpToExchange} />
-          {awaitingHold && <HoldConfirmCard runId={data.id} walletName={wallet?.displayName ?? 'the wallet'} />}
-          {data.delivery && !terminal && (
-            <DeliveryPanel purpose={data.delivery.purpose} instruction={data.delivery.instruction} />
-          )}
-          {credential && <CredentialCard artifact={credential} />}
-          {!credential && !data.delivery && !terminal && (
-            <div className="flex items-center gap-2 rounded-xl border border-dashed border-border p-4 text-[13px] text-muted">
-              <Spinner /> Preparing the credential offer…
-            </div>
-          )}
-        </div>
-        <ProtocolInspector
-          exchanges={exchanges.data ?? []}
-          selectedId={selectedExchangeId}
-          onSelect={selectExchange}
-          loading={exchanges.isPending}
-        />
+      {/* What needs attention right now: the verdict, failures, and anything the person has to do. */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        <VerificationResultCard run={data} />
+        <StepErrorPanel steps={data.steps} onSelectExchange={jumpToExchange} />
+        {awaitingHold && <HoldConfirmCard runId={data.id} walletName={wallet?.displayName ?? 'the wallet'} />}
+        {data.delivery && !terminal && (
+          <DeliveryPanel purpose={data.delivery.purpose} instruction={data.delivery.instruction} />
+        )}
+        {!credential && !data.delivery && !terminal && (
+          <div className="flex items-center gap-2 rounded-xl border border-dashed border-border p-4 text-[13px] text-muted">
+            <Spinner /> Preparing the credential offer…
+          </div>
+        )}
       </div>
 
-      <RunReportView runId={data.id} ready={terminal} />
+      <RunSections
+        value={view}
+        onChange={showSection}
+        sections={[
+          {
+            id: 'credential',
+            label: 'Issued credential',
+            shortLabel: 'Credential',
+            meta: credential ? (credential.format ? formatLabel(credential.format) : 'Issued') : 'Not issued yet',
+            Icon: CredentialIcon,
+            content: credential ? (
+              <CredentialCard artifact={credential} />
+            ) : (
+              <Card>
+                <EmptyState title="No credential yet">
+                  {terminal
+                    ? 'The run ended before the issuer sent a credential.'
+                    : 'The credential shows here as soon as the issuer sends it.'}
+                </EmptyState>
+              </Card>
+            ),
+          },
+          {
+            id: 'inspector',
+            label: 'Protocol inspector',
+            shortLabel: 'Inspector',
+            meta: `${messageCount} ${messageCount === 1 ? 'message' : 'messages'}`,
+            Icon: MessagesIcon,
+            content: (
+              <ProtocolInspector
+                exchanges={exchanges.data ?? []}
+                selectedId={selectedExchangeId}
+                onSelect={selectExchange}
+                loading={exchanges.isPending}
+              />
+            ),
+          },
+          {
+            id: 'report',
+            label: 'Report',
+            shortLabel: 'Report',
+            meta: data.verdict ? verdictLabel(data.verdict) : terminal ? 'Ready' : 'After the run finishes',
+            Icon: ReportIcon,
+            content: <RunReportView runId={data.id} ready={terminal} />,
+          },
+        ]}
+      />
     </div>
   );
 }

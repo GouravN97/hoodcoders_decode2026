@@ -5,7 +5,7 @@ Everything the user sees for mandatory tasks 2, 3/4, 5 and 7:
 | Route | Contents |
 | --- | --- |
 | `/` | Issuer / Wallet / Verifier selector built from `catalog/*.yaml`, run settings (format, credential, flow, expected result), compatibility hint, Run button |
-| `/runs/:id` | Live phase stepper, QR / link delivery, "I can see the credential" confirmation, credential card, Valid / Invalid / Valid-but-Expired banner, protocol inspector (raw / decoded / headers, secrets masked), pass/fail report with Markdown and JSON downloads |
+| `/runs/:id` | Live phase stepper, QR / link delivery, "I can see the credential" confirmation, Valid / Invalid / Valid-but-Expired banner. A side menu switches between the credential card, the protocol inspector (raw / decoded / headers, secrets masked) and the pass/fail report with Markdown and JSON downloads; `?view=credential\|inspector\|report` picks one, otherwise it shows the inspector while the run is live and the report once it has finished |
 
 ## Mock mode vs. real BFF
 
