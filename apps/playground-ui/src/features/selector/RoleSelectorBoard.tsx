@@ -34,17 +34,27 @@ export function RoleSelectorBoard({ catalog }: { catalog: CatalogEntry[] }) {
         const current = selectedEntry(role);
         const id = `role-${role}`;
         const { hint, Icon } = ROLE_META[role];
-        // The panel lights up once a service is chosen for its role.
+        // Dim while the role is None, full brightness once a service is chosen; hover sweeps a shimmer across.
+        // Hovering or focusing a dim panel lifts the dim so its dropdown reads clearly.
         return (
-          <Card key={role} as="div" className="flex flex-col" glow={Boolean(current)} data-active={Boolean(current)}>
+          <Card
+            key={role}
+            as="div"
+            active={Boolean(current)}
+            data-active={Boolean(current)}
+            className={cx(
+              'shimmer flex flex-col',
+              !current && 'brightness-[0.8] saturate-[0.7] hover:brightness-95 hover:saturate-100 focus-within:brightness-100 focus-within:saturate-100',
+            )}
+          >
             <div className="flex items-center gap-3 px-4 pb-1 pt-3.5">
               <span
                 aria-hidden
                 data-testid={`role-icon-${role}`}
                 className={cx(
-                  'grid size-9 shrink-0 place-items-center rounded-lg border transition-[background-color,border-color,color,box-shadow] duration-300 ease-out',
+                  'grid size-9 shrink-0 place-items-center rounded-lg border transition-[background-color,border-color,color] duration-300 ease-out',
                   current
-                    ? 'border-transparent bg-gradient-to-br from-accent to-violet text-white shadow-[0_0_16px_-3px_var(--c-accent)]'
+                    ? 'border-transparent bg-gradient-to-br from-accent to-violet text-white'
                     : 'border-border bg-surface-2 text-muted',
                 )}
               >
