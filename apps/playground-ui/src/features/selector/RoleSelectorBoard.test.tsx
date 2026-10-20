@@ -36,6 +36,16 @@ describe('RoleSelectorBoard', () => {
     expect(screen.getByTestId('selected-wallet')).toHaveTextContent('Mock wallet');
   });
 
+  it('lights up a role panel only once a service is chosen for it', async () => {
+    const { container } = render(<RoleSelectorBoard catalog={mockCatalog} />);
+    const panels = () => [...container.querySelectorAll('[data-active]')].map((el) => el.getAttribute('data-active'));
+    expect(panels()).toEqual(['false', 'false', 'false']);
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Verifier' }), 'Inji Verify');
+    expect(panels()).toEqual(['false', 'false', 'true']);
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Verifier' }), 'None');
+    expect(panels()).toEqual(['false', 'false', 'false']);
+  });
+
   it('goes back to None when None is chosen', async () => {
     useSelection.setState({ issuerId: 'inji-certify' });
     render(<RoleSelectorBoard catalog={mockCatalog} />);
