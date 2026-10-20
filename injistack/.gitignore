@@ -1,0 +1,3 @@
+inji-certify/docker-compose/docker-compose-injistack/certs/*.key
+inji-certify/docker-compose/docker-compose-injistack/certs/*.crt
+inji-certify/docker-compose/docker-compose-injistack/certs/*.p12
