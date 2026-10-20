@@ -11,6 +11,7 @@ import { DeliveryPanel } from '../features/run/DeliveryPanel';
 import { HoldConfirmCard } from '../features/run/HoldConfirmCard';
 import { PhaseStepper } from '../features/run/PhaseStepper';
 import { RunHeader } from '../features/run/RunHeader';
+import { RunStats } from '../features/run/RunStats';
 import { StepErrorPanel } from '../features/run/StepErrorPanel';
 import { VerificationResultCard } from '../features/run/VerificationResultCard';
 import { isTerminal } from '../realtime/runReducer';
@@ -71,8 +72,9 @@ export function RunPage() {
     data.steps.some((s) => s.step === 'credential_held' && s.status === 'active');
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-6 sm:px-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <RunHeader run={data} catalog={catalog.data ?? []} />
+      <RunStats run={data} exchanges={exchanges.data ?? []} />
       <PhaseStepper run={data} selectedExchangeId={selectedExchangeId} onSelectExchange={jumpToExchange} />
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">

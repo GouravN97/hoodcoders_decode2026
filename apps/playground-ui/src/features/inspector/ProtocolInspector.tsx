@@ -1,6 +1,6 @@
 import type { ExchangeWithDecoded } from '@playground/shared';
 import { useState } from 'react';
-import { EyeIcon } from '../../components/icons';
+import { EyeIcon, MessagesIcon } from '../../components/icons';
 import { Card, cx, EmptyState, SectionTitle } from '../../components/ui';
 import { ExchangeDetail } from './ExchangeDetail';
 import { ExchangeList } from './ExchangeList';
@@ -22,6 +22,7 @@ export function ProtocolInspector({
   return (
     <Card id="inspector" aria-label="Protocol inspector" className="flex min-w-0 flex-col overflow-hidden">
       <SectionTitle
+        icon={<MessagesIcon width={16} height={16} />}
         aside={
           <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted">
             <input type="checkbox" checked={reveal} onChange={(e) => setReveal(e.target.checked)} className="accent-[var(--c-accent)]" />
@@ -31,7 +32,7 @@ export function ProtocolInspector({
       >
         Protocol inspector
       </SectionTitle>
-      <div className="grid min-h-[28rem] grid-cols-1 md:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)]">
+      <div className="grid min-h-[28rem] grid-cols-1 border-t border-border md:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)]">
         <div className={cx('flex max-h-[36rem] min-h-0 flex-col border-border md:max-h-[48rem] md:border-r', 'border-b md:border-b-0')}>
           <ExchangeList exchanges={exchanges} selectedId={selected?.id} onSelect={onSelect} />
         </div>

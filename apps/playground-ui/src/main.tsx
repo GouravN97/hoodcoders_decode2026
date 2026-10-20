@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { USE_MOCKS } from './config';
+import '@fontsource-variable/mona-sans';
 import './index.css';
 
 async function boot() {

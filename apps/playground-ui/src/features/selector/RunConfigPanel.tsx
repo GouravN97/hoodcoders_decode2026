@@ -86,7 +86,7 @@ export function RunConfigPanel({
   return (
     <Card aria-label="Run settings">
       <SectionTitle>Run settings</SectionTitle>
-      <div className="flex flex-col gap-4 p-4">
+      <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2 2xl:grid-cols-1">
         <Field label="Credential format">
           {formats.length === 0 ? (
             <p className="text-[13px] text-bad">The selected issuer, wallet and verifier share no format.</p>

@@ -7,10 +7,10 @@ export type Tone = 'neutral' | 'accent' | 'ok' | 'bad' | 'warn';
 
 const TONE_CHIP: Record<Tone, string> = {
   neutral: 'bg-surface-2 text-muted border-border',
-  accent: 'bg-accent-soft text-accent border-transparent',
-  ok: 'bg-ok-soft text-ok border-transparent',
-  bad: 'bg-bad-soft text-bad border-transparent',
-  warn: 'bg-warn-soft text-warn border-transparent',
+  accent: 'bg-accent-soft text-accent border-accent/25',
+  ok: 'bg-ok-soft text-ok border-ok/25',
+  bad: 'bg-bad-soft text-bad border-bad/25',
+  warn: 'bg-warn-soft text-warn border-warn/25',
 };
 
 export function Badge({ tone = 'neutral', children, title, mono }: { tone?: Tone; children: ReactNode; title?: string; mono?: boolean }) {
@@ -18,7 +18,7 @@ export function Badge({ tone = 'neutral', children, title, mono }: { tone?: Tone
     <span
       title={title}
       className={cx(
-        'inline-flex items-center gap-1 whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[11px] font-medium leading-4',
+        'inline-flex items-center gap-1 whitespace-nowrap rounded-[5px] border px-1.5 py-0.5 text-[11px] font-medium leading-4',
         mono && 'font-mono',
         TONE_CHIP[tone],
       )}
@@ -31,27 +31,79 @@ export function Badge({ tone = 'neutral', children, title, mono }: { tone?: Tone
 // cx does not merge conflicting utilities, so the border colour is a prop rather than a className override.
 export function Card({ children, className, highlight, as: As = 'section', ...rest }: { children: ReactNode; className?: string; highlight?: boolean; as?: 'section' | 'div' | 'article'; id?: string; 'aria-label'?: string }) {
   return (
-    <As className={cx('rounded-xl border bg-surface', highlight ? 'border-accent/40' : 'border-border', className)} {...rest}>
+    <As
+      className={cx(
+        'rounded-xl border bg-surface shadow-[0_1px_3px_rgb(4_2_20/0.45)]',
+        highlight ? 'border-accent/50' : 'border-border',
+        className,
+      )}
+      {...rest}
+    >
       {children}
     </As>
   );
 }
 
-export function SectionTitle({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
+export function SectionTitle({ children, aside, icon }: { children: ReactNode; aside?: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
-      <h2 className="text-[13px] font-semibold tracking-tight">{children}</h2>
+    <div className="flex min-h-12 items-center justify-between gap-3 px-4 pb-1 pt-3">
+      <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+        {icon && <span className="text-muted">{icon}</span>}
+        {children}
+      </h2>
       {aside}
     </div>
   );
 }
 
+/** Page title row: heading and description on the left, page actions on the right. */
+export function PageHeader({ title, description, actions }: { title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
+  return (
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex min-w-0 flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        {description && <div className="max-w-2xl text-sm text-muted">{description}</div>}
+      </div>
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+    </header>
+  );
+}
+
+/** KPI tile: small icon + label, a large value with an optional chip beside it, and a footnote. */
+export function StatCard({
+  icon,
+  label,
+  value,
+  chip,
+  footer,
+}: {
+  icon?: ReactNode;
+  label: string;
+  value: ReactNode;
+  chip?: ReactNode;
+  footer?: ReactNode;
+}) {
+  return (
+    <Card as="div" className="flex min-w-0 flex-col gap-2.5 p-4">
+      <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
+        {icon}
+        {label}
+      </p>
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="truncate text-2xl font-semibold leading-none tracking-tight tabular-nums">{value}</span>
+        {chip}
+      </div>
+      {footer && <div className="truncate text-xs text-muted">{footer}</div>}
+    </Card>
+  );
+}
+
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 const BUTTON: Record<ButtonVariant, string> = {
-  primary: 'bg-accent text-accent-fg hover:brightness-110 disabled:opacity-50',
-  secondary: 'border border-border bg-surface hover:bg-surface-2 disabled:opacity-50',
+  primary: 'bg-accent-strong text-accent-fg shadow-[0_0_16px_-4px_var(--c-accent)] hover:brightness-110 disabled:opacity-50 disabled:shadow-none',
+  secondary: 'border border-border bg-surface-2 hover:border-muted/50 disabled:opacity-50',
   ghost: 'hover:bg-surface-2 text-muted hover:text-fg disabled:opacity-50',
-  danger: 'border border-border bg-surface text-bad hover:bg-bad-soft disabled:opacity-50',
+  danger: 'border border-border bg-surface-2 text-bad hover:bg-bad-soft disabled:opacity-50',
 };
 
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -124,7 +176,7 @@ export function Tabs<T extends string>({
   size?: 'sm' | 'md';
 }) {
   return (
-    <div role="tablist" aria-label={label} className="inline-flex gap-0.5 rounded-lg bg-surface-2 p-0.5">
+    <div role="tablist" aria-label={label} className="inline-flex gap-0.5 rounded-lg border border-border bg-bg p-0.5">
       {items.map((t) => (
         <button
           key={t.id}
@@ -135,7 +187,7 @@ export function Tabs<T extends string>({
           className={cx(
             'rounded-md font-medium transition-colors',
             size === 'md' ? 'px-3 py-1 text-[13px]' : 'px-2 py-0.5 text-xs',
-            value === t.id ? 'bg-surface text-fg shadow-sm' : 'text-muted hover:text-fg',
+            value === t.id ? 'bg-surface-2 text-fg shadow-sm' : 'text-muted hover:text-fg',
           )}
         >
           {t.label}
@@ -175,4 +227,4 @@ export function Field({ label, children, htmlFor, hint }: { label: string; child
 }
 
 export const selectClass =
-  'h-9 w-full rounded-lg border border-border bg-surface px-2.5 text-sm disabled:opacity-50';
+  'h-9 w-full rounded-lg border border-border bg-surface-2 px-2.5 text-sm hover:border-muted/50 disabled:opacity-50';

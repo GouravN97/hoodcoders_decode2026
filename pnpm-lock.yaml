@@ -199,6 +199,9 @@ importers:
 
   apps/playground-ui:
     dependencies:
+      '@fontsource-variable/mona-sans':
+        specifier: 5.2.8
+        version: 5.2.8
       '@playground/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -595,6 +598,9 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@fontsource-variable/mona-sans@5.2.8':
+    resolution: {integrity: sha512-8OWdTcP8KvRxkU1Skkk+tX3D5XHN9buejxSDwrT7teRfGnpKBYxQUApV/+zS8TzeHiSU8H5Tc0HfBr57ahgcvA==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -2507,6 +2513,8 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
+
+  '@fontsource-variable/mona-sans@5.2.8': {}
 
   '@humanfs/core@0.19.2':
     dependencies:

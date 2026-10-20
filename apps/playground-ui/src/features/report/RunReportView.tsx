@@ -12,7 +12,7 @@ import {
 import { useState, type ReactNode } from 'react';
 import type { ReportFormat } from '../../api/client';
 import { useReport } from '../../api/queries';
-import { DownloadIcon } from '../../components/icons';
+import { DownloadIcon, IssuerIcon } from '../../components/icons';
 import { Button, Card, cx, ErrorNote, SectionTitle, Spinner, type Tone } from '../../components/ui';
 import { EvidenceIcon, STATUS_LABEL, StatusIcon } from '../run/status';
 import { downloadReport } from './download';
@@ -79,7 +79,7 @@ function ReportBody({ report }: { report: RunReport }) {
   const tone = VERDICT_TONE[report.verdict];
   return (
     <>
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-4">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 pb-4 pt-2">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-wider text-muted">Outcome</p>
           <p className={cx('text-2xl font-bold tracking-tight', TONE_TEXT[tone])} data-testid="report-verdict">
@@ -166,7 +166,9 @@ export function RunReportView({ runId, ready }: { runId: string; ready: boolean 
   const report = useReport(runId, ready);
   return (
     <Card id="report" aria-label="Run report">
-      <SectionTitle aside={ready && <DownloadButtons runId={runId} />}>Run report</SectionTitle>
+      <SectionTitle icon={<IssuerIcon width={16} height={16} />} aside={ready && <DownloadButtons runId={runId} />}>
+        Run report
+      </SectionTitle>
       {!ready ? (
         <p className="px-4 py-6 text-center text-[13px] text-muted">The report is ready when the run finishes.</p>
       ) : report.isPending ? (

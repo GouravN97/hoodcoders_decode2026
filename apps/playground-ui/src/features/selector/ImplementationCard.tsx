@@ -28,7 +28,7 @@ export function ImplementationCard({
       title={disabledReason}
       className={cx(
         'relative flex cursor-pointer flex-col gap-2 rounded-lg border p-3 transition-[background-color,border-color,box-shadow]',
-        selected ? 'border-accent bg-accent-soft/60 ring-1 ring-accent' : 'border-border bg-surface hover:border-muted/60',
+        selected ? 'border-accent bg-accent-soft/60 ring-1 ring-accent' : 'border-border bg-bg/40 hover:border-muted/60',
         disabled && 'cursor-not-allowed opacity-55 hover:border-border',
       )}
     >
