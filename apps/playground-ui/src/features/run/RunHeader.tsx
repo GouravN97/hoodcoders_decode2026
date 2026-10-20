@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useCancelRun } from '../../api/queries';
 import { ArrowRightIcon } from '../../components/icons';
-import { Badge, Button, type Tone } from '../../components/ui';
+import { Badge, Button, buttonClass, type Tone } from '../../components/ui';
 import { isTerminal } from '../../realtime/runReducer';
 
 const STATE_TONE: Partial<Record<RunState, Tone>> = {
@@ -58,10 +58,7 @@ export function RunHeader({ run, catalog }: { run: RunDetail; catalog: CatalogEn
             Cancel run
           </Button>
         )}
-        <Link
-          to="/"
-          className="inline-flex h-7 items-center rounded-lg border border-border bg-surface px-2.5 text-xs font-medium hover:bg-surface-2"
-        >
+        <Link to="/" className={buttonClass({ size: 'sm' })}>
           New run
         </Link>
       </div>

@@ -66,7 +66,7 @@ function DownloadButtons({ runId }: { runId: string }) {
     <div className="flex items-center gap-2">
       {error && <span className="text-xs text-bad">{error}</span>}
       {(['md', 'json'] as const).map((f) => (
-        <Button key={f} size="sm" onClick={() => void get(f)} disabled={busy !== null}>
+        <Button key={f} size="sm" className="pl-2" onClick={() => void get(f)} disabled={busy !== null}>
           {busy === f ? <Spinner className="size-3.5" /> : <DownloadIcon width={14} height={14} />}
           {f === 'md' ? 'Markdown' : 'JSON'}
         </Button>

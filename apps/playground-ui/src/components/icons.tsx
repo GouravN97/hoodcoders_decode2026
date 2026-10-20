@@ -1,4 +1,6 @@
 // Inline stroke icons (24px grid, currentColor) so they follow the theme tokens.
+// data-icon makes strokes non-scaling, so strokeWidth is rendered pixels: 2 beside medium/semibold text,
+// 1.5 beside regular text, 2.5 for bold or an emphasised standalone icon.
 import type { SVGProps } from 'react';
 
 const base = (props: SVGProps<SVGSVGElement>) => ({
@@ -11,6 +13,7 @@ const base = (props: SVGProps<SVGSVGElement>) => ({
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const,
   'aria-hidden': true,
+  'data-icon': '',
   ...props,
 });
 

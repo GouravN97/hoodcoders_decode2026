@@ -33,13 +33,16 @@ function Node({ name, value, depth, openDepth }: { name?: string; value: unknown
     );
   }
   return (
-    <details open={depth < openDepth} className={cx(depth > 0 && 'pl-4', 'group')}>
+    // State selectors target this node's own summary ([open]>summary), not any open ancestor as group-open: would.
+    <details open={depth < openDepth} className={cx(depth > 0 && 'pl-4')}>
       <summary className="-ml-4 cursor-pointer list-none pl-4 marker:hidden hover:bg-surface-2">
-        <span className="mr-1 inline-block w-3 text-muted transition-transform group-open:rotate-90">›</span>
+        <span className="mr-1 inline-block w-3 text-muted ease-out motion-safe:transition-[rotate] motion-safe:duration-150 [[open]>summary>&]:rotate-90">
+          ›
+        </span>
         {label}
         <span className="text-muted">
           {open}
-          <span className="group-open:hidden"> {entries.length} {Array.isArray(value) ? 'items' : 'keys'} {close}</span>
+          <span className="[[open]>summary_&]:hidden"> {entries.length} {Array.isArray(value) ? 'items' : 'keys'} {close}</span>
         </span>
       </summary>
       {entries.map(([k, v]) => (

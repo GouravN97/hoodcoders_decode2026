@@ -32,7 +32,7 @@ export function ExchangeDetail({ exchange, reveal }: { exchange: ExchangeWithDec
       <div className="flex flex-col gap-2 border-b border-border px-4 py-3">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
           <span>{partyLabel(exchange.from)}</span>
-          <ArrowRightIcon width={12} height={12} />
+          <ArrowRightIcon width={12} height={12} strokeWidth={1.5} />
           <span>{partyLabel(exchange.component)}</span>
           <span>·</span>
           <span>{new Date(exchange.ts).toLocaleString(undefined, { hour12: false })}</span>
