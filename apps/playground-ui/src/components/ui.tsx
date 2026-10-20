@@ -28,13 +28,32 @@ export function Badge({ tone = 'neutral', children, title, mono }: { tone?: Tone
   );
 }
 
-// cx does not merge conflicting utilities, so the border colour is a prop rather than a className override.
-export function Card({ children, className, highlight, as: As = 'section', ...rest }: { children: ReactNode; className?: string; highlight?: boolean; as?: 'section' | 'div' | 'article'; id?: string; 'aria-label'?: string }) {
+// cx does not merge conflicting utilities, so border colour and shadow are props rather than className overrides.
+// glow lights the card up in the accent colour (border, outer glow and a soft wash) and implies highlight.
+export function Card({
+  children,
+  className,
+  highlight,
+  glow,
+  as: As = 'section',
+  ...rest
+}: {
+  children: ReactNode;
+  className?: string;
+  highlight?: boolean;
+  glow?: boolean;
+  as?: 'section' | 'div' | 'article';
+  id?: string;
+  'aria-label'?: string;
+  'data-active'?: boolean;
+}) {
   return (
     <As
       className={cx(
-        'rounded-xl border bg-surface shadow-[0_1px_3px_rgb(4_2_20/0.45)]',
-        highlight ? 'border-accent/50' : 'border-border',
+        'rounded-xl border bg-surface transition-[border-color,box-shadow,background-color] duration-300 ease-out',
+        glow
+          ? 'border-accent/70 bg-gradient-to-b from-accent-soft/80 to-surface shadow-[0_0_0_1px_rgb(203_60_255/0.25),0_0_32px_-8px_var(--c-accent)]'
+          : cx('shadow-[0_1px_3px_rgb(4_2_20/0.45)]', highlight ? 'border-accent/50' : 'border-border'),
         className,
       )}
       {...rest}

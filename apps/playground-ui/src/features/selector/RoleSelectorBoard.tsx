@@ -1,14 +1,15 @@
 import { ROLES, roleLabel, type CatalogEntry, type Role } from '@playground/shared';
 import { useEffect } from 'react';
-import { Card, EmptyState, selectClass } from '../../components/ui';
+import { IssuerIcon, ShieldIcon, WalletIcon } from '../../components/icons';
+import { Card, cx, EmptyState, selectClass } from '../../components/ui';
 import { selectedIdFor, useSelection } from '../../store/selection';
 import { disabledReason } from './compat';
 import { ImplementationCard } from './ImplementationCard';
 
-const ROLE_HINT: Record<Role, string> = {
-  issuer: 'Creates and signs the credential',
-  wallet: 'Holds the credential and presents it',
-  verifier: 'Checks the presented credential',
+const ROLE_META: Record<Role, { hint: string; Icon: typeof IssuerIcon }> = {
+  issuer: { hint: 'Creates and signs the credential', Icon: IssuerIcon },
+  wallet: { hint: 'Holds the credential and presents it', Icon: WalletIcon },
+  verifier: { hint: 'Checks the presented credential', Icon: ShieldIcon },
 };
 
 export function RoleSelectorBoard({ catalog }: { catalog: CatalogEntry[] }) {
@@ -32,13 +33,29 @@ export function RoleSelectorBoard({ catalog }: { catalog: CatalogEntry[] }) {
         const unavailable = entries.filter((e) => reasons.get(e.id));
         const current = selectedEntry(role);
         const id = `role-${role}`;
+        const { hint, Icon } = ROLE_META[role];
+        // The panel lights up once a service is chosen for its role.
         return (
-          <Card key={role} as="div" className="flex flex-col">
-            <div className="px-4 pb-1 pt-3.5">
-              <label htmlFor={id} className="block text-sm font-semibold">
-                {roleLabel(role)}
-              </label>
-              <span className="block text-xs text-muted">{ROLE_HINT[role]}</span>
+          <Card key={role} as="div" className="flex flex-col" glow={Boolean(current)} data-active={Boolean(current)}>
+            <div className="flex items-center gap-3 px-4 pb-1 pt-3.5">
+              <span
+                aria-hidden
+                data-testid={`role-icon-${role}`}
+                className={cx(
+                  'grid size-9 shrink-0 place-items-center rounded-lg border transition-[background-color,border-color,color,box-shadow] duration-300 ease-out',
+                  current
+                    ? 'border-transparent bg-gradient-to-br from-accent to-violet text-white shadow-[0_0_16px_-3px_var(--c-accent)]'
+                    : 'border-border bg-surface-2 text-muted',
+                )}
+              >
+                <Icon width={18} height={18} />
+              </span>
+              <div className="min-w-0">
+                <label htmlFor={id} className="block text-sm font-semibold">
+                  {roleLabel(role)}
+                </label>
+                <span className="block text-xs text-muted">{hint}</span>
+              </div>
             </div>
             <div className="flex flex-col gap-2 p-3">
               {entries.length === 0 ? (
