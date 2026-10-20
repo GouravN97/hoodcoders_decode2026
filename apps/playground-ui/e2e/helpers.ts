@@ -24,4 +24,11 @@ export async function startRun(
   await expect(page).toHaveURL(/\/runs\/[0-9a-f-]+/);
 }
 
+/** Opens one of the run page's side-menu sections. */
+export async function openSection(page: Page, name: 'Issued credential' | 'Protocol inspector' | 'Report') {
+  const tab = page.getByRole('tablist', { name: 'Run details' }).getByRole('tab', { name: new RegExp(`^${name}`) });
+  await tab.click();
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+}
+
 export const step = (page: Page, id: string) => page.locator(`[data-step="${id}"]`);

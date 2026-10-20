@@ -80,3 +80,9 @@ export const MessagesIcon = (p: SVGProps<SVGSVGElement>) => (
 export const ActivityIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><path d="M3.5 12.5h4l2-5 4.5 10 2-5h4.5" /></svg>
 );
+export const CredentialIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><rect x="3.5" y="5.5" width="17" height="13" rx="2.5" /><circle cx="9" cy="11" r="2" /><path d="M6 15.5c.6-1.3 1.7-2 3-2s2.4.7 3 2M14.5 10h3M14.5 13h2" /></svg>
+);
+export const ReportIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M9 4.5h6v2.5H9z" /><path d="M15 5.5h2.5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1H9" /><path d="m9 14 2 2 4-4.5" /></svg>
+);
