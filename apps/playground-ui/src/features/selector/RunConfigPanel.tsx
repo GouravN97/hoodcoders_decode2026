@@ -119,7 +119,9 @@ export function RunConfigPanel({
             onChange={(e) => update({ credentialConfigurationId: e.target.value })}
           >
             {configsLoading && <option value="">Loading…</option>}
-            {!configsLoading && configsForFormat.length === 0 && <option value="">No credential for this format</option>}
+            {!configsLoading && configsForFormat.length === 0 && (
+              <option value="">{issuer ? 'No credential for this format' : 'Choose an issuer first'}</option>
+            )}
             {configsForFormat.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.displayName}

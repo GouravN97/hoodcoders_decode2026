@@ -15,7 +15,8 @@ export interface SelectionState {
   credentialConfigurationId?: string;
   presentationFlow: PresentationFlow;
   expectedOutcome: VerificationOutcome;
-  select: (role: Role, id: string) => void;
+  /** Pass undefined to set the role back to None. */
+  select: (role: Role, id: string | undefined) => void;
   update: (patch: Partial<Omit<SelectionState, 'select' | 'update'>>) => void;
 }
 
@@ -57,7 +58,13 @@ export const useSelection = create<SelectionState>()(
     {
       name: 'playground.selection',
       storage: createJSONStorage(() => safeStorage),
-      version: 1,
+      // Issuer, wallet and verifier start at None on every visit; only the run settings are remembered.
+      partialize: ({ issuerId: _i, walletId: _w, verifierId: _v, ...rest }) => rest,
+      version: 2,
+      migrate: (persisted) => {
+        const { issuerId: _i, walletId: _w, verifierId: _v, ...rest } = (persisted ?? {}) as Partial<SelectionState>;
+        return rest as SelectionState;
+      },
     },
   ),
 );
