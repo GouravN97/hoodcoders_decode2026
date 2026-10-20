@@ -9,17 +9,16 @@ This directory runs the core Inji services locally with Docker Compose:
 - **Inji Wallet**: React Native mobile app, run separately on Android or iOS
 
 The Compose file uses the mock CSV Certify plugin and one PostgreSQL instance. It
-does not use the MOSIP Collab Docker network or the Verify repository's separate
-database container. The provided `esignet` repository is wired into an optional
-local mock authorization profile. Mimoto and Inji Web are also optional because
-they still require additional Resident/WebSub/MOSIP services for every Wallet
-flow.
+does not use the MOSIP Collab Docker network or any cloned upstream source
+repository. All database scripts, service configuration, templates, and Nginx
+files required by Compose are included in this directory. Mimoto and Inji Web
+are also optional because they still require additional Resident/WebSub/MOSIP
+services for every Wallet flow.
 
 ## Prerequisites
 
 - Docker Desktop with Compose v2
 - Git
-- The provided `esignet` directory (required for the local authorization profile)
 - Java 17 and Node 18.17.1/npm 8.19.3 for the mobile Wallet
 - Android Studio and an Android emulator, or Xcode on macOS
 
@@ -42,8 +41,7 @@ docker compose logs -f mimoto-service
 docker compose logs -f verify-service
 ```
 
-The Certify mock setup is intended for the guest/demo flow documented by
-[Inji Certify](./inji-certify/docker-compose/docker-compose-injistack/README.md).
+The Certify mock setup is intended for the local guest/demo flow.
 Authentication through eSignet, Google sign-in, and MOSIP Resident APIs are
 not included in the baseline command. The command intentionally starts the local
 Certify and Verify services without silently falling back to Collab.
@@ -58,7 +56,7 @@ docker compose --profile esignet --profile wallet up -d
 docker compose --profile esignet --profile wallet ps
 ```
 
-The eSignet profile uses the cloned repository's documented mock setup:
+The eSignet profile uses the included local mock setup:
 
 - eSignet service: <http://localhost:8088> (the OIDC issuer hostname is
   `http://esignet.localhost:8088` so both the browser and Docker containers
@@ -67,10 +65,9 @@ The eSignet profile uses the cloned repository's documented mock setup:
 - Mock identity system: <http://localhost:8082>
 
 The eSignet profile deliberately uses ports `8088` and `3005` because Verify
-already uses `8080` and `3000`. The mock identity credentials and OIDC client
-must still be seeded/onboarded using the eSignet repository's Postman
-collection; see
-[the eSignet local setup guide](./esignet/docker-compose/README.md).
+already uses `8080` and `3000`. The mock identity is seeded by
+`db/esignet-init.sql`. The `postman` directory contains the local eSignet
+collection for onboarding and API verification.
 
 When the `wallet` profile is enabled, Mimoto is available under its configured
 context path:
@@ -157,12 +154,22 @@ is not required to regenerate Certify's `local.p12`.
 
 The local wallet setup uses the eSignet client `wallet-demo`, with the
 `wallet-demo-client` key alias and the local keystore password configured in
-Compose. The keystore is mounted from
-`inji-certify/docker-compose/docker-compose-injistack/certs/oidckeystore.p12`.
+Compose. The keystore must be placed at `certs/oidckeystore.p12`.
 Do not commit that file or its private key. A new environment must generate
 its own PKCS#12 file using the `certgen.zip` procedure from the Inji
 documentation, register the matching public JWK in eSignet, and set the
 `oidc_p12_password` Compose value to the keystore password.
+
+The `wallet` profile cannot start until that file exists. The keystore is
+environment-specific and is intentionally not included in this repository.
+For an eSignet/Mimoto demonstration, first generate or obtain a local
+`oidckeystore.p12`, place it under `certs/`, and onboard its public JWK for the
+`wallet-demo` client using the Postman collection. Then run:
+
+```powershell
+docker compose --profile esignet --profile wallet pull
+docker compose --profile esignet --profile wallet up -d
+```
 
 ### Current local Web Wallet limitation
 
@@ -177,13 +184,13 @@ For a working authentication/API demonstration, use the local eSignet
 Postman collection:
 
 ```text
-esignet/postman-collection/Go-eSignet.postman_collection.json
+postman/Go-eSignet.postman_collection.json
 ```
 
 Run it with:
 
 ```text
-esignet/postman-collection/Go-eSignet (local).postman_environment.json
+postman/Go-eSignet (local).postman_environment.json
 ```
 
 Postman validates eSignet authentication, consent, token, and UserInfo. It
@@ -193,14 +200,14 @@ Certify.
 ## Run Inji Wallet against the local backend
 
 The Wallet is a native mobile app and cannot be served by this Compose file.
-It requires Mimoto, so start the optional profile after configuring the local
-authorization platform. Then copy [`.env.local.example`](./inji-wallet/.env.local.example) to
-`inji-wallet/.env.local`, replacing `<host-ip>` with the host machine's
-LAN address when using a physical device. Android emulators use
+The native Wallet source is not included in this orchestration directory.
+Clone the pinned Inji Wallet repository separately, then copy its
+`.env.local.example` to `.env.local`, replacing `<host-ip>` with the host
+machine's LAN address when using a physical device. Android emulators use
 `10.0.2.2`; iOS simulators can use `localhost`.
 
 ```powershell
-cd inji-wallet
+cd path\to\inji-wallet
 npm install
 npm start -- --reset-cache
 ```
