@@ -19,6 +19,7 @@
     ]
   },
   "dependencies": {
+    "@fontsource-variable/mona-sans": "5.2.8",
     "@fontsource-variable/work-sans": "5.2.8",
     "@playground/shared": "workspace:*",
     "@tanstack/react-query": "5.104.1",

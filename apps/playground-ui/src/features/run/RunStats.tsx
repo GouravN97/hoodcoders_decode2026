@@ -16,7 +16,7 @@ export function RunStats({ run, exchanges }: { run: RunDetail; exchanges: Exchan
   const pct = counted.length ? Math.round((done / counted.length) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-8 xl:grid-cols-4" aria-label="Run summary">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-8 xl:grid-cols-4 dashdark:gap-3" aria-label="Run summary">
       <StatCard
         icon={<ActivityIcon width={22} height={22} />}
         label="Steps done"

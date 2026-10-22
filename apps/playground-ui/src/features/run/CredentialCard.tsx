@@ -14,7 +14,7 @@ export function CredentialCard({ artifact }: { artifact: Artifact }) {
     <Card aria-label="Issued credential">
       <SectionTitle aside={artifact.format && <Badge mono>{artifact.format}</Badge>}>Issued credential</SectionTitle>
       <div className="flex flex-col gap-3 p-4">
-        <div className="rounded-2xl bg-accent p-5 text-accent-fg">
+        <div className="rounded-2xl bg-accent p-5 text-accent-fg dashdark:rounded-lg dashdark:bg-gradient-to-br dashdark:from-accent-strong dashdark:to-violet dashdark:p-4">
           <p className="text-[11px] font-medium uppercase tracking-wider opacity-80">
             {artifact.format ? formatLabel(artifact.format) : 'Credential'}
           </p>

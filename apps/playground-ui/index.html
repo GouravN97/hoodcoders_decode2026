@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232e4f21'/><path d='M9 17l5 5 9-11' stroke='%23cbf9de' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
     <meta name="theme-color" content="#f9f9f9" />
+    <script>
+      // Apply the saved theme before first paint (see src/theme.ts; keep the key and values in sync).
+      try {
+        if (localStorage.getItem('playground.theme') === 'dashdark') {
+          document.documentElement.dataset.theme = 'dashdark';
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0926');
+        }
+      } catch (e) {}
+    </script>
     <title>Inji Interop Playground</title>
   </head>
   <body>

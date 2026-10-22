@@ -7,6 +7,10 @@ Everything the user sees for mandatory tasks 2, 3/4, 5 and 7:
 | `/` | Issuer / Wallet / Verifier selector built from `catalog/*.yaml`, run settings (format, credential, flow, expected result), compatibility hint, Run button |
 | `/runs/:id` | Live phase stepper, QR / link delivery, "I can see the credential" confirmation, Valid / Invalid / Valid-but-Expired banner. A side menu switches between the credential card, the protocol inspector (raw / decoded / headers, secrets masked) and the pass/fail report with Markdown and JSON downloads; `?view=credential\|inspector\|report` picks one, otherwise it shows the inspector while the run is live and the report once it has finished |
 
+## Themes
+
+Two themes, switched at the bottom of the sidebar (or the menu on phones) and remembered per browser: **Noble** (light, the default, after the Noble Finance Figma template) and **Dashdark** (dark, after the Dashdark X admin kit). Colours and fonts are tokens in `src/index.css`; the few shape differences use the `dashdark:` Tailwind variant. `src/theme.ts` switches `data-theme` on `<html>`, and a small script in `index.html` applies the saved theme before first paint.
+
 ## Mock mode vs. real BFF
 
 | Variable | Default | Meaning |

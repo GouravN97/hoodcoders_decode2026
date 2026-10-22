@@ -30,9 +30,13 @@ export function useRunEvents(runId: string) {
     const unsubscribe = runEventSource.subscribe(
       runId,
       (event) => {
-        qc.setQueryData<RunDetail>(queryKeys.run(runId), (prev) =>
-          prev ? applyRunEvent(prev, event) : prev,
-        );
+        const runKey = queryKeys.run(runId);
+        qc.setQueryData<RunDetail>(runKey, (prev) => (prev ? applyRunEvent(prev, event) : prev));
+        // A refetch already in flight carries a snapshot older than this event and would overwrite it when it
+        // lands (e.g. "Holding" after "Cancelled"). Restart it: React Query drops the stale response.
+        if (qc.isFetching({ queryKey: runKey, exact: true }) > 0) {
+          void qc.invalidateQueries({ queryKey: runKey, exact: true });
+        }
         if (event.type === 'run.exchange') refreshExchanges();
         if (event.type === 'run.completed') {
           void qc.invalidateQueries({ queryKey: queryKeys.report(runId) });

@@ -20,7 +20,7 @@ const ROLE_STAT: Record<Role, { label: string; Icon: typeof IssuerIcon }> = {
 function CatalogStats({ entries, formats, loading }: { entries: CatalogEntry[]; formats: string[]; loading: boolean }) {
   const dash = loading ? '…' : '—';
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-8 xl:grid-cols-4" aria-label="Catalog overview">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-8 xl:grid-cols-4 dashdark:gap-3" aria-label="Catalog overview">
       {(Object.keys(ROLE_STAT) as Role[]).map((role) => {
         const { label, Icon } = ROLE_STAT[role];
         const ofRole = entries.filter((c) => c.role === role);
