@@ -78,6 +78,8 @@ export const ImplementationDescriptorSchema = z.object({
   id: z.string().min(1),
   role: RoleSchema,
   displayName: z.string().min(1),
+  /** One sentence for the selector: what this implementation is and how it runs. */
+  description: z.string().optional(),
   vendor: z.enum(['inji', 'mock', 'external']),
   adapter: z.string().min(1),
   publicUrl: z.string(),

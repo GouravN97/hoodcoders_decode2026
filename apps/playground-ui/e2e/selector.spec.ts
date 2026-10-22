@@ -7,7 +7,7 @@ test('Run stays disabled until an issuer, a wallet and a verifier are all chosen
   const missing = page.getByTestId('missing-roles');
 
   for (const role of ['Issuer', 'Wallet', 'Verifier'] as const) {
-    await expect(page.getByRole('combobox', { name: role, exact: true })).toHaveValue('');
+    await expect(page.getByRole('group', { name: role, exact: true }).getByRole('radio', { checked: true })).toHaveCount(0);
   }
   await expect(run).toBeDisabled();
   await expect(missing).toHaveText('Choose an issuer, a wallet and a verifier to run');
@@ -30,5 +30,18 @@ test('role choices are not remembered across visits', async ({ page }) => {
   await page.goto('/');
   await pickImplementation(page, 'Issuer', 'Inji Certify');
   await page.reload();
-  await expect(page.getByRole('combobox', { name: 'Issuer', exact: true })).toHaveValue('');
+  await expect(page.getByRole('group', { name: 'Issuer', exact: true }).getByRole('radio', { checked: true })).toHaveCount(0);
+});
+
+test('each role row scrolls sideways when its choices do not fit', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.goto('/');
+  const wallets = page.getByRole('group', { name: 'Wallet', exact: true });
+  const more = wallets.getByRole('button', { name: 'Show more wallets' });
+  await expect(more).toBeEnabled();
+  const last = page.getByTestId('choice-mock-wallet');
+  await expect(last).not.toBeInViewport();
+  await more.click();
+  await expect(last).toBeInViewport();
+  await expect(wallets.getByRole('button', { name: 'Show earlier wallets' })).toBeEnabled();
 });

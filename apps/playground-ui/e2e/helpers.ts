@@ -1,8 +1,14 @@
 import { expect, type Page } from '@playwright/test';
 
-/** Picks an implementation from a role's dropdown by its display name. */
+/** Picks an implementation card in a role's row by its display name, or clears the row with 'None'. */
 export async function pickImplementation(page: Page, role: 'Issuer' | 'Wallet' | 'Verifier', name: string) {
-  await page.getByRole('combobox', { name: role, exact: true }).selectOption({ label: name });
+  const row = page.getByRole('group', { name: role, exact: true });
+  if (name === 'None') {
+    await row.getByRole('button', { name: `Clear ${role.toLowerCase()}` }).click();
+    return;
+  }
+  await row.locator('label').filter({ has: page.getByRole('radio', { name, exact: true }) }).click();
+  await expect(row.getByRole('radio', { name, exact: true })).toBeChecked();
 }
 
 /** Opens the selector with mock runs sped up, picks roles and settings, and presses Run. */
