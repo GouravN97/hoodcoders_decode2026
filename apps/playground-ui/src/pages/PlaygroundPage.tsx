@@ -20,7 +20,7 @@ const ROLE_STAT: Record<Role, { label: string; Icon: typeof IssuerIcon }> = {
 function CatalogStats({ entries, formats, loading }: { entries: CatalogEntry[]; formats: string[]; loading: boolean }) {
   const dash = loading ? '…' : '—';
   return (
-    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Catalog overview">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-8 xl:grid-cols-4" aria-label="Catalog overview">
       {(Object.keys(ROLE_STAT) as Role[]).map((role) => {
         const { label, Icon } = ROLE_STAT[role];
         const ofRole = entries.filter((c) => c.role === role);
@@ -28,7 +28,7 @@ function CatalogStats({ entries, formats, loading }: { entries: CatalogEntry[]; 
         return (
           <StatCard
             key={role}
-            icon={<Icon width={15} height={15} />}
+            icon={<Icon width={22} height={22} />}
             label={label}
             value={ofRole.length || dash}
             chip={ofRole.length > 0 && <Badge tone={online === ofRole.length ? 'ok' : online === 0 ? 'bad' : 'warn'}>{online} online</Badge>}
@@ -37,7 +37,7 @@ function CatalogStats({ entries, formats, loading }: { entries: CatalogEntry[]; 
         );
       })}
       <StatCard
-        icon={<LayersIcon width={15} height={15} />}
+        icon={<LayersIcon width={22} height={22} />}
         label="Formats in common"
         value={loading ? dash : formats.length}
         footer={formats.length > 0 ? formats.join(', ') : 'For the current selection'}
@@ -92,6 +92,7 @@ export function PlaygroundPage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <PageHeader
+        hero
         title="New interop run"
         description="Pick who plays each role, choose a credential format, then run a live issue → hold → present → verify cycle and watch every protocol message."
       />

@@ -6,7 +6,7 @@ export const cx = (...c: Array<string | false | null | undefined>) => c.filter(B
 export type Tone = 'neutral' | 'accent' | 'ok' | 'bad' | 'warn';
 
 const TONE_CHIP: Record<Tone, string> = {
-  neutral: 'bg-surface-2 text-muted border-border',
+  neutral: 'bg-surface text-fg border-border',
   accent: 'bg-accent-soft text-accent border-accent/25',
   ok: 'bg-ok-soft text-ok border-ok/25',
   bad: 'bg-bad-soft text-bad border-bad/25',
@@ -18,7 +18,7 @@ export function Badge({ tone = 'neutral', children, title, mono }: { tone?: Tone
     <span
       title={title}
       className={cx(
-        'inline-flex items-center gap-1 whitespace-nowrap rounded-[5px] border px-1.5 py-0.5 text-[11px] font-medium leading-4',
+        'inline-flex items-center gap-1 whitespace-nowrap rounded-md border px-2 py-0.5 text-[11px] font-medium leading-4',
         mono && 'font-mono',
         TONE_CHIP[tone],
       )}
@@ -29,12 +29,13 @@ export function Badge({ tone = 'neutral', children, title, mono }: { tone?: Tone
 }
 
 // cx does not merge conflicting utilities, so border colour and background are props rather than className overrides.
-// active brightens the card (lighter surface, accent border) to mark a made choice.
+// active turns the card mint to mark a made choice; dim sets it back on the page colour until then.
 export function Card({
   children,
   className,
   highlight,
   active,
+  dim,
   as: As = 'section',
   ...rest
 }: {
@@ -42,6 +43,7 @@ export function Card({
   className?: string;
   highlight?: boolean;
   active?: boolean;
+  dim?: boolean;
   as?: 'section' | 'div' | 'article';
   id?: string;
   'aria-label'?: string;
@@ -50,8 +52,12 @@ export function Card({
   return (
     <As
       className={cx(
-        'rounded-xl border shadow-[0_1px_3px_rgb(4_2_20/0.45)] transition-[border-color,background-color,filter] duration-300 ease-out',
-        active ? 'border-accent/60 bg-surface-2' : cx('bg-surface', highlight ? 'border-accent/50' : 'border-border'),
+        'rounded-[20px] border transition-[border-color,background-color,filter,opacity] duration-300 ease-out',
+        active
+          ? 'border-transparent bg-accent-soft'
+          : dim
+            ? 'border-border bg-bg hover:bg-surface focus-within:bg-surface'
+            : cx('bg-surface', highlight ? 'border-accent/40' : 'border-border'),
         className,
       )}
       {...rest}
@@ -63,9 +69,9 @@ export function Card({
 
 export function SectionTitle({ children, aside, icon }: { children: ReactNode; aside?: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="flex min-h-12 items-center justify-between gap-3 px-4 pb-1 pt-3">
-      <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
-        {icon && <span className="text-muted">{icon}</span>}
+    <div className="flex min-h-14 items-center justify-between gap-3 px-5 pb-1 pt-4">
+      <h2 className="flex items-center gap-2 text-lg font-normal tracking-tight">
+        {icon && <span>{icon}</span>}
         {children}
       </h2>
       {aside}
@@ -73,20 +79,40 @@ export function SectionTitle({ children, aside, icon }: { children: ReactNode; a
   );
 }
 
-/** Page title row: heading and description on the left, page actions on the right. */
-export function PageHeader({ title, description, actions }: { title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
+/**
+ * Page title: a large light-weight heading with description and actions. hero sets it on a mint panel,
+ * like the template's landing hero.
+ */
+export function PageHeader({
+  title,
+  description,
+  actions,
+  hero,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  hero?: boolean;
+}) {
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {description && <div className="max-w-2xl text-sm text-muted">{description}</div>}
+    <header
+      className={cx(
+        'flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between',
+        hero && 'rounded-[28px] bg-mint px-6 py-9 sm:px-10 sm:py-12',
+      )}
+    >
+      <div className="flex min-w-0 flex-col gap-3">
+        <h1 className={cx('font-normal leading-[1.08] tracking-tight', hero ? 'text-4xl sm:text-5xl' : 'text-3xl sm:text-4xl')}>
+          {title}
+        </h1>
+        {description && <div className="max-w-2xl text-[15px]">{description}</div>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </header>
   );
 }
 
-/** KPI tile: small icon + label, a large value with an optional chip beside it, and a footnote. */
+/** KPI column, after the template's ruled feature columns: icon, label, a large value with an optional chip, a footnote. */
 export function StatCard({
   icon,
   label,
@@ -101,26 +127,24 @@ export function StatCard({
   footer?: ReactNode;
 }) {
   return (
-    <Card as="div" className="flex min-w-0 flex-col gap-2.5 p-4">
-      <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
-        {icon}
-        {label}
-      </p>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-        <span className="truncate text-2xl font-semibold leading-none tracking-tight tabular-nums">{value}</span>
+    <div className="flex min-w-0 flex-col gap-3 border-l border-accent py-1 pl-5 sm:pl-6">
+      {icon}
+      <p className="text-[13px] text-muted">{label}</p>
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+        <span className="truncate text-3xl font-normal leading-none tracking-tight tabular-nums">{value}</span>
         {chip}
       </div>
-      {footer && <div className="truncate text-xs text-muted">{footer}</div>}
-    </Card>
+      {footer && <div className="truncate text-[13px] text-muted">{footer}</div>}
+    </div>
   );
 }
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 const BUTTON: Record<ButtonVariant, string> = {
-  primary: 'bg-accent-strong text-accent-fg shadow-[0_0_16px_-4px_var(--c-accent)] hover:brightness-110 disabled:opacity-50 disabled:shadow-none',
-  secondary: 'border border-border bg-surface-2 hover:border-muted/50 disabled:opacity-50',
+  primary: 'bg-accent text-accent-fg hover:bg-accent/90 disabled:opacity-50',
+  secondary: 'border border-accent/25 bg-surface hover:bg-accent-soft disabled:opacity-50',
   ghost: 'hover:bg-surface-2 text-muted hover:text-fg disabled:opacity-50',
-  danger: 'border border-border bg-surface-2 text-bad hover:bg-bad-soft disabled:opacity-50',
+  danger: 'border border-bad/30 bg-surface text-bad hover:bg-bad-soft disabled:opacity-50',
 };
 
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -129,10 +153,10 @@ type ButtonSize = 'sm' | 'md' | 'lg';
 export function buttonClass({ variant = 'secondary', size = 'md', className }: { variant?: ButtonVariant; size?: ButtonSize; className?: string } = {}) {
   return cx(
     // Press scales to 0.96 over 150ms; not-disabled (not enabled) so links press too.
-    'inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-[filter,background-color,color,scale] duration-150 ease-out [-webkit-tap-highlight-color:transparent] motion-safe:not-disabled:active:scale-[0.96] disabled:cursor-not-allowed',
-    size === 'sm' && 'h-7 px-2.5 text-xs',
-    size === 'md' && 'h-9 px-3.5 text-sm',
-    size === 'lg' && 'h-11 px-5 text-[15px]',
+    'inline-flex items-center justify-center gap-1.5 rounded-full font-medium transition-[background-color,color,scale] duration-150 ease-out [-webkit-tap-highlight-color:transparent] motion-safe:not-disabled:active:scale-[0.96] disabled:cursor-not-allowed',
+    size === 'sm' && 'h-8 px-3.5 text-xs',
+    size === 'md' && 'h-10 px-5 text-sm',
+    size === 'lg' && 'h-12 px-6 text-[15px]',
     BUTTON[variant],
     className,
   );
@@ -193,7 +217,7 @@ export function Tabs<T extends string>({
   size?: 'sm' | 'md';
 }) {
   return (
-    <div role="tablist" aria-label={label} className="inline-flex gap-0.5 rounded-lg border border-border bg-bg p-0.5">
+    <div role="tablist" aria-label={label} className="inline-flex gap-0.5 rounded-full border border-border bg-surface p-0.5">
       {items.map((t) => (
         <button
           key={t.id}
@@ -202,9 +226,9 @@ export function Tabs<T extends string>({
           aria-selected={value === t.id}
           onClick={() => onChange(t.id)}
           className={cx(
-            'rounded-md font-medium transition-colors',
-            size === 'md' ? 'px-3 py-1 text-[13px]' : 'px-2 py-0.5 text-xs',
-            value === t.id ? 'bg-surface-2 text-fg shadow-sm' : 'text-muted hover:text-fg',
+            'rounded-full font-medium transition-colors',
+            size === 'md' ? 'px-3.5 py-1 text-[13px]' : 'px-2.5 py-0.5 text-xs',
+            value === t.id ? 'bg-accent text-accent-fg' : 'text-muted hover:text-fg',
           )}
         >
           {t.label}
@@ -225,7 +249,7 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
 
 export function ErrorNote({ title, error }: { title: string; error: unknown }) {
   return (
-    <div role="alert" className="rounded-lg border border-bad/30 bg-bad-soft px-3 py-2 text-[13px] text-bad">
+    <div role="alert" className="rounded-xl border border-bad/30 bg-bad-soft px-4 py-2.5 text-[13px] text-bad">
       <strong className="font-semibold">{title}.</strong> {error instanceof Error ? error.message : String(error)}
     </div>
   );
@@ -234,7 +258,7 @@ export function ErrorNote({ title, error }: { title: string; error: unknown }) {
 export function Field({ label, children, htmlFor, hint }: { label: string; children: ReactNode; htmlFor?: string; hint?: ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={htmlFor} className="text-xs font-medium text-muted">
+      <label htmlFor={htmlFor} className="text-[13px] font-medium">
         {label}
       </label>
       {children}
@@ -244,4 +268,4 @@ export function Field({ label, children, htmlFor, hint }: { label: string; child
 }
 
 export const selectClass =
-  'h-9 w-full rounded-lg border border-border bg-surface-2 px-2.5 text-sm hover:border-muted/50 disabled:opacity-50';
+  'h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm hover:border-accent/40 disabled:opacity-50';
