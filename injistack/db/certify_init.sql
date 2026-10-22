@@ -179,13 +179,13 @@ VALUES (
     'FarmerCredential',
     gen_random_uuid()::VARCHAR(255),  -- generating a unique config_id
     'active',  -- assuming an active status
-    'ewogICAgICAgICAgIkBjb250ZXh0IjogWwogICAgICAgICAgICAgICJodHRwczovL3d3dy53My5vcmcvMjAxOC9jcmVkZW50aWFscy92MSIsCiAgICAgICAgICAgICAgImh0dHBzOi8vcGl5dXNoNzAzNC5naXRodWIuaW8vbXktZmlsZXMvZmFybWVyLmpzb24iLAogICAgICAgICAgICAgICJodHRwczovL3czaWQub3JnL3NlY3VyaXR5L3N1aXRlcy9lZDI1NTE5LTIwMjAvdjEiCiAgICAgICAgICBdLAogICAgICAgICAgImlzc3VlciI6ICIke19pc3N1ZXJ9IiwKICAgICAgICAgICJ0eXBlIjogWwogICAgICAgICAgICAgICJWZXJpZmlhYmxlQ3JlZGVudGlhbCIsCiAgICAgICAgICAgICAgIkZhcm1lckNyZWRlbnRpYWwiCiAgICAgICAgICBdLAogICAgICAgICAgImlzc3VhbmNlRGF0ZSI6ICIke3ZhbGlkRnJvbX0iLAogICAgICAgICAgImV4cGlyYXRpb25EYXRlIjogIiR7dmFsaWRVbnRpbH0iLAogICAgICAgICAgImNyZWRlbnRpYWxTdWJqZWN0IjogewogICAgICAgICAgICAgICJpZCI6ICIke19ob2xkZXJJZH0iLAogICAgICAgICAgICAgICJmdWxsTmFtZSI6ICIke2Z1bGxOYW1lfSIsCiAgICAgICAgICAgICAgIm1vYmlsZU51bWJlciI6ICIke21vYmlsZU51bWJlcn0iLAogICAgICAgICAgICAgICJkYXRlT2ZCaXJ0aCI6ICIke2RhdGVPZkJpcnRofSIsCiAgICAgICAgICAgICAgImdlbmRlciI6ICIke2dlbmRlcn0iLAogICAgICAgICAgICAgICJzdGF0ZSI6ICIke3N0YXRlfSIsCiAgICAgICAgICAgICAgImRpc3RyaWN0IjogIiR7ZGlzdHJpY3R9IiwKICAgICAgICAgICAgICAidmlsbGFnZU9yVG93biI6ICIke3ZpbGxhZ2VPclRvd259IiwKICAgICAgICAgICAgICAicG9zdGFsQ29kZSI6ICIke3Bvc3RhbENvZGV9IiwKICAgICAgICAgICAgICAibGFuZEFyZWEiOiAiJHtsYW5kQXJlYX0iLAogICAgICAgICAgICAgICJsYW5kT3duZXJzaGlwVHlwZSI6ICIke2xhbmRPd25lcnNoaXBUeXBlfSIsCiAgICAgICAgICAgICAgInByaW1hcnlDcm9wVHlwZSI6ICIke3ByaW1hcnlDcm9wVHlwZX0iLAogICAgICAgICAgICAgICJzZWNvbmRhcnlDcm9wVHlwZSI6ICIke3NlY29uZGFyeUNyb3BUeXBlfSIsCiAgICAgICAgICAgICAgImZhY2UiOiAiJHtmYWNlfSIsCiAgICAgICAgICAgICAgImZhcm1lcklEIjogIiR7ZmFybWVySUR9IgogICAgICAgICAgfQogICAgIH0=',  -- the VC template from the JSON
+    'ewogICAgICAgICAgIkBjb250ZXh0IjogWwogICAgICAgICAgICAgICJodHRwczovL3d3dy53My5vcmcvMjAxOC9jcmVkZW50aWFscy92MSIsCiAgICAgICAgICAgICAgImh0dHBzOi8vcGl5dXNoNzAzNC5naXRodWIuaW8vbXktZmlsZXMvZmFybWVyLmpzb24iLAogICAgICAgICAgICAgICJodHRwczovL3czaWQub3JnL3NlY3VyaXR5L3N1aXRlcy9lZDI1NTE5LTIwMjAvdjEiCiAgICAgICAgICBdLAogICAgICAgICAgImlzc3VlciI6ICIke19pc3N1ZXJ9IiwKICAgICAgICAgICJ0eXBlIjogWwogICAgICAgICAgICAgICJWZXJpZmlhYmxlQ3JlZGVudGlhbCIsCiAgICAgICAgICAgICAgIkZhcm1lckNyZWRlbnRpYWwiCiAgICAgICAgICBdLAogICAgICAgICAgImlzc3VhbmNlRGF0ZSI6ICIke3ZhbGlkRnJvbX0iLAogICAgICAgICAgImV4cGlyYXRpb25EYXRlIjogIiR7dmFsaWRVbnRpbH0iLAogICAgICAgICAgImNyZWRlbnRpYWxTdWJqZWN0IjogewogICAgICAgICAgICAgICJpZCI6ICIke19ob2xkZXJJZH0iLAogICAgICAgICAgICAgICJmdWxsTmFtZSI6ICIkIXtmdWxsTmFtZX0iLAogICAgICAgICAgICAgICJtb2JpbGVOdW1iZXIiOiAiJCF7bW9iaWxlTnVtYmVyfSIsCiAgICAgICAgICAgICAgImRhdGVPZkJpcnRoIjogIiQhe2RhdGVPZkJpcnRofSIsCiAgICAgICAgICAgICAgImdlbmRlciI6ICIkIXtnZW5kZXJ9IiwKICAgICAgICAgICAgICAic3RhdGUiOiAiJCF7c3RhdGV9IiwKICAgICAgICAgICAgICAiZGlzdHJpY3QiOiAiJCF7ZGlzdHJpY3R9IiwKICAgICAgICAgICAgICAidmlsbGFnZU9yVG93biI6ICIkIXt2aWxsYWdlT3JUb3dufSIsCiAgICAgICAgICAgICAgInBvc3RhbENvZGUiOiAiJCF7cG9zdGFsQ29kZX0iLAogICAgICAgICAgICAgICJsYW5kQXJlYSI6ICIkIXtsYW5kQXJlYX0iLAogICAgICAgICAgICAgICJsYW5kT3duZXJzaGlwVHlwZSI6ICIkIXtsYW5kT3duZXJzaGlwVHlwZX0iLAogICAgICAgICAgICAgICJwcmltYXJ5Q3JvcFR5cGUiOiAiJCF7cHJpbWFyeUNyb3BUeXBlfSIsCiAgICAgICAgICAgICAgInNlY29uZGFyeUNyb3BUeXBlIjogIiQhe3NlY29uZGFyeUNyb3BUeXBlfSIsCiAgICAgICAgICAgICAgImZhY2UiOiAiJCF7ZmFjZX0iLAogICAgICAgICAgICAgICJmYXJtZXJJRCI6ICIkIXtmYXJtZXJJRH0iCiAgICAgICAgICB9CiAgICAgfQ==',  -- the VC template from the JSON
     NULL,  -- doctype from JSON
     NULL,  -- vct for SD-JWT VC
     'https://www.w3.org/2018/credentials/v1',  -- context as comma-separated string
     'FarmerCredential,VerifiableCredential',  -- credential_type as comma-separated string
     'ldp_vc',  -- credential_format
-    'did:web:8398-2405-201-1029-3025-e142-9ad3-e1f2-f543.ngrok-free.app',  -- did_url
+    'did:web:certify.localhost%3A8443',  -- did_url; 04-certify-public-host.sh sets it from CERTIFY_PUBLIC_HOST
     'CERTIFY_VC_SIGN_ED25519',  -- key_manager_app_id
     'ED25519_SIGN',  -- key_manager_ref_id (optional)
     'EdDSA',  -- signature_algo (optional)
@@ -197,7 +197,7 @@ VALUES (
     ARRAY['did:jwk'],  -- cryptographic_binding_methods_supported
     ARRAY['Ed25519Signature2020'],  -- credential_signing_alg_values_supported
     '{"jwt": {"proof_signing_alg_values_supported": ["RS256", "ES256"]}}'::JSONB,  -- proof_types_supported
-    '{"fullName": {"display": [{"name": "Full Name", "locale": "en"}]}, "phone": {"display": [{"name": "Phone Number", "locale": "en"}]}, "dateOfBirth": {"display": [{"name": "Date of Birth", "locale": "en"}]}, "gender": {"display": [{"name": "Gender", "locale": "en"}]}}'::JSONB,  -- credential_subject
+    '{"fullName": {"display": [{"name": "Full Name", "locale": "en"}]}, "mobileNumber": {"display": [{"name": "Mobile Number", "locale": "en"}]}, "dateOfBirth": {"display": [{"name": "Date of Birth", "locale": "en"}]}, "gender": {"display": [{"name": "Gender", "locale": "en"}]}, "state": {"display": [{"name": "State", "locale": "en"}]}, "district": {"display": [{"name": "District", "locale": "en"}]}, "villageOrTown": {"display": [{"name": "Village or Town", "locale": "en"}]}, "postalCode": {"display": [{"name": "Postal Code", "locale": "en"}]}, "landArea": {"display": [{"name": "Land Area", "locale": "en"}]}, "landOwnershipType": {"display": [{"name": "Land Ownership Type", "locale": "en"}]}, "primaryCropType": {"display": [{"name": "Primary Crop Type", "locale": "en"}]}, "secondaryCropType": {"display": [{"name": "Secondary Crop Type", "locale": "en"}]}, "face": {"display": [{"name": "Face", "locale": "en"}]}, "farmerID": {"display": [{"name": "Farmer ID", "locale": "en"}]}}'::JSONB,  -- credential_subject: every claim the template uses (pre-authorized offers may only send these)
     NULL,  -- claims (optional)
     '[{"mosip.certify.mock.data-provider.csv.identifier-column": "id", "mosip.certify.mock.data-provider.csv.data-columns": "id,fullName,mobileNumber,dateOfBirth,gender,state,district,villageOrTown,postalCode,landArea,landOwnershipType,primaryCropType,secondaryCropType,face,farmerID", "mosip.certify.mock.data-provider.csv-registry-uri": "/home/mosip/config/farmer_identity_data.csv"}]'::JSONB,  -- plugin_configurations
     ARRAY['revocation'],  -- credential_status_purpose
@@ -205,6 +205,53 @@ VALUES (
     'EdDSA',  -- qr_signature_algo (optional)
     NOW(),  -- cr_dtimes
     NULL  -- upd_dtimes (optional)
+);
+
+-- Farmer credential as an SD-JWT VC (vc+sd-jwt), signed with ES256 (P-256). Every claim is selectively
+-- disclosable. Same CSV data and holder binding as the JSON-LD FarmerCredential above.
+INSERT INTO certify.credential_config (
+    credential_config_key_id,
+    config_id,
+    status,
+    vc_template,
+    sd_jwt_vct,
+    credential_format,
+    did_url,
+    key_manager_app_id,
+    key_manager_ref_id,
+    signature_algo,
+    sd_claim,
+    display,
+    display_order,
+    scope,
+    cryptographic_binding_methods_supported,
+    credential_signing_alg_values_supported,
+    proof_types_supported,
+    sd_jwt_claims,
+    plugin_configurations,
+    cr_dtimes
+)
+VALUES (
+    'FarmerCredentialSdJwt',
+    gen_random_uuid()::VARCHAR(255),
+    'active',
+    'ewogICJpc3MiOiAiJHtfaXNzdWVyfSIsCiAgImZ1bGxOYW1lIjogIiQhe2Z1bGxOYW1lfSIsCiAgIm1vYmlsZU51bWJlciI6ICIkIXttb2JpbGVOdW1iZXJ9IiwKICAiZGF0ZU9mQmlydGgiOiAiJCF7ZGF0ZU9mQmlydGh9IiwKICAiZ2VuZGVyIjogIiQhe2dlbmRlcn0iLAogICJzdGF0ZSI6ICIkIXtzdGF0ZX0iLAogICJkaXN0cmljdCI6ICIkIXtkaXN0cmljdH0iLAogICJ2aWxsYWdlT3JUb3duIjogIiQhe3ZpbGxhZ2VPclRvd259IiwKICAicG9zdGFsQ29kZSI6ICIkIXtwb3N0YWxDb2RlfSIsCiAgImxhbmRBcmVhIjogIiQhe2xhbmRBcmVhfSIsCiAgImxhbmRPd25lcnNoaXBUeXBlIjogIiQhe2xhbmRPd25lcnNoaXBUeXBlfSIsCiAgInByaW1hcnlDcm9wVHlwZSI6ICIkIXtwcmltYXJ5Q3JvcFR5cGV9IiwKICAic2Vjb25kYXJ5Q3JvcFR5cGUiOiAiJCF7c2Vjb25kYXJ5Q3JvcFR5cGV9IiwKICAiZmFybWVySUQiOiAiJCF7ZmFybWVySUR9Igp9',  -- base64 of {"iss": "${_issuer}", "fullName": "$!{fullName}", "mobileNumber": "$!{mobileNumber}", "dateOfBirth": "$!{dateOfBirth}", "gender": "$!{gender}", "state": "$!{state}", "district": "$!{district}", "villageOrTown": "$!{villageOrTown}", "postalCode": "$!{postalCode}", "landArea": "$!{landArea}", "landOwnershipType": "$!{landOwnershipType}", "primaryCropType": "$!{primaryCropType}", "secondaryCropType": "$!{secondaryCropType}", "farmerID": "$!{farmerID}"}
+    'FarmerCredentialSdJwt',  -- vct
+    'vc+sd-jwt',
+    'did:web:certify.localhost%3A8443',  -- did_url; 04-certify-public-host.sh sets it from CERTIFY_PUBLIC_HOST
+    'CERTIFY_VC_SIGN_EC_R1',
+    'EC_SECP256R1_SIGN',
+    'ES256',
+    '$.fullName,$.mobileNumber,$.dateOfBirth,$.gender,$.state,$.district,$.villageOrTown,$.postalCode,$.landArea,$.landOwnershipType,$.primaryCropType,$.secondaryCropType,$.farmerID',  -- selectively disclosable claims
+    '[{"name": "Farmer Verifiable Credential (SD-JWT)", "locale": "en", "logo": {"url": "https://mosip.github.io/inji-config/logos/agro-vertias-logo.png", "alt_text": "Farmer Credential Logo"}, "background_color": "#12107c", "text_color": "#FFFFFF", "background_image": {"uri": "https://mosip.github.io/inji-config/logos/agro-vertias-logo.png"}}]'::JSONB,
+    ARRAY['fullName', 'mobileNumber', 'dateOfBirth', 'gender', 'state', 'district', 'villageOrTown', 'postalCode', 'landArea', 'landOwnershipType', 'primaryCropType', 'secondaryCropType', 'farmerID'],
+    'mock_identity_vc_sd_jwt',
+    ARRAY['did:jwk', 'did:key'],
+    ARRAY['ES256'],
+    '{"jwt": {"proof_signing_alg_values_supported": ["RS256", "PS256", "ES256", "Ed25519"]}}'::JSONB,
+    '{"fullName": {"display": [{"name": "Full Name", "locale": "en"}]}, "mobileNumber": {"display": [{"name": "Mobile Number", "locale": "en"}]}, "dateOfBirth": {"display": [{"name": "Date of Birth", "locale": "en"}]}, "gender": {"display": [{"name": "Gender", "locale": "en"}]}, "state": {"display": [{"name": "State", "locale": "en"}]}, "district": {"display": [{"name": "District", "locale": "en"}]}, "villageOrTown": {"display": [{"name": "Village or Town", "locale": "en"}]}, "postalCode": {"display": [{"name": "Postal Code", "locale": "en"}]}, "landArea": {"display": [{"name": "Land Area", "locale": "en"}]}, "landOwnershipType": {"display": [{"name": "Land Ownership Type", "locale": "en"}]}, "primaryCropType": {"display": [{"name": "Primary Crop Type", "locale": "en"}]}, "secondaryCropType": {"display": [{"name": "Secondary Crop Type", "locale": "en"}]}, "farmerID": {"display": [{"name": "Farmer ID", "locale": "en"}]}}'::JSONB,
+    '[{"mosip.certify.mock.data-provider.csv.identifier-column": "id", "mosip.certify.mock.data-provider.csv.data-columns": "id,fullName,mobileNumber,dateOfBirth,gender,state,district,villageOrTown,postalCode,landArea,landOwnershipType,primaryCropType,secondaryCropType,face,farmerID", "mosip.certify.mock.data-provider.csv-registry-uri": "/home/mosip/config/farmer_identity_data.csv"}]'::JSONB,
+    NOW()
 );
 
 INSERT INTO certify.key_policy_def(APP_ID,KEY_VALIDITY_DURATION,PRE_EXPIRE_DAYS,ACCESS_ALLOWED,IS_ACTIVE,CR_BY,CR_DTIMES) VALUES('ROOT', 2920, 1125, 'NA', true, 'mosipadmin', now());

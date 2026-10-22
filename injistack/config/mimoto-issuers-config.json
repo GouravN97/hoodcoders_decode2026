@@ -24,9 +24,9 @@
       "authorization_endpoint": "http://esignet.localhost:8088/oauth2/authorize",
       "client_alias": "wallet-demo-client",
       "qr_code_type": "EmbeddedVC",
-      "credential_issuer_host": "http://certify-nginx",
+      "credential_issuer_host": "https://certify.localhost:8443",
       "enabled": "true",
-      "wellknown_endpoint": "http://certify-nginx/.well-known/openid-credential-issuer"
+      "wellknown_endpoint": "https://certify.localhost:8443/.well-known/openid-credential-issuer"
     },
     {
       "issuer_id": "MockMdl",
@@ -52,9 +52,9 @@
       "authorization_endpoint": "http://esignet.localhost:8088/oauth2/authorize",
       "client_alias": "wallet-demo-client",
       "qr_code_type": "EmbeddedVC",
-      "credential_issuer_host": "http://certify-nginx",
+      "credential_issuer_host": "https://certify.localhost:8443",
       "enabled": "true",
-      "wellknown_endpoint": "http://certify-nginx/.well-known/openid-credential-issuer"
+      "wellknown_endpoint": "https://certify.localhost:8443/.well-known/openid-credential-issuer"
     }    
   ]
 }
