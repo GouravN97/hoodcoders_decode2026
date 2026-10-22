@@ -2,9 +2,79 @@
   "verifiableClaims": [
     {
       "logo": "/assets/cert.png",
+      "name": "Farmer credential",
+      "type": "FarmerCredential",
+      "essential": true,
+      "clientIdScheme":"did",
+      "definition": {
+        "purpose": "Relying party is requesting your farmer credential",
+        "format": {
+          "ldp_vc": {
+            "proof_type": ["Ed25519Signature2020"]
+          }
+        },
+        "input_descriptors": [
+          {
+            "id": "farmer credential",
+            "format": {
+              "ldp_vc": {
+                "proof_type": ["Ed25519Signature2020"]
+              }
+            },
+            "constraints": {
+              "fields": [
+                {
+                  "path": ["$.type"],
+                  "filter": {
+                    "type": "object",
+                    "pattern": "FarmerCredential"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "logo": "/assets/cert.png",
+      "name": "Farmer credential (SD-JWT)",
+      "type": "FarmerCredentialSdJwt",
+      "clientIdScheme":"did",
+      "definition": {
+        "purpose": "Relying party is requesting your farmer credential",
+        "format": {
+          "vc+sd-jwt": {
+            "sd-jwt_alg_values": ["ES256"]
+          }
+        },
+        "input_descriptors": [
+          {
+            "id": "farmer credential sd-jwt",
+            "format": {
+              "vc+sd-jwt": {
+                "sd-jwt_alg_values": ["ES256"]
+              }
+            },
+            "constraints": {
+              "fields": [
+                {
+                  "path": ["$.vct"],
+                  "filter": {
+                    "type": "string",
+                    "pattern": "FarmerCredentialSdJwt"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "logo": "/assets/cert.png",
       "name": "MOSIP ID",
       "type": "MOSIPVerifiableCredential",
-      "essential": true,
       "clientIdScheme":"did",
       "definition": {
         "purpose": "Relying party is requesting your digital ID for the purpose of Self-Authentication",

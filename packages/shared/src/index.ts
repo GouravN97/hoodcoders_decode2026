@@ -5,3 +5,4 @@ export * from './events';
 export * from './report';
 export * from './labels';
 export * from './api';
+export * from './mockWallet';

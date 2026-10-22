@@ -1,0 +1,24 @@
+{
+  "name": "@playground/mock-wallet",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MPL-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@playground/shared": "workspace:*",
+    "jose": "6.2.12",
+    "jsonld": "9.0.0",
+    "tsx": "4.23.15",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/jsonld": "1.5.15"
+  }
+}

@@ -1,112 +1,122 @@
-// Maps URL path patterns to ProtocolStep constants from @playground/shared.
-// The proxy calls classifyStep(method, path) for every captured exchange.
-
-export const ProtocolStep = {
-  VCI_ISSUER_METADATA: 'oid4vci.issuer_metadata',
-  VCI_AS_METADATA: 'oid4vci.as_metadata',
-  VCI_CREDENTIAL_OFFER: 'oid4vci.credential_offer',
-  VCI_AUTHORIZE: 'oid4vci.authorize',
-  VCI_TOKEN: 'oid4vci.token',
-  VCI_NONCE: 'oid4vci.nonce',
-  VCI_CREDENTIAL: 'oid4vci.credential',
-  VP_AUTH_REQUEST: 'oid4vp.authorization_request',
-  VP_REQUEST_OBJECT: 'oid4vp.request_object',
-  VP_RESPONSE: 'oid4vp.response',
-  VERIFY_CREATE_REQUEST: 'verify.create_request',
-  VERIFY_STATUS: 'verify.status_poll',
-  VERIFY_RESULT: 'verify.result',
-  DID_RESOLUTION: 'did.resolution',
-  UNKNOWN: 'unknown',
-} as const;
-
-export type ProtocolStep = (typeof ProtocolStep)[keyof typeof ProtocolStep];
+// Maps a captured exchange (component + method + path) to a ProtocolStep, and names the
+// artifacts it carries (ArtifactExtractor, plan §8.2) so the inspector can label the five
+// messages Task 5 asks for.
+import { ProtocolStep, type ArtifactKind } from '@playground/shared';
 
 interface Rule {
-  methods: string[]; // HTTP methods to match, or ['*'] for any
+  methods: string[];
   pattern: RegExp;
   step: ProtocolStep;
 }
 
-// Rules are tested in order; first match wins.
+// First match wins. Paths are the public paths (before the gateway rewrites them), so both
+// `/.well-known/openid-credential-issuer` and `/v1/certify/.well-known/…` match.
 const RULES: Rule[] = [
-  // ── OpenID4VCI ──────────────────────────────────────────────────────────
+  // ── OpenID4VCI / Inji Certify ───────────────────────────────────────────
   {
     methods: ['GET'],
-    pattern: /\/\.well-known\/openid-credential-issuer/i,
+    pattern: /\/\.well-known\/openid-credential-issuer\b/,
     step: ProtocolStep.VCI_ISSUER_METADATA,
   },
   {
     methods: ['GET'],
-    pattern: /\/\.well-known\/(oauth-authorization-server|openid-configuration)/i,
+    pattern: /\/\.well-known\/(oauth-authorization-server|openid-configuration)\b/,
     step: ProtocolStep.VCI_AS_METADATA,
   },
+  { methods: ['GET'], pattern: /\/\.well-known\/jwks\.json$/, step: ProtocolStep.VCI_AS_METADATA },
+  { methods: ['POST'], pattern: /\/pre-authorized-data$/, step: ProtocolStep.VCI_CREDENTIAL_OFFER },
   {
     methods: ['GET'],
-    pattern: /\/credential-offer/i,
+    pattern: /\/credential-offer(-data)?(\/|$)/,
     step: ProtocolStep.VCI_CREDENTIAL_OFFER,
   },
   {
     methods: ['GET', 'POST'],
-    pattern: /\/authorize/i,
+    pattern: /\/(authorize|oauth\/iar)$/,
     step: ProtocolStep.VCI_AUTHORIZE,
   },
   {
     methods: ['POST'],
-    pattern: /\/token/i,
+    pattern: /\/(oauth\/token|oauth2\/token|token)$/,
     step: ProtocolStep.VCI_TOKEN,
   },
+  { methods: ['POST'], pattern: /\/nonce$/, step: ProtocolStep.VCI_NONCE },
   {
     methods: ['POST'],
-    pattern: /\/nonce/i,
-    step: ProtocolStep.VCI_NONCE,
-  },
-  {
-    methods: ['POST'],
-    pattern: /\/credential/i,
+    pattern: /\/issuance\/(vd1[12]\/)?credential$|\/credential$/,
     step: ProtocolStep.VCI_CREDENTIAL,
   },
 
-  // ── OpenID4VP / Inji Verify ──────────────────────────────────────────────
+  // ── OpenID4VP / Inji Verify ─────────────────────────────────────────────
+  { methods: ['GET'], pattern: /\/vp-request\/[^/]+\/status$/, step: ProtocolStep.VERIFY_STATUS },
+  { methods: ['GET'], pattern: /\/vp-request\/[^/]+$/, step: ProtocolStep.VP_REQUEST_OBJECT },
   {
     methods: ['POST'],
-    pattern: /\/(vp-request|presentation-request|create-request)/i,
+    pattern: /\/(vp-request|vp-session-request)$/,
     step: ProtocolStep.VERIFY_CREATE_REQUEST,
   },
-  {
-    methods: ['GET'],
-    pattern: /\/(request\.jwt|request-object)/i,
-    step: ProtocolStep.VP_REQUEST_OBJECT,
-  },
+  { methods: ['GET'], pattern: /\/vp-definition\//, step: ProtocolStep.VP_REQUEST_OBJECT },
   {
     methods: ['POST'],
-    pattern: /\/(response|vp-response)/i,
+    pattern: /\/vp-submission\/direct-post$|\/direct[-_]post$/,
     step: ProtocolStep.VP_RESPONSE,
   },
   {
-    methods: ['GET'],
-    pattern: /\/(status|result)\b/i,
-    step: ProtocolStep.VERIFY_STATUS,
+    methods: ['GET', 'POST'],
+    pattern: /\/(v2\/)?vp-results?\/|\/vp-session-results$/,
+    step: ProtocolStep.VERIFY_RESULT,
+  },
+  {
+    methods: ['POST'],
+    pattern: /\/(v2\/)?vc-(verification|submission)$/,
+    step: ProtocolStep.VC_DIRECT_VERIFY,
   },
 
-  // ── DID / well-known ──────────────────────────────────────────────────────
-  {
-    methods: ['*'],
-    pattern: /\/(did\.json|\.well-known\/did\.json)/i,
-    step: ProtocolStep.DID_RESOLUTION,
-  },
+  // ── DIDs and status lists ───────────────────────────────────────────────
+  { methods: ['GET'], pattern: /\/did\.json$/, step: ProtocolStep.DID_RESOLUTION },
+  { methods: ['GET'], pattern: /\/status-list\//, step: ProtocolStep.STATUS_LIST_FETCH },
+  { methods: ['GET', 'POST'], pattern: /^\/v1\/mimoto\//, step: ProtocolStep.WALLET_BACKEND },
 ];
 
-/**
- * Returns the ProtocolStep for a given HTTP method + URL path.
- * Falls back to UNKNOWN if no rule matches.
- */
-export function classifyStep(method: string, urlPath: string): ProtocolStep {
+export function classifyStep(method: string, url: string): ProtocolStep {
   const m = method.toUpperCase();
-  for (const rule of RULES) {
-    const methodOk = rule.methods.includes('*') || rule.methods.includes(m);
-    if (methodOk && rule.pattern.test(urlPath)) {
-      return rule.step;
-    }
+  let path: string;
+  try {
+    path = new URL(url, 'http://tap').pathname;
+  } catch {
+    return ProtocolStep.UNKNOWN;
   }
-  return ProtocolStep.UNKNOWN;
+  return (
+    RULES.find((r) => r.methods.includes(m) && r.pattern.test(path))?.step ?? ProtocolStep.UNKNOWN
+  );
+}
+
+/** Artifacts a successful exchange carries (plan §8.2 ArtifactExtractor). */
+export function artifactKindsFor(
+  step: ProtocolStep,
+  status: number | undefined,
+  requestBody: string | undefined,
+  responseBody: string | undefined,
+): ArtifactKind[] | undefined {
+  const ok = status !== undefined && status >= 200 && status < 300;
+  switch (step) {
+    case ProtocolStep.VCI_CREDENTIAL_OFFER:
+      return ok && responseBody?.includes('credential_issuer') ? ['offer'] : undefined;
+    case ProtocolStep.VCI_CREDENTIAL:
+      return ok ? ['credential'] : undefined;
+    case ProtocolStep.VERIFY_CREATE_REQUEST:
+      return requestBody?.includes('presentationDefinition')
+        ? ['presentation_definition']
+        : undefined;
+    case ProtocolStep.VP_REQUEST_OBJECT:
+      return ok ? ['auth_request', 'presentation_definition'] : undefined;
+    case ProtocolStep.VP_RESPONSE:
+      return requestBody?.includes('vp_token')
+        ? ['vp_token', 'presentation_submission']
+        : undefined;
+    case ProtocolStep.VERIFY_RESULT:
+      return ok ? ['verification_result'] : undefined;
+    default:
+      return undefined;
+  }
 }

@@ -1,0 +1,106 @@
+# Public gateway for the Inji services (certify-nginx). Rendered by the nginx image's envsubst
+# (/etc/nginx/templates), so ${CERTIFY_PUBLIC_HOST} and ${VERIFY_PUBLIC_HOST} come from Compose;
+# nginx's own $variables are left alone.
+#
+# Every protocol request goes through the playground's Protocol Tap (playground-bff:3002 for
+# Certify, :3003 for Verify), which records it and forwards it unchanged. When the BFF is not
+# running, nginx falls back to the service itself (`backup`), so the stack keeps working.
+
+upstream certify_api {
+    server playground-bff:3002 max_fails=1 fail_timeout=10s;
+    server certify:8090 backup;
+}
+
+upstream verify_api {
+    server playground-bff:3003 max_fails=1 fail_timeout=10s;
+    server verify-service:8080 backup;
+}
+
+server {
+    # Plain HTTP inside the Docker network (Mimoto's config server, older clients).
+    listen 80 default_server;
+    # Public HTTPS address: https://${CERTIFY_PUBLIC_HOST}:8443. Containers reach it through the
+    # network alias on this service, browsers on the host through the published port.
+    listen 8443 ssl default_server;
+    server_name ${CERTIFY_PUBLIC_HOST} localhost;
+    ssl_certificate     /certs/certify.crt;
+    ssl_certificate_key /certs/certify.key;
+
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    # The public URL the caller used, recorded by the tap (paths below are rewritten for Certify).
+    proxy_set_header X-Original-URI $request_uri;
+    proxy_next_upstream error timeout;
+
+    # Static config files for Mimoto (issuers, trusted verifiers, templates).
+    location / {
+        root /config/server;
+        autoindex on;
+    }
+
+    location /v1/certify/ {
+        proxy_pass http://certify_api/v1/certify/;
+
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization, Cache-Control' always;
+        if ($request_method = 'OPTIONS') {
+            return 204;
+        }
+    }
+
+    location = /.well-known/did.json {
+        proxy_pass http://certify_api/v1/certify/.well-known/did.json;
+        add_header 'Access-Control-Allow-Origin' '*' always;
+    }
+
+    location = /.well-known/openid-credential-issuer {
+        proxy_pass http://certify_api/v1/certify/.well-known/openid-credential-issuer;
+        add_header 'Access-Control-Allow-Origin' '*' always;
+    }
+
+    # OAuth authorization server metadata (RFC 8414) for Certify acting as its own token issuer.
+    location = /.well-known/oauth-authorization-server {
+        proxy_pass http://certify_api/v1/certify/.well-known/oauth-authorization-server;
+        add_header 'Access-Control-Allow-Origin' '*' always;
+    }
+
+    error_page   500 502 503 504  /50x.html;
+    location = /50x.html {
+        root   /usr/share/nginx/html;
+    }
+}
+
+# Inji Verify's public address: https://${VERIFY_PUBLIC_HOST}:8443. request_uri, response_uri and the
+# verifier's did:web document (/v1/verify/did.json) all use it, so a wallet in a container, a browser
+# on the host or a phone behind a tunnel reaches the same URLs.
+server {
+    listen 80;
+    listen 8443 ssl;
+    server_name ${VERIFY_PUBLIC_HOST};
+    ssl_certificate     /certs/certify.crt;
+    ssl_certificate_key /certs/certify.key;
+
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Original-URI $request_uri;
+    proxy_next_upstream error timeout;
+    # Status requests are long polls (up to INJI_VP_REQUEST_LONG_POLLING_TIMEOUT, 55 s).
+    proxy_read_timeout 90s;
+
+    location /v1/verify/ {
+        proxy_pass http://verify_api/v1/verify/;
+        add_header 'Access-Control-Allow-Origin' '*' always;
+    }
+
+    location / {
+        return 404;
+    }
+}

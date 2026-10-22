@@ -1,14 +1,14 @@
 {
   "presentation_definition": {
-    "id": "MOSIPVerifiableCredential",
-    "name": "MOSIP ID",
-    "purpose": "Relying party is requesting your digital ID for the purpose of Self-Authentication",
+    "id": "FarmerCredential",
+    "name": "Farmer credential",
+    "purpose": "Relying party is requesting your farmer credential",
     "input_descriptors": [
       {
-        "id": "id card credential",
+        "id": "farmer credential",
         "format": {
           "ldp_vc": {
-            "proof_type": ["RsaSignature2018"]
+            "proof_type": ["Ed25519Signature2020"]
           }
         },
         "constraints": {
@@ -16,8 +16,8 @@
             {
               "path": ["$.type"],
               "filter": {
-                "type": "string",
-                "pattern": "MOSIPVerifiableCredential"
+                "type": "object",
+                "pattern": "FarmerCredential"
               }
             }
           ]

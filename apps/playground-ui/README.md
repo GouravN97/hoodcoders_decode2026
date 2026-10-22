@@ -18,7 +18,7 @@ Two themes, switched at the bottom of the sidebar (or the menu on phones) and re
 | `VITE_USE_MOCKS` | `true` in `pnpm dev`, `false` in builds | `true`: MSW serves the REST API from `src/mocks/` and runs are simulated in the browser |
 | `VITE_BFF_URL` | empty (same origin) | BFF origin when mocks are off |
 
-With mocks off, the UI calls the BFF REST endpoints from plan §11.2 and joins the socket.io room per run (`run.subscribe` / `run.unsubscribe`, events from plan §11.3). Every response and event is validated against the schemas in `packages/shared`.
+With mocks off (the Docker Compose build), the UI calls the BFF REST endpoints from plan §11.2 and joins the socket.io room per run (`run.subscribe` / `run.unsubscribe`, events from plan §11.3). Every response and event is validated against the schemas in `packages/shared`.
 
 Contract additions the BFF needs to match (not in the plan):
 
@@ -40,4 +40,5 @@ Add `?scenario=fail-at-token`, `?scenario=timeout` or `?scenario=expired` to `/`
 ```sh
 pnpm test        # Vitest: decoders, redaction, run reducer over every scenario, selector rules, report renderer
 pnpm e2e         # Playwright against a mock build: full runs per format and verdict, inspector, downloads, mobile layout
+PLAYGROUND_LIVE_URL=http://localhost:8100 pnpm e2e   # e2e/live.spec.ts against the running Compose stack (real BFF, Certify, Verify, mock wallet)
 ```
