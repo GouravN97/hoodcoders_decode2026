@@ -1,14 +1,27 @@
 # Local Inji Core Stack
 
-This directory runs the core Inji services locally with Docker Compose:
+This directory runs the core Inji services and the playground locally with Docker Compose:
 
-- **Inji Certify**: credential issuer at <http://localhost:8090>
-- **Certify gateway**: issuer metadata and public endpoints at <http://localhost:8091>
-- **Inji Verify API**: verifier API at <http://localhost:8080>
-- **Inji Verify UI**: verifier UI at <http://localhost:3000>
-- **Inji Wallet**: React Native mobile app, run separately on Android or iOS
+| Service | Address |
+| --- | --- |
+| **Inji Certify**, public issuer address | <https://certify.localhost:8443> (metadata, offers, tokens, credentials, `did:web`) |
+| Inji Certify, direct | <http://localhost:8090/v1/certify> |
+| Certify gateway, plain HTTP | <http://localhost:8091> |
+| **Inji Verify API** | <http://localhost:8080/v1/verify> |
+| **Inji Verify UI** | <http://localhost:3000> |
+| **Playground UI** (mock mode) | <http://localhost:8100> |
+| Playground BFF (placeholder) | <http://localhost:8101/api/health> |
+| PostgreSQL | `localhost:5433`, user and password `postgres` |
+| **Inji Wallet** | React Native mobile app, run separately on Android or iOS |
 
-The Compose file uses the mock CSV Certify plugin and one PostgreSQL instance. It
+Certify issues two credentials from the same farmer data:
+
+| Configuration id | Format | Signature |
+| --- | --- | --- |
+| `FarmerCredential` | W3C VC JSON-LD (`ldp_vc`) | Ed25519Signature2020 |
+| `FarmerCredentialSdJwt` | SD-JWT VC (`vc+sd-jwt`), every claim selectively disclosable | ES256 |
+
+The Compose file uses one PostgreSQL instance. It
 does not use the MOSIP Collab Docker network or any cloned upstream source
 repository. All database scripts, service configuration, templates, and Nginx
 files required by Compose are included in this directory. Mimoto and Inji Web
@@ -32,8 +45,11 @@ docker compose up -d
 docker compose ps
 ```
 
-The first start downloads the published Inji images and can take several
-minutes. Inspect a service when it is not ready:
+The first start downloads the published Inji images (about 3.5 GB), builds the
+playground UI and BFF images, and can take several minutes. Certify and Verify
+need another minute or two after their containers start. Check everything at once
+with the BFF's health report, <http://localhost:8101/api/health>. Inspect a service
+when it is not ready:
 
 ```powershell
 docker compose logs -f certify
@@ -45,6 +61,96 @@ The Certify mock setup is intended for the local guest/demo flow.
 Authentication through eSignet, Google sign-in, and MOSIP Resident APIs are
 not included in the baseline command. The command intentionally starts the local
 Certify and Verify services without silently falling back to Collab.
+
+## Issuer address, HTTPS and did:web
+
+Certify's public address is `https://certify.localhost:8443`. The same URL works
+from the host and from inside Docker: browsers and `curl` resolve any
+`*.localhost` name to the local machine, and inside the `injistack` network the
+name is an alias of the `certify-nginx` gateway. Issuer metadata, credential
+offers, token audiences and the issuer DID (`did:web:certify.localhost%3A8443`,
+resolved through `https://certify.localhost:8443/.well-known/did.json`) all use it.
+
+The one-shot `certs` service creates a local certificate authority and an HTTPS
+certificate for that hostname (`scripts/make-local-certs.sh`) on first start. The
+Java services (Certify, Verify, Mimoto) trust it through a truststore passed in
+`JAVA_TOOL_OPTIONS`, and the BFF through `NODE_EXTRA_CA_CERTS`. The CA is also
+copied to `certs/local-ca.crt` (not committed). To avoid certificate warnings,
+import that file into your browser as a trusted authority, or pass it to tools:
+
+```sh
+curl --cacert certs/local-ca.crt https://certify.localhost:8443/.well-known/openid-credential-issuer
+```
+
+Some host tools, such as Node.js, ask the operating system to resolve names and
+do not know `certify.localhost`. Add `127.0.0.1 certify.localhost` to your hosts
+file when you run such tools on the host. Containers are not affected.
+
+To use another hostname, for example a tunnel for phone testing, set it in
+`injistack/.env` (not committed) and recreate the stack with a fresh database,
+because the DID is written into the credential configurations on first start:
+
+```sh
+echo "CERTIFY_PUBLIC_HOST=certify.example.test" > .env
+docker compose down -v
+docker compose up -d
+```
+
+## Issuance flows
+
+`CERTIFY_FLOW` (in `.env`) selects how Certify authorizes issuance:
+
+| `CERTIFY_FLOW` | Tokens | Credential data | Use for |
+| --- | --- | --- | --- |
+| `preauth` (default) | Certify issues its own tokens for pre-authorized offers | the claims given when the offer is created | the playground, scripted runs, wallets that scan a credential-offer QR |
+| `esignet` | eSignet (`esignet` profile) | the farmer CSV, looked up by the token's subject | Mimoto and Inji Web (`wallet` profile) |
+
+The settings live in `config/certify-preauth.properties` and
+`config/certify-esignet.properties`. Restart Certify after changing the flow:
+`docker compose up -d certify`.
+
+In the default flow, create an offer with the claims to issue (mock data only).
+The response is an `openid-credential-offer://` link for a wallet or QR code:
+
+```sh
+curl --cacert certs/local-ca.crt -X POST https://certify.localhost:8443/v1/certify/pre-authorized-data \
+  -H 'content-type: application/json' \
+  -d '{"credential_configuration_id": "FarmerCredentialSdJwt",
+       "claims": {"fullName": "Ramesh Kumar", "farmerID": "FRM-2026-004217", "landArea": "2.5 acres"}}'
+```
+
+The wallet then fetches the offer, exchanges the pre-authorized code at
+`https://certify.localhost:8443/v1/certify/oauth/token` and requests the
+credential with a proof of possession. Claims left out of an offer are issued as
+empty strings. An issued credential can be checked directly with Inji Verify:
+
+```sh
+curl -X POST http://localhost:8080/v1/verify/v2/vc-verification -H 'content-type: application/json' \
+  -d '{"verifiableCredential": "<the SD-JWT>", "includeClaims": true}'
+```
+
+JSON-LD credentials load their `@context` documents from the internet
+(`www.w3.org`, `w3id.org` and the farmer context on `piyush7034.github.io`), so
+Certify and Verify need outbound internet access to sign and verify them.
+SD-JWT credentials need none.
+
+## Playground UI and BFF
+
+`playground-ui` serves the playground at <http://localhost:8100>, built from
+`apps/playground-ui` in mock mode: the browser simulates runs and the API, as in
+`pnpm dev`. `playground-bff` is a placeholder for the real BFF. It answers
+`GET /api/health` with the state of every Inji service (services from profiles
+that are off show as `not-running`) and returns 501 for every other `/api` route.
+The UI's nginx proxies `/api` and `/socket.io` to it, ready for a build with
+`VITE_USE_MOCKS=false` once the BFF serves runs.
+
+Rebuild after changing the UI or BFF code:
+
+```sh
+docker compose up -d --build playground-ui playground-bff
+```
+
+## eSignet and the wallet profile
 
 To start the local eSignet mock authorization platform, use a clean database
 volume so all eSignet schemas are initialized:
@@ -118,7 +224,9 @@ Compose service therefore explicitly enables `RS256` through
 setting, credential downloads fail with `invalid_client: Invalid client
 assertion`.
 
-After the eSignet profile is healthy, start the Wallet backend and Web UI:
+After the eSignet profile is healthy, start the Wallet backend and Web UI with
+`CERTIFY_FLOW=esignet` in `.env`, so Certify accepts the eSignet tokens Mimoto
+brings. Inji Web is at <http://localhost:3004>:
 
 ```powershell
 docker compose --profile esignet --profile wallet up -d
@@ -223,6 +331,9 @@ For a physical phone, the phone and computer must be on the same network and
 ports `8099`, `8091`, and `3000` must be reachable from the phone.
 
 ## Stop and reset
+
+`down -v` also deletes the local certificates; the next start creates a new CA,
+so import `certs/local-ca.crt` into your browser again.
 
 ```powershell
 docker compose --profile esignet --profile wallet down --remove-orphans

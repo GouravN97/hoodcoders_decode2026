@@ -16,7 +16,7 @@ Supported credential formats (target): W3C VC JSON-LD (`ldp_vc`) and SD-JWT VC.
 
 ## Status
 
-The playground UI (selector, live run screen, protocol inspector, run report) works end to end against mocks. The BFF, protocol tap and the real Inji stack are not built yet.
+The playground UI (selector, live run screen, protocol inspector, run report) works end to end against mocks. [`injistack/`](injistack) runs Inji Certify (JSON-LD and SD-JWT credentials), Inji Verify, eSignet, Mimoto and Inji Web with Docker Compose, together with the playground UI. The BFF is a placeholder that only reports service health, and the protocol tap is not built yet.
 
 ## Getting started
 
@@ -32,6 +32,8 @@ pnpm e2e          # browser tests (Playwright; run `pnpm exec playwright install
 | Path | What it is |
 | --- | --- |
 | [`apps/playground-ui`](apps/playground-ui) | Vite + React UI ([details](apps/playground-ui/README.md)) |
+| [`apps/playground-bff`](apps/playground-bff) | Placeholder BFF: `GET /api/health` for the Inji services |
+| [`injistack/`](injistack) | Docker Compose sandbox with the Inji stack and the playground ([details](injistack/README.md)) |
 | [`packages/shared`](packages/shared) | Domain types, zod schemas, REST and WebSocket contracts shared with the BFF |
 | [`catalog/`](catalog) | One YAML file per issuer / wallet / verifier; adding a product = adding a file |
 

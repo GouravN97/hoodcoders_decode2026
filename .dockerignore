@@ -1,0 +1,11 @@
+# Keep image build contexts small and free of local state.
+**/node_modules
+**/dist
+**/.turbo
+**/test-results
+**/playwright-report
+.git
+.env
+.env.*
+injistack
+docs
