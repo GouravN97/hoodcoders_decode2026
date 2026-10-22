@@ -16,29 +16,29 @@ export function RunStats({ run, exchanges }: { run: RunDetail; exchanges: Exchan
   const pct = counted.length ? Math.round((done / counted.length) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Run summary">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-8 xl:grid-cols-4" aria-label="Run summary">
       <StatCard
-        icon={<ActivityIcon width={15} height={15} />}
+        icon={<ActivityIcon width={22} height={22} />}
         label="Steps done"
         value={`${done}/${counted.length}`}
         chip={problems > 0 ? <Badge tone="bad">{problems} with problems</Badge> : <Badge tone="accent">{pct}%</Badge>}
         footer={active ? `Now: ${stepLabel(active.step)}` : run.finishedAt ? 'Run finished' : 'Waiting to start'}
       />
       <StatCard
-        icon={<MessagesIcon width={15} height={15} />}
+        icon={<MessagesIcon width={22} height={22} />}
         label="Messages captured"
         value={exchanges.length}
         chip={exchanges.length > 0 && (httpErrors > 0 ? <Badge tone="bad">{httpErrors} HTTP errors</Badge> : <Badge tone="ok">no errors</Badge>)}
         footer="Recorded by the protocol tap"
       />
       <StatCard
-        icon={<ClockIcon width={15} height={15} />}
+        icon={<ClockIcon width={22} height={22} />}
         label="Elapsed"
         value={<Elapsed from={run.createdAt} to={run.finishedAt} />}
         footer={`Started ${new Date(run.createdAt).toLocaleTimeString()}`}
       />
       <StatCard
-        icon={<CheckIcon width={15} height={15} />}
+        icon={<CheckIcon width={22} height={22} />}
         label="Verifier result"
         value={
           outcome ? (
