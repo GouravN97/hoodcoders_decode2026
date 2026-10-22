@@ -16,8 +16,8 @@ export function ImplementationCard({ entry, problem }: { entry: CatalogEntry; pr
   return (
     <div
       className={cx(
-        'flex flex-col gap-2 rounded-xl border bg-surface p-3.5',
-        problem ? 'border-bad/50' : 'border-transparent',
+        'flex flex-col gap-2 rounded-xl border bg-surface p-3.5 dashdark:rounded-lg dashdark:bg-accent-soft/60 dashdark:p-3',
+        problem ? 'border-bad/50' : 'border-transparent dashdark:border-accent/50',
       )}
       data-testid={`selected-${entry.role}`}
     >

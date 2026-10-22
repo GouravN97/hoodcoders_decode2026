@@ -1,10 +1,16 @@
 @import 'tailwindcss';
 
-/* Semantic colour tokens; components use these (bg-surface, text-muted, ...) rather than raw palette colours.
-   Palette follows the Noble Finance Figma template: off-white canvas, forest-green text and actions, mint panels.
-   Light only. Every text colour here reads at 4.5:1 or better on white, the canvas and both mints. */
+/* Two themes, chosen with data-theme on <html> (src/theme.ts, applied before first paint in index.html).
+   Components use the semantic tokens below (bg-surface, text-muted, ...) and the dashdark: variant for the
+   few shape differences, never raw palette colours. */
+@custom-variant dashdark (&:where([data-theme='dashdark'], [data-theme='dashdark'] *));
+
+/* Noble (default): the Noble Finance Figma template. Off-white canvas, forest-green text and actions, mint
+   panels. Light. Every text colour reads at 4.5:1 or better on white, the canvas and both mints. */
 :root {
   color-scheme: light;
+  --c-font: 'Work Sans Variable';
+  --c-tracking: 0.01em;
   --c-bg: #f9f9f9;
   --c-surface: #ffffff;
   --c-surface-2: #f1f5ef;
@@ -13,10 +19,12 @@
   --c-muted: #4f6648;
   /* Forest green for actions, selection and rules; mint text sits on it. */
   --c-accent: #2e4f21;
+  --c-accent-strong: #2e4f21;
   --c-accent-fg: #cbf9de;
   --c-accent-soft: #d2f8dc;
-  /* Bright mint for heroes and highlights. */
+  /* Bright mint for heroes and highlights; violet is the second gradient stop (Dashdark only). */
   --c-mint: #a0f1bd;
+  --c-violet: #2e4f21;
   --c-ok: #1d7a3a;
   --c-ok-soft: #dcf5e3;
   --c-bad: #b42318;
@@ -24,6 +32,37 @@
   --c-warn: #8a5300;
   --c-warn-soft: #fdf1d8;
   --c-code: #f3f6f1;
+  --c-shimmer: 255 255 255;
+  --c-shimmer-peak: 0.75;
+}
+
+/* Dashdark: the Dashdark X admin kit. Deep indigo canvas, magenta primary. Dark. */
+:root[data-theme='dashdark'] {
+  color-scheme: dark;
+  --c-font: 'Mona Sans Variable';
+  --c-tracking: 0;
+  --c-bg: #0d0926;
+  --c-surface: #160e3a;
+  --c-surface-2: #1f1650;
+  --c-border: #2b2357;
+  --c-fg: #f4f2ff;
+  --c-muted: #a39ec9;
+  /* Magenta for text, rings and marks; the deeper shade carries white text at 4.5:1 or better. */
+  --c-accent: #cb3cff;
+  --c-accent-strong: #b02ee8;
+  --c-accent-fg: #ffffff;
+  --c-accent-soft: #2f1556;
+  --c-mint: #2f1556;
+  --c-violet: #7f25fb;
+  --c-ok: #14ca74;
+  --c-ok-soft: #12313f;
+  --c-bad: #ff5a65;
+  --c-bad-soft: #3a1238;
+  --c-warn: #fdb52a;
+  --c-warn-soft: #362530;
+  --c-code: #0f0a2c;
+  --c-shimmer: 255 255 255;
+  --c-shimmer-peak: 0.16;
 }
 
 @theme inline {
@@ -34,7 +73,9 @@
   --color-fg: var(--c-fg);
   --color-muted: var(--c-muted);
   --color-accent: var(--c-accent);
+  --color-accent-strong: var(--c-accent-strong);
   --color-mint: var(--c-mint);
+  --color-violet: var(--c-violet);
   --color-accent-fg: var(--c-accent-fg);
   --color-accent-soft: var(--c-accent-soft);
   --color-ok: var(--c-ok);
@@ -44,7 +85,7 @@
   --color-warn: var(--c-warn);
   --color-warn-soft: var(--c-warn-soft);
   --color-code: var(--c-code);
-  --font-sans: 'Work Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: var(--c-font), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
   /* Strong ease-out for UI motion; overrides Tailwind's weak default so `ease-out` means this everywhere. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -58,8 +99,8 @@
   }
   body {
     font-family: var(--font-sans);
-    /* The template sets body copy slightly open. */
-    letter-spacing: 0.01em;
+    /* Noble sets body copy slightly open. */
+    letter-spacing: var(--c-tracking);
     -webkit-font-smoothing: antialiased;
   }
   :focus-visible {
@@ -104,9 +145,9 @@
     background: linear-gradient(
       110deg,
       transparent 30%,
-      rgb(255 255 255 / 0.35) 42%,
-      rgb(255 255 255 / 0.75) 50%,
-      rgb(255 255 255 / 0.35) 58%,
+      rgb(var(--c-shimmer) / calc(var(--c-shimmer-peak) * 0.45)) 42%,
+      rgb(var(--c-shimmer) / var(--c-shimmer-peak)) 50%,
+      rgb(var(--c-shimmer) / calc(var(--c-shimmer-peak) * 0.45)) 58%,
       transparent 70%
     );
     translate: -100% 0;

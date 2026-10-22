@@ -34,8 +34,8 @@ export function RoleSelectorBoard({ catalog }: { catalog: CatalogEntry[] }) {
         const current = selectedEntry(role);
         const id = `role-${role}`;
         const { hint, Icon } = ROLE_META[role];
-        // Recessed on the page colour while the role is None, mint once a service is chosen; hover lifts a
-        // recessed panel to white and sweeps a shimmer across. Text keeps full contrast in both states.
+        // Recessed while the role is None, highlighted once a service is chosen (see Card's dim and active);
+        // hover lifts a recessed panel and sweeps a shimmer across.
         return (
           <Card
             key={role}
@@ -52,8 +52,8 @@ export function RoleSelectorBoard({ catalog }: { catalog: CatalogEntry[] }) {
                 className={cx(
                   'grid size-9 shrink-0 place-items-center rounded-lg border transition-[background-color,border-color,color] duration-300 ease-out',
                   current
-                    ? 'border-transparent bg-accent text-accent-fg'
-                    : 'border-border bg-surface text-muted',
+                    ? 'border-transparent bg-accent text-accent-fg dashdark:bg-gradient-to-br dashdark:from-accent dashdark:to-violet dashdark:text-white'
+                    : 'border-border bg-surface text-muted dashdark:bg-surface-2',
                 )}
               >
                 <Icon width={18} height={18} />

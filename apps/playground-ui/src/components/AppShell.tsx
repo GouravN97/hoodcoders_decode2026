@@ -3,13 +3,14 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { BFF_URL, USE_MOCKS } from '../config';
 import { useRecentRuns } from '../store/recentRuns';
 import { ClockIcon, GridIcon, MenuIcon, XIcon } from './icons';
+import { ThemeSwitch } from './ThemeSwitch';
 import { cx } from './ui';
 
 function Logo() {
   return (
-    <Link to="/" className="flex items-center gap-2.5 text-[15px] font-medium tracking-tight">
+    <Link to="/" className="flex items-center gap-2.5 text-[15px] font-medium tracking-tight dashdark:font-semibold">
       <span
-        className="grid size-8 place-items-center rounded-xl bg-accent text-accent-fg"
+        className="grid size-8 place-items-center rounded-xl bg-accent text-accent-fg dashdark:size-7 dashdark:rounded-lg dashdark:bg-gradient-to-br dashdark:from-accent dashdark:to-violet dashdark:text-white dashdark:shadow-[0_0_14px_-3px_var(--c-accent)]"
         aria-hidden
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -75,8 +76,10 @@ function SidebarContent() {
           end
           className={({ isActive }) =>
             cx(
-              'flex items-center gap-2.5 rounded-full px-3.5 py-2 text-[13px] font-medium transition-colors',
-              isActive ? 'bg-accent-soft text-fg' : 'text-muted hover:bg-surface-2 hover:text-fg',
+              'flex items-center gap-2.5 rounded-full px-3.5 py-2 text-[13px] font-medium transition-colors dashdark:rounded-lg dashdark:px-3',
+              isActive
+                ? 'bg-accent-soft text-fg dashdark:bg-surface dashdark:text-accent'
+                : 'text-muted hover:bg-surface-2 hover:text-fg dashdark:hover:bg-transparent',
             )
           }
         >
@@ -85,6 +88,7 @@ function SidebarContent() {
         </NavLink>
         <RecentRuns />
       </nav>
+      <ThemeSwitch />
       <div
         className="flex items-center gap-3 border-t border-border px-1 pt-4"
         title={USE_MOCKS ? 'The API is served by MSW mocks and runs are simulated in the browser' : undefined}
@@ -124,7 +128,7 @@ export function AppShell() {
         Skip to content
       </a>
 
-      <aside className="sticky top-0 hidden h-dvh border-r border-border bg-surface lg:block">
+      <aside className="sticky top-0 hidden h-dvh border-r border-border bg-surface lg:block dashdark:bg-bg">
         <SidebarContent />
       </aside>
 
@@ -143,8 +147,8 @@ export function AppShell() {
 
       {menuOpen && (
         <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-          <div className="absolute inset-0 bg-fg/30" onClick={() => setMenuOpen(false)} aria-hidden />
-          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-border bg-surface transition-[translate] duration-200 ease-out motion-safe:starting:-translate-x-full">
+          <div className="absolute inset-0 bg-fg/30 dashdark:bg-black/60" onClick={() => setMenuOpen(false)} aria-hidden />
+          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-border bg-surface dashdark:bg-bg transition-[translate] duration-200 ease-out motion-safe:starting:-translate-x-full">
             <button
               type="button"
               onClick={() => setMenuOpen(false)}
