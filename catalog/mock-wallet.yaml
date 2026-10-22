@@ -2,6 +2,7 @@
 id: mock-wallet
 role: wallet
 displayName: Mock wallet
+description: "Headless test wallet that runs on its own, with no phone. For repeatable runs and tamper tests."
 vendor: mock
 adapter: MockWalletAdapter
 publicUrl: https://mock-wallet.playground.local

@@ -2,6 +2,7 @@
 id: inji-certify
 role: issuer
 displayName: Inji Certify
+description: "MOSIP's credential issuer. Issues JSON-LD and SD-JWT credentials over OpenID4VCI."
 vendor: inji
 adapter: InjiCertifyIssuerAdapter
 publicUrl: https://certify.playground.local

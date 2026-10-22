@@ -86,3 +86,9 @@ export const CredentialIcon = (p: SVGProps<SVGSVGElement>) => (
 export const ReportIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><path d="M9 4.5h6v2.5H9z" /><path d="M15 5.5h2.5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1H9" /><path d="m9 14 2 2 4-4.5" /></svg>
 );
+export const ChevronLeftIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="m14.5 6-6 6 6 6" /></svg>
+);
+export const ChevronRightIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="m9.5 6 6 6-6 6" /></svg>
+);

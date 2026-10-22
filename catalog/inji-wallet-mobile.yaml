@@ -2,6 +2,7 @@
 id: inji-wallet-mobile
 role: wallet
 displayName: Inji Wallet (mobile)
+description: "MOSIP's Android wallet app. A person scans the QR codes on a phone and confirms each step."
 vendor: inji
 adapter: InjiMobileWalletAdapter
 publicUrl: https://mimoto.playground.local

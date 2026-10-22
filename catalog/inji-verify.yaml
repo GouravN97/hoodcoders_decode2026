@@ -2,6 +2,7 @@
 id: inji-verify
 role: verifier
 displayName: Inji Verify
+description: "MOSIP's verifier. Requests credentials over OpenID4VP and checks signature, expiry and status."
 vendor: inji
 adapter: InjiVerifyServiceAdapter
 publicUrl: https://verify.playground.local

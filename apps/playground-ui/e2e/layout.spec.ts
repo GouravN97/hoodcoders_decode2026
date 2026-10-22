@@ -11,7 +11,7 @@ const noHorizontalScroll = async (page: import('@playwright/test').Page) => {
 
 test('selector and run page fit the viewport without horizontal scroll', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('combobox', { name: 'Issuer', exact: true })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Issuer', exact: true })).toBeVisible();
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/selector-${test.info().project.name}.png`, fullPage: true });
 
