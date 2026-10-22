@@ -5,9 +5,17 @@
   "license": "MPL-2.0",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/main.ts",
-    "start": "node src/main.ts",
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@playground/shared": "workspace:*",
+    "socket.io": "4.8.4",
+    "tsx": "4.23.15",
+    "yaml": "2.9.1",
+    "zod": "4.6.5"
   }
 }

@@ -1,100 +1,85 @@
-// In-memory store for Exchange records captured by the Protocol Tap proxy.
-// Keyed two ways: by exchangeId (for direct lookup) and by runId (for listing a run's messages).
-// Sequence numbers are global and monotonically increasing.
+// In-memory store for Exchange records captured by the Protocol Tap and recorded by the BFF.
+// Keyed two ways: by exchange id and by run id. Sequence numbers are global and increasing.
+// Every exchange that becomes part of a run is announced on `exchangeEvents` ('run-exchange'),
+// whether it was correlated when captured or backfilled later; the orchestrator waits on these
+// for evidence and the realtime gateway forwards them as `run.exchange`.
+import { EventEmitter } from 'node:events';
+import type { Exchange } from '@playground/shared';
 
-import type { ProtocolStep } from './classifier.ts';
+export type { Exchange };
 
-export interface HttpMessage {
-  headers: Record<string, string>;
-  body?: string;
-  contentType?: string;
-}
-
-export interface Exchange {
-  id: string;
-  runId?: string;
-  seq: number;
-  ts: string; // ISO-8601
-  component: string; // 'certify-tap' | 'verify-tap'
-  from?: string; // originating IP/host
-  method: string;
-  url: string;
-  status?: number;
-  latencyMs?: number;
-  step: ProtocolStep;
-  request: HttpMessage;
-  response?: HttpMessage;
-  correlationKeys: string[];
-  outOfBand: boolean;
-}
-
-let _seq = 0;
-
-// exchangeId → Exchange
+let seq = 0;
 const byId = new Map<string, Exchange>();
-
-// runId → Exchange[] (in insertion order = seq order)
 const byRun = new Map<string, Exchange[]>();
-
-// Exchanges not yet assigned to a run
 const unassigned: Exchange[] = [];
+/** Unassigned exchanges kept for backfill; older ones are dropped. */
+const MAX_UNASSIGNED = 2000;
 
-/** Generate the next global sequence number. */
-export function nextSeq(): number {
-  return ++_seq;
+export const exchangeEvents = new EventEmitter();
+exchangeEvents.setMaxListeners(0);
+
+export const nextSeq = () => ++seq;
+
+function attach(runId: string, ex: Exchange) {
+  ex.runId = runId;
+  const list = byRun.get(runId) ?? [];
+  list.push(ex);
+  list.sort((a, b) => a.seq - b.seq);
+  byRun.set(runId, list);
+  exchangeEvents.emit('run-exchange', ex);
 }
 
-/** Persist a new exchange. Call correlator.assignRun() before this if runId is known. */
-export function addExchange(exchange: Exchange): void {
-  byId.set(exchange.id, exchange);
-
-  if (exchange.runId) {
-    const list = byRun.get(exchange.runId) ?? [];
-    list.push(exchange);
-    byRun.set(exchange.runId, list);
-  } else {
-    unassigned.push(exchange);
-  }
-}
-
-/** Return all exchanges for a run, sorted by seq ascending. */
-export function getExchangesByRun(runId: string): Exchange[] {
-  return (byRun.get(runId) ?? []).slice().sort((a, b) => a.seq - b.seq);
-}
-
-/** Return a single exchange by id. */
-export function getExchangeById(id: string): Exchange | undefined {
-  return byId.get(id);
-}
-
-/**
- * Assign a runId to all unassigned exchanges that contain any of the given
- * correlation keys. Called by the correlator when a key→runId mapping is registered.
- */
-export function backfillRunId(runId: string, keys: string[]): void {
-  const keySet = new Set(keys);
-  const remaining: Exchange[] = [];
-
-  for (const ex of unassigned) {
-    if (ex.correlationKeys.some((k) => keySet.has(k))) {
-      ex.runId = runId;
-      const list = byRun.get(runId) ?? [];
-      list.push(ex);
-      byRun.set(runId, list);
-    } else {
-      remaining.push(ex);
+export function addExchange(ex: Exchange): void {
+  byId.set(ex.id, ex);
+  if (ex.runId) attach(ex.runId, ex);
+  else {
+    unassigned.push(ex);
+    if (unassigned.length > MAX_UNASSIGNED) {
+      const dropped = unassigned.shift();
+      if (dropped) byId.delete(dropped.id);
     }
   }
-
-  // Replace unassigned array in-place
-  unassigned.length = 0;
-  unassigned.push(...remaining);
 }
 
-/** For tests / dev: wipe everything. */
+export const getExchangesByRun = (runId: string): Exchange[] => (byRun.get(runId) ?? []).slice();
+export const getExchangeById = (id: string): Exchange | undefined => byId.get(id);
+export const getUnassigned = (): Exchange[] => unassigned.slice();
+
+/** Assigns unassigned exchanges carrying any of these keys to the run. */
+export function backfillRunId(runId: string, keys: string[]): void {
+  const keySet = new Set(keys);
+  for (let i = unassigned.length - 1; i >= 0; i--) {
+    const ex = unassigned[i]!;
+    if (ex.correlationKeys.some((k) => keySet.has(k))) {
+      unassigned.splice(i, 1);
+      attach(runId, ex);
+    }
+  }
+}
+
+/** Moves one unassigned exchange into a run (adjacency correlation in the tap). */
+export function assignExchange(id: string, runId: string): void {
+  const i = unassigned.findIndex((ex) => ex.id === id);
+  if (i === -1) return;
+  const [ex] = unassigned.splice(i, 1);
+  attach(runId, ex!);
+}
+
+/** Replaces a run's exchanges, e.g. when a finished run is loaded from disk. */
+export function restoreRun(runId: string, exchanges: Exchange[]): void {
+  for (const ex of exchanges) {
+    byId.set(ex.id, ex);
+    seq = Math.max(seq, ex.seq);
+  }
+  byRun.set(
+    runId,
+    exchanges.slice().sort((a, b) => a.seq - b.seq),
+  );
+}
+
 export function clearStore(): void {
   byId.clear();
   byRun.clear();
   unassigned.length = 0;
-  _seq = 0;
+  seq = 0;
 }

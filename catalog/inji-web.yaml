@@ -5,7 +5,11 @@ displayName: Inji Web
 description: "MOSIP's browser wallet, backed by Mimoto. Issuance starts inside Inji Web."
 vendor: inji
 adapter: InjiWebWalletAdapter
-publicUrl: https://injiweb.playground.local
+publicUrl: ${INJI_WEB_PUBLIC_URL:-http://localhost:3004}
+internalUrl: ${INJI_WEB_INTERNAL_URL:-http://localhost:3004}
+versionProbe:
+  kind: static
+  value: ${INJI_WEB_VERSION:-0.16.0}
 capabilities:
   formats: [ldp_vc, vc+sd-jwt]
   proofSuites: [Ed25519Signature2020, ES256]

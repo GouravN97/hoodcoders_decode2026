@@ -16,7 +16,17 @@ Supported credential formats (target): W3C VC JSON-LD (`ldp_vc`) and SD-JWT VC.
 
 ## Status
 
-The playground UI (selector, live run screen, protocol inspector, run report) works end to end against mocks. [`injistack/`](injistack) runs Inji Certify (JSON-LD and SD-JWT credentials), Inji Verify, eSignet, Mimoto and Inji Web with Docker Compose, together with the playground UI. The BFF is a placeholder that only reports service health, and the protocol tap is not built yet.
+Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji Verify, the playground UI, the BFF with its Protocol Tap and a headless mock wallet with Docker Compose. A run issues a real credential from Certify (pre-authorized code), the wallet presents it to Inji Verify over OpenID4VP, every message passes through the tap and shows in the inspector, and the run ends with a pass/fail report.
+
+| Lane | State |
+| --- | --- |
+| Certify → mock wallet → Inji Verify, SD-JWT (`vc+sd-jwt`) | Valid and tampered (Invalid) runs pass, in the browser and over the API |
+| Certify → mock wallet → Inji Verify, JSON-LD (`ldp_vc`) | Built; needs internet access for the JSON-LD contexts, not yet run against the real stack |
+| Certify → Inji Wallet (phone) → Inji Verify | QR codes, tap evidence and the "I can see the credential" step work; needs public URLs for the phone (see [`injistack/README.md`](injistack/README.md#phones-and-tunnels)) |
+| Inji Web | Downloads are blocked by Mimoto's client assertion being rejected by eSignet ([details](injistack/README.md#current-local-web-wallet-limitation)) |
+| Valid-but-expired | Needs a short-lived credential configuration in Certify; not done |
+
+The UI also still runs entirely against in-browser mocks with `pnpm dev`.
 
 ## Getting started
 
@@ -26,13 +36,16 @@ Needs Node 20+ and pnpm.
 pnpm install
 pnpm dev          # playground UI on http://localhost:5173, API served by mocks
 pnpm test         # unit tests (Vitest)
-pnpm e2e          # browser tests (Playwright; run `pnpm exec playwright install chromium` once)
+pnpm e2e          # browser tests against the mocks (Playwright; run `pnpm exec playwright install chromium` once)
 ```
+
+For live runs start the Compose stack ([`injistack/README.md`](injistack/README.md)) and open <http://localhost:8100>. With the stack up, `PLAYGROUND_LIVE_URL=http://localhost:8100 pnpm e2e` runs the browser tests against it.
 
 | Path | What it is |
 | --- | --- |
 | [`apps/playground-ui`](apps/playground-ui) | Vite + React UI ([details](apps/playground-ui/README.md)) |
-| [`apps/playground-bff`](apps/playground-bff) | Placeholder BFF: `GET /api/health` for the Inji services |
+| [`apps/playground-bff`](apps/playground-bff) | BFF: catalog, run orchestration, reports, live run events (socket.io) and the Protocol Tap ([details](apps/playground-bff/PROTOCOL_TAP.md)) |
+| [`apps/mock-wallet`](apps/mock-wallet) | Headless wallet (OpenID4VCI + OpenID4VP) for runs without a phone, with tamper switches ([details](apps/mock-wallet/README.md)) |
 | [`injistack/`](injistack) | Docker Compose sandbox with the Inji stack and the playground ([details](injistack/README.md)) |
 | [`packages/shared`](packages/shared) | Domain types, zod schemas, REST and WebSocket contracts shared with the BFF |
 | [`catalog/`](catalog) | One YAML file per issuer / wallet / verifier; adding a product = adding a file |

@@ -5,11 +5,12 @@ displayName: Inji Verify
 description: "MOSIP's verifier. Requests credentials over OpenID4VP and checks signature, expiry and status."
 vendor: inji
 adapter: InjiVerifyServiceAdapter
-publicUrl: https://verify.playground.local
-internalUrl: http://inji-verify-service:8080
+publicUrl: ${VERIFY_PUBLIC_URL:-https://verify.localhost:8443}
+internalUrl: ${VERIFY_INTERNAL_URL:-http://localhost:8080}
+# Inji Verify exposes no version endpoint, so the version is the pinned image tag.
 versionProbe:
-  kind: actuator
-  value: /v1/verify/actuator/info
+  kind: static
+  value: ${VERIFY_VERSION:-0.18.2}
 capabilities:
   formats: [ldp_vc, vc+sd-jwt]
   proofSuites: [Ed25519Signature2020, ES256, RsaSignature2018]
@@ -21,4 +22,4 @@ capabilities:
   deliveryChannels: [qr, deeplink]
   automation: headless
   supportsTamper: false
-notes: ⚠️ 0.18.x uses Presentation Exchange; 1.0.x uses DCQL. Pinned version still to be decided.
+notes: Pinned to 0.18.2, the Presentation Exchange lane; 1.0.x switches to DCQL.

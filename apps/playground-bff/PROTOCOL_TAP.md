@@ -1,195 +1,85 @@
-# Protocol Tap — Implementation Notes (Shive)
+# Protocol Tap
 
-> **Branch:** `feature/shive-protocol-tap`  
-> **Role:** Person D — Protocols & Message Capture
+First built by Shive (Person D — Protocols & Message Capture) on `feature/shive-protocol-tap`; now wired into Docker Compose, correlating by bearer token and masking secrets.
 
----
-
-## What was implemented
-
-### Overview
-
-The Protocol Tap is the recording layer that makes the **Protocol Inspector** panel work. Without it, the wallet talks directly to Certify and Verify — the playground never sees those messages. The tap sits transparently in between, forwards every request unchanged, and saves the full exchange (request + response headers, bodies, latency) to an in-memory store.
+The Protocol Tap is the recording layer behind the **Protocol Inspector**. Wallets talk to Certify and Verify directly, so the playground would normally see none of those messages. The tap is a reverse proxy in the BFF process that every protocol request passes through: it forwards the request unchanged, records the exchange (headers, bodies, status, latency), works out which run it belongs to, and masks secrets in the stored copy.
 
 ```
-Wallet / Browser
-      │
-      ▼
- Protocol Tap  ──── captures Exchange ────▶ ExchangeStore
-      │                                          │
-      ▼                                          ▼
- Real Certify / Verify             GET /api/runs/:id/exchanges
-                                          │
-                                          ▼
-                                  Protocol Inspector UI
+wallet / phone / Mimoto / BFF
+          │
+          ▼
+certify-nginx  (https://certify.localhost:8443, https://verify.localhost:8443)
+          │  Host, X-Forwarded-Proto, X-Original-URI = the public URL the caller used
+          ▼
+Protocol Tap  :3002 → certify:8090      classify → extract keys → correlate → redact → ExchangeStore
+              :3003 → verify-service:8080                                                  │
+                                                       GET /api/runs/:id/exchanges, run.exchange events
 ```
 
----
+The gateway lists the services themselves as `backup` upstreams, so Certify and Verify stay reachable when the BFF is down.
 
-## Files added / modified
+## Files
 
-### `apps/playground-bff/src/tap/classifier.ts` *(new)*
+| File | Role |
+| --- | --- |
+| `src/tap/proxy.ts` | The proxy. Buffers both bodies (stored copies capped at 2 MiB), forwards with `redirect: 'manual'`, drops `content-encoding` / `content-length` from the forwarded response because `fetch()` has already decoded the body, strips the BFF's `x-playground-*` headers, records the exchange after answering |
+| `src/tap/classifier.ts` | Method + public path → `ProtocolStep` (Certify and Inji Verify 0.18 paths), and the artifacts an exchange carries (`offer`, `credential`, `auth_request`, `presentation_definition`, `vp_token`, `presentation_submission`, `verification_result`) |
+| `src/tap/correlator.ts` | Correlation keys, the key → run index and the armed window for wallet-initiated flows |
+| `src/tap/redact.ts` | Masks secrets in what is stored and served |
+| `src/store/exchange-store.ts` | In-memory exchanges by id and by run; emits `run-exchange` when an exchange joins a run (evidence for the orchestrator, `run.exchange` for the UI) |
+| `src/decoder/payload-decoder.ts` | JWT, SD-JWT (with disclosures), JSON-LD VC, form decoding for `?decode=true` |
 
-Maps HTTP method + URL path to a `ProtocolStep` label so every captured exchange is tagged with what protocol step it represents.
+## Classification
 
-| URL pattern | ProtocolStep |
-|---|---|
+| Request | ProtocolStep |
+| --- | --- |
 | `GET /.well-known/openid-credential-issuer` | `oid4vci.issuer_metadata` |
-| `POST /token` | `oid4vci.token` |
-| `POST /credential` | `oid4vci.credential` |
-| `POST /vp-request` | `verify.create_request` |
-| `POST /response` | `oid4vp.response` |
-| `GET /did.json` | `did.resolution` |
-| *(everything else)* | `unknown` |
+| `GET /.well-known/oauth-authorization-server`, `/.well-known/jwks.json` | `oid4vci.as_metadata` |
+| `POST /v1/certify/pre-authorized-data`, `GET /v1/certify/credential-offer-data/{id}` | `oid4vci.credential_offer` |
+| `POST /v1/certify/oauth/token` | `oid4vci.token` |
+| `POST /v1/certify/issuance/credential` | `oid4vci.credential` |
+| `POST /v1/verify/vp-request` | `verify.create_request` |
+| `GET /v1/verify/vp-request/{requestId}` | `oid4vp.request_object` |
+| `GET /v1/verify/vp-request/{requestId}/status` | `verify.status_poll` |
+| `POST /v1/verify/vp-submission/direct-post` | `oid4vp.response` |
+| `GET /v1/verify/vp-result/{transactionId}` | `verify.result` |
+| `GET …/did.json` | `did.resolution` |
 
----
+## Correlation
 
-### `apps/playground-bff/src/store/exchange-store.ts` *(new)*
+In order of preference:
 
-In-memory store for `Exchange` records (matching the schema in `packages/shared/src/domain.ts`).
+1. **Run header.** The BFF's own calls carry `x-playground-run-id`, so offer creation, VP request creation, status polls and result fetches correlate exactly.
+2. **Keys.** Each exchange yields keys from its URL, headers and both bodies: offer id (path), `pre-authorized_code`, the access token from `Authorization: Bearer …`, `c_nonce`, Verify `requestId` / `transactionId` (path and JSON), `state` and `nonce` (form bodies and the signed request object). Secret values (codes, tokens) are stored only as `sha256:` prefixes.
+3. **Transitive linking.** When an exchange matches a run, every key it carries is linked to that run. The offer response introduces the pre-authorized code; the token request carries it and its response introduces the access token; the credential request then correlates through its `Authorization` header alone.
+4. **Adjacency.** Issuer metadata, authorization server metadata and DID document fetches carry no key. A keyless fetch from the same client (address + user agent) within 30 s of that client's last correlated request joins its run.
+5. **Armed window.** For wallet-initiated issuance (Inji Web), the orchestrator arms the run for the Certify component; the first uncorrelated authorize / token / credential exchange is bound to it, and the run is marked `correlation: heuristic`.
 
-- Keyed two ways: `exchangeId → Exchange` and `runId → Exchange[]`
-- Global monotonic `seq` counter so exchanges are always in capture order
-- `backfillRunId()` — when a `runId` is registered after an exchange is already captured, it retroactively assigns the run to those exchanges
+Exchanges captured before their run's keys are known are backfilled when the keys are registered.
 
----
+## Masking
 
-### `apps/playground-bff/src/tap/correlator.ts` *(new)*
+Stored and served copies mask the `authorization`, `proxy-authorization`, `cookie`, `set-cookie` and `dpop` headers and the `access_token`, `refresh_token`, `pre-authorized_code`, `tx_code`, `code`, `client_secret` and `id_token` fields in JSON and form bodies and in URLs, keeping the first and last four characters (`eyJi…cwXQ`). JSON bodies keep their original formatting. Set `TAP_REVEAL_SECRETS=true` on the BFF to store them unmasked for local debugging. Credentials, presentations and verification results are not secret in this playground (mock identity data only) and are stored as they are.
 
-Links captured exchanges to the run that produced them by following the **one-time code → access token** chain.
+## Configuration
 
-**How correlation works:**
-1. BFF creates a credential offer → registers `pre_authorized_code → runId`
-2. Proxy captures the wallet's token request → extracts `pre_authorized_code` → finds `runId`
-3. Token response contains `access_token` → registered → future credential requests also linked
-4. VP side: `nonce` / `state` in the presentation request → linked to the same run
+| Env var | Compose value | Purpose |
+| --- | --- | --- |
+| `TAP_UPSTREAM_CERTIFY` | `http://certify:8090` | Certify upstream; unset disables the Certify tap |
+| `TAP_UPSTREAM_VERIFY` | `http://verify-service:8080` | Verify upstream; unset disables the Verify tap |
+| `TAP_CERTIFY_PORT` / `TAP_VERIFY_PORT` | `3002` / `3003` | Listener ports |
+| `CERTIFY_PUBLIC_URL` / `VERIFY_PUBLIC_URL` | `https://certify.localhost:8443` / `https://verify.localhost:8443` | URL recorded for requests that do not come through the gateway (the BFF's own) |
+| `TAP_REVEAL_SECRETS` | unset | `true` stores secrets unmasked |
 
-Keys are extracted from URL query params, `application/x-www-form-urlencoded` bodies, JSON bodies, and token response bodies.
-
----
-
-### `apps/playground-bff/src/tap/proxy.ts` *(new)*
-
-The core of the tap — a transparent HTTP reverse proxy using Node's built-in `node:http`.
-
-For every incoming request:
-1. Reads the full request body
-2. Forwards to the real upstream (Certify or Verify) via `fetch()`
-3. Reads the full response body
-4. Builds an `Exchange` record, runs the classifier and correlator
-5. Saves to `ExchangeStore`
-6. Returns the upstream response to the original caller **byte-for-byte unchanged**
-
-Configured via env vars:
-| Env var | Default | Purpose |
-|---|---|---|
-| `TAP_UPSTREAM_CERTIFY` | *(unset — tap disabled)* | Full URL of the real Certify service |
-| `TAP_UPSTREAM_VERIFY` | *(unset — tap disabled)* | Full URL of the real Inji Verify service |
-| `TAP_CERTIFY_PORT` | `3002` | Port the Certify tap listens on |
-| `TAP_VERIFY_PORT` | `3003` | Port the Verify tap listens on |
-
----
-
-### `apps/playground-bff/src/decoder/payload-decoder.ts` *(new)*
-
-BFF-side payload decoders — ported from `apps/playground-ui/src/lib/decode/index.ts` to run in Node.js (uses `Buffer` instead of `TextDecoder`/`atob`). No external npm dependencies.
-
-Handles:
-- **JWT** — base64url-decodes header + payload, returns `{ header, payload, signature }`
-- **SD-JWT** — splits on `~`, decodes issuer JWT, unpacks each disclosure (`[salt, name, value]`), optionally decodes KB-JWT
-- **JSON-LD VC** — detects `@context` + `proof` + `VerifiableCredential` type → flags `isLdpVc: true`
-- **Form-encoded** — `URLSearchParams` parse (token endpoint bodies)
-- **Plain text / empty** — fallback
-
----
-
-### `apps/playground-bff/src/main.ts` *(modified)*
-
-Rewrote the placeholder BFF to wire up the new pieces and add three new routes:
-
-| Route | Description |
-|---|---|
-| `GET /api/health` | *(unchanged)* — health check for all Inji services |
-| `GET /api/runs/:id/exchanges` | Returns all captured `Exchange[]` for a run in `seq` order |
-| `GET /api/runs/:id/exchanges?decode=true` | Same, with decoded JWT/SD-JWT/JSON-LD payloads attached |
-| `GET /api/exchanges/:id` | Single exchange by ID |
-| `POST /api/tap/correlate` | Register a `{ runId, keys[] }` mapping (called when BFF creates an offer) |
-| `POST /api/runs` | Stub — creates a run ID for local testing |
-
-On startup, the BFF now also starts the Certify and Verify tap proxies (if their upstream env vars are set).
-
----
-
-## How to run locally (standalone, no Docker needed)
+## Running without Docker
 
 ```sh
-# From repo root
-pnpm install
-
-# Start the BFF with tap pointed at a real or test upstream
 cd apps/playground-bff
-TAP_UPSTREAM_CERTIFY=http://localhost:8090 node --disable-warning=ExperimentalWarning src/main.ts
+TAP_UPSTREAM_CERTIFY=http://localhost:8090 TAP_UPSTREAM_VERIFY=http://localhost:8080 pnpm dev
 ```
 
-BFF will start on `:3001`, Certify tap on `:3002`.  
-All wallet traffic should then go to `:3002` instead of directly to Certify's `:8090`.
+Point a wallet at `http://localhost:3002` (Certify) and `http://localhost:3003` (Verify), then read `GET http://localhost:3001/api/runs/<run id>/exchanges?decode=true`.
 
-### Quick smoke test
-```sh
-# Create a run and register a correlation key
-curl -s -X POST http://localhost:3001/api/runs
-# → { "id": "<runId>" }
+## Tests
 
-curl -s -X POST http://localhost:3001/api/tap/correlate \
-  -H "Content-Type: application/json" \
-  -d '{"runId":"<runId>","keys":["<pre_authorized_code>"]}'
-
-# Fire a request through the tap (simulates the wallet hitting Certify's token endpoint)
-curl -s -X POST http://localhost:3002/v1/certify/oauth/token \
-  -d "grant_type=...&pre-authorized_code=<pre_authorized_code>"
-
-# Fetch captured exchanges
-curl -s "http://localhost:3001/api/runs/<runId>/exchanges" | jq .
-curl -s "http://localhost:3001/api/runs/<runId>/exchanges?decode=true" | jq .
-```
-
----
-
-## How to wire into Docker Compose (Phase 4 — next)
-
-Add the following to `injistack/docker-compose.yml`:
-
-```yaml
-# Add to the playground-bff service's environment:
-environment:
-  TAP_UPSTREAM_CERTIFY: http://certify:8090
-  TAP_UPSTREAM_VERIFY: http://verify-service:8080
-  TAP_CERTIFY_PORT: "3002"
-  TAP_VERIFY_PORT: "3003"
-
-# Expose tap ports:
-ports:
-  - "8102:3002"   # Certify tap (replaces direct :8090 access)
-  - "8103:3003"   # Verify tap
-```
-
-Then update `certify-nginx` to proxy to the tap instead of directly to Certify.
-
----
-
-## What's still to do (remaining tasks)
-
-- [ ] **Phase 4:** Wire tap into `docker-compose.yml` and update nginx routing
-- [ ] **Phase 5:** Expired credential config in `injistack/certify/` for `EXPIRED` verdict demo
-- [ ] **Mimoto 401 fix:** Regenerate `oidckeystore.p12` and register with eSignet to unblock Inji Web flow
-- [ ] **SD-JWT end-to-end (Task 6):** Verify proxy captures and decodes `vc+sd-jwt` flows correctly
-
----
-
-## No new npm dependencies
-
-Everything uses Node.js built-ins only:
-- `node:http` — proxy server
-- `node:crypto` — `randomUUID()`
-- `Buffer` — base64url decoding in the payload decoder
-- Native `fetch` — forwarding requests to upstreams (Node 18+)
+`src/tap/tap.test.ts` covers classification, the offer → token → credential chain through the bearer token, presentation correlation, masking, and a real proxy round trip (gzip upstream, redirects, error responses).

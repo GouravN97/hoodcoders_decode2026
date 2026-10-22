@@ -4,13 +4,15 @@ This directory runs the core Inji services and the playground locally with Docke
 
 | Service | Address |
 | --- | --- |
+| **Playground UI** | <http://localhost:8100> |
+| Playground BFF (REST, socket.io, health report) | <http://localhost:8101/api/health> |
+| Mock wallet (headless) | <http://localhost:8104/health> |
 | **Inji Certify**, public issuer address | <https://certify.localhost:8443> (metadata, offers, tokens, credentials, `did:web`) |
-| Inji Certify, direct | <http://localhost:8090/v1/certify> |
-| Certify gateway, plain HTTP | <http://localhost:8091> |
-| **Inji Verify API** | <http://localhost:8080/v1/verify> |
+| **Inji Verify**, public address | <https://verify.localhost:8443/v1/verify> (request objects, VP submission, `did:web`) |
+| Inji Certify, direct (bypasses the Protocol Tap) | <http://localhost:8090/v1/certify> |
+| Inji Verify API, direct (bypasses the Protocol Tap) | <http://localhost:8080/v1/verify> |
+| Gateway, plain HTTP | <http://localhost:8091> |
 | **Inji Verify UI** | <http://localhost:3000> |
-| **Playground UI** (mock mode) | <http://localhost:8100> |
-| Playground BFF (placeholder) | <http://localhost:8101/api/health> |
 | PostgreSQL | `localhost:5433`, user and password `postgres` |
 | **Inji Wallet** | React Native mobile app, run separately on Android or iOS |
 
@@ -131,24 +133,131 @@ curl -X POST http://localhost:8080/v1/verify/v2/vc-verification -H 'content-type
 
 JSON-LD credentials load their `@context` documents from the internet
 (`www.w3.org`, `w3id.org` and the farmer context on `piyush7034.github.io`), so
-Certify and Verify need outbound internet access to sign and verify them.
-SD-JWT credentials need none.
+Certify and Verify need outbound internet access to sign and verify them, and the
+mock wallet needs it to sign a JSON-LD presentation (it ships the W3C contexts but
+fetches the farmer context). Without it, Certify answers the credential request
+with `ERROR_SIGNING_QR_DATA: Error occurred during canonicalization.` and the run
+shows that error on the credential step. SD-JWT credentials need none.
 
-## Playground UI and BFF
+## Playground, Protocol Tap and mock wallet
 
-`playground-ui` serves the playground at <http://localhost:8100>, built from
-`apps/playground-ui` in mock mode: the browser simulates runs and the API, as in
-`pnpm dev`. `playground-bff` is a placeholder for the real BFF. It answers
-`GET /api/health` with the state of every Inji service (services from profiles
-that are off show as `not-running`) and returns 501 for every other `/api` route.
-The UI's nginx proxies `/api` and `/socket.io` to it, ready for a build with
-`VITE_USE_MOCKS=false` once the BFF serves runs.
+<http://localhost:8100> is the playground. Pick **Inji Certify**, **Mock wallet**
+and **Inji Verify**, choose SD-JWT or JSON-LD and press **Run**: the BFF creates a
+pre-authorized offer in Certify, the mock wallet redeems it, the BFF asks Inji
+Verify for a presentation request, the wallet answers it, and the run ends with
+Inji Verify's verdict and a pass/fail report. Choose **Invalid** as the expected
+result and the mock wallet breaks the issuer's signature before presenting.
+With **Inji Wallet (mobile)** the run shows QR codes for a phone instead (see
+[Phones and tunnels](#phones-and-tunnels)).
 
-Rebuild after changing the UI or BFF code:
+How the pieces connect:
+
+```
+wallet / phone / Mimoto ─► certify-nginx (https://certify.localhost:8443, https://verify.localhost:8443)
+                                  │
+                                  ▼
+                 playground-bff: Protocol Tap :3002 (Certify), :3003 (Verify)  ──records──► inspector
+                                  │
+                                  ▼
+                          certify:8090, verify-service:8080
+```
+
+- `certify-nginx` is the public gateway for both services. It routes by host
+  name, and sends every protocol request through the Protocol Tap in
+  `playground-bff`, which records it and forwards it unchanged. If the BFF is
+  down, nginx falls back to the services directly, so the stack keeps working.
+- The BFF's own calls (offer creation, VP request, status, result) also go
+  through the tap, tagged with the run id.
+- The tap links each message to its run by following identifiers from one
+  message to the next: offer id → pre-authorized code → access token (from the
+  `Authorization` header) for issuance; request id, `state` and transaction id
+  for presentation. Metadata and DID document fetches carry no identifier and
+  join the run of the same client's neighbouring requests.
+- Access tokens, codes, cookies and similar secrets are masked in everything the
+  tap stores and the API returns (first and last four characters kept). Set
+  `TAP_REVEAL_SECRETS=true` on `playground-bff` to see them while debugging.
+- Finished runs, with their messages, are saved in the `playground-data` volume
+  and survive a BFF restart.
+
+The REST API is at <http://localhost:8101/api> (`/catalog`, `/runs`,
+`/runs/:id`, `/runs/:id/exchanges?decode=true`, `/runs/:id/report?format=md|json`,
+`/runs/:id/manual-evidence`, `/runs/:id/cancel`). A headless run from the shell:
 
 ```sh
-docker compose up -d --build playground-ui playground-bff
+curl -s -X POST http://localhost:8101/api/runs -H 'content-type: application/json' -d '{
+  "mode": "full", "issuerId": "inji-certify", "walletId": "mock-wallet", "verifierId": "inji-verify",
+  "format": "vc+sd-jwt", "credentialConfigurationId": "FarmerCredentialSdJwt",
+  "grantType": "pre-authorized_code", "presentationFlow": "cross-device-qr", "expectedOutcome": "VALID"}'
+# → {"id":"<run id>"}; then GET /api/runs/<run id>/report?format=md
 ```
+
+Rebuild after changing the UI, BFF or wallet code:
+
+```sh
+docker compose up -d --build playground-ui playground-bff mock-wallet
+```
+
+`PLAYGROUND_UI_MOCKS=true` in `.env` builds the UI in mock mode instead (the
+browser simulates runs, as in `pnpm dev`).
+
+## Inji Verify's public address
+
+Inji Verify puts its own base URL into every presentation request
+(`request_uri`, `response_uri`) and signs request objects as a `did:web`
+verifier. Both point at the gateway, not at `localhost:8080`, so the mock wallet
+inside Docker, a browser on the host and a phone behind a tunnel all reach the
+same URLs, through the Protocol Tap:
+
+| Setting (`.env`) | Default | Used for |
+| --- | --- | --- |
+| `VERIFY_PUBLIC_HOST` | `verify.localhost` | gateway host name, HTTPS certificate, Docker network alias |
+| `VERIFY_PUBLIC_URL` | `https://verify.localhost:8443` | `request_uri` and `response_uri` (`INJI_VP_SUBMISSION_BASE_URL`) |
+| `VERIFY_DID` | `did:web:verify.localhost%3A8443:v1:verify` | client id of presentation requests; resolves to `${VERIFY_PUBLIC_URL}/v1/verify/did.json` |
+
+Inji Verify's default request (used by the Verify UI and by Certify's
+presentation-during-issuance config, `config/verify-config.json` and
+`config/vp_request_config.json`) asks for the Farmer credential, JSON-LD with
+Ed25519Signature2020 first and SD-JWT second, instead of the MOSIP ID with an RSA
+signature that no credential in this stack matches.
+
+## Phones and tunnels
+
+A phone cannot reach `localhost` or `*.localhost`. Expose the gateway's HTTPS
+port (8443) through a tunnel with stable host names, one for Certify and one for
+Verify, then set the public names in `.env` and recreate the stack with a fresh
+database (the issuer DID is written into the credential configurations on first
+start):
+
+```sh
+CERTIFY_PUBLIC_HOST=certify.example.test
+VERIFY_PUBLIC_HOST=verify.example.test
+VERIFY_PUBLIC_URL=https://verify.example.test
+VERIFY_DID=did:web:verify.example.test:v1:verify
+```
+
+Certify's public address keeps the `:8443` port, so its tunnel must serve that
+port too. The tunnel must present a certificate the phone trusts.
+
+## Upgrading an existing database
+
+`db/verify_init.sql` now matches Inji Verify 0.18.2's schema: the
+`vp_submission` table has the `response_code` columns that Verify reads on every
+status poll and VP submission. Without them those requests fail with HTTP 500.
+The init scripts only run on a new database volume, so for an existing one either
+recreate it (`docker compose down -v`) or add the columns:
+
+```sh
+docker compose exec -T database psql -U postgres -d inji_verify -c "
+  ALTER TABLE verify.vp_submission ALTER COLUMN vp_token DROP NOT NULL,
+    ALTER COLUMN presentation_submission DROP NOT NULL,
+    ADD COLUMN IF NOT EXISTS response_code varchar(200) UNIQUE,
+    ADD COLUMN IF NOT EXISTS response_code_expiry_at timestamptz,
+    ADD COLUMN IF NOT EXISTS response_code_used boolean DEFAULT false;"
+```
+
+Changing `VERIFY_PUBLIC_HOST` also re-creates the local certificates (the `certs`
+service adds the Verify host name to them), so import `certs/local-ca.crt` into
+your browser again.
 
 ## eSignet and the wallet profile
 
@@ -328,7 +437,9 @@ npm run android:mosip
 ```
 
 For a physical phone, the phone and computer must be on the same network and
-ports `8099`, `8091`, and `3000` must be reachable from the phone.
+ports `8099`, `8091`, and `3000` must be reachable from the phone. To scan the
+playground's credential offers and presentation requests, the phone must also
+reach the public Certify and Verify addresses; see [Phones and tunnels](#phones-and-tunnels).
 
 ## Stop and reset
 

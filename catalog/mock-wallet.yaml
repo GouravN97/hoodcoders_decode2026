@@ -1,22 +1,27 @@
-# Headless mock wallet — runs without a phone; used for CI, tamper and repeatable demos.
+# Headless mock wallet (apps/mock-wallet) — runs without a phone; used for CI, tamper and repeatable demos.
 id: mock-wallet
 role: wallet
 displayName: Mock wallet
 description: "Headless test wallet that runs on its own, with no phone. For repeatable runs and tamper tests."
 vendor: mock
 adapter: MockWalletAdapter
-publicUrl: https://mock-wallet.playground.local
-internalUrl: http://mock-wallet:7003
+publicUrl: ${MOCK_WALLET_URL:-http://localhost:7003}
+internalUrl: ${MOCK_WALLET_URL:-http://localhost:7003}
+versionProbe:
+  kind: static
+  value: 0.1.0
 capabilities:
   formats: [ldp_vc, vc+sd-jwt, dc+sd-jwt]
-  proofSuites: [Ed25519Signature2020, ES256, EdDSA]
+  # Holder proofs: ES256 proof JWTs, SD-JWT key binding and JsonWebSignature2020 (ES256) VPs.
+  proofSuites: [Ed25519Signature2020, ES256]
   grantTypes: [pre-authorized_code]
-  vciProfiles: [oid4vci-draft13, oid4vci-1.0]
-  vpProfiles: [oid4vp-draft21, oid4vp-draft23, oid4vp-1.0]
-  queryLanguages: [presentation_exchange, dcql]
-  responseModes: [direct_post, direct_post.jwt]
-  didMethods: [did:jwk, did:key]
+  vciProfiles: [oid4vci-draft13]
+  vpProfiles: [oid4vp-draft23]
+  queryLanguages: [presentation_exchange]
+  responseModes: [direct_post]
+  didMethods: [did:jwk]
   presentationFlows: [cross-device-qr]
   deliveryChannels: [api]
   automation: headless
   supportsTamper: true
+notes: Tampers on demand (T-SIG-FLIP, T-CLAIM-EDIT); an Invalid run breaks the issuer signature by default.

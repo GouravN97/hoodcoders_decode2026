@@ -1,15 +1,17 @@
 # Inji Certify — OpenID4VCI issuer. Schema: CatalogFileSchema in packages/shared/src/catalog.ts
+# ${VAR:-default} values are filled in from the BFF's environment (injistack/docker-compose.yml sets them).
 id: inji-certify
 role: issuer
 displayName: Inji Certify
 description: "MOSIP's credential issuer. Issues JSON-LD and SD-JWT credentials over OpenID4VCI."
 vendor: inji
 adapter: InjiCertifyIssuerAdapter
-publicUrl: https://certify.playground.local
-internalUrl: http://certify:8090
+publicUrl: ${CERTIFY_PUBLIC_URL:-https://certify.localhost:8443}
+internalUrl: ${CERTIFY_INTERNAL_URL:-http://localhost:8090}
+# Certify's actuator/info needs authentication, so the version is the pinned image tag.
 versionProbe:
-  kind: actuator
-  value: /v1/certify/actuator/info
+  kind: static
+  value: ${CERTIFY_VERSION:-0.14.0}
 capabilities:
   formats: [ldp_vc, vc+sd-jwt, mso_mdoc]
   proofSuites: [Ed25519Signature2020, ES256]

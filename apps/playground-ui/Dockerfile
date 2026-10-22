@@ -1,6 +1,5 @@
-# Playground UI: built in mock mode by default (MSW serves the API in the browser and runs are simulated),
-# because the real BFF does not exist yet. Build with --build-arg VITE_USE_MOCKS=false to call the BFF,
-# which nginx proxies on the same origin.
+# Playground UI. VITE_USE_MOCKS=false (what injistack/docker-compose.yml builds) calls the BFF, which nginx
+# proxies on the same origin; true builds the in-browser mock mode (MSW serves the API, runs are simulated).
 # Build context: the repository root (the UI needs packages/shared and catalog/*.yaml).
 
 FROM node:22-alpine AS build
