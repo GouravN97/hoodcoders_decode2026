@@ -59,6 +59,9 @@ export const EyeIcon = (p: SVGProps<SVGSVGElement>) => (
 export const MenuIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><path d="M4 6.5h16M4 12h16M4 17.5h16" /></svg>
 );
+export const HomeIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1v-8.5Z" /></svg>
+);
 export const GridIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><rect x="4" y="4" width="6.5" height="6.5" rx="1.5" /><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" /><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" /><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" /></svg>
 );

@@ -164,7 +164,7 @@ export function StatCard({
   );
 }
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'inverse';
 const BUTTON: Record<ButtonVariant, string> = {
   primary: cx(
     'bg-accent text-accent-fg hover:bg-accent/90 disabled:opacity-50',
@@ -175,6 +175,12 @@ const BUTTON: Record<ButtonVariant, string> = {
     'dashdark:border-border dashdark:bg-surface-2 dashdark:hover:border-muted/50 dashdark:hover:bg-surface-2',
   ),
   ghost: 'hover:bg-surface-2 text-muted hover:text-fg disabled:opacity-50',
+  // For a primary action on an accent-coloured panel (Noble: mint on forest green). Dashdark panels stay dark, so it
+  // looks like primary there.
+  inverse: cx(
+    'bg-accent-fg text-accent hover:brightness-95 disabled:opacity-50',
+    'dashdark:bg-accent-strong dashdark:text-accent-fg dashdark:shadow-[0_0_16px_-4px_var(--c-accent)] dashdark:hover:brightness-110',
+  ),
   danger: 'border border-bad/30 bg-surface text-bad hover:bg-bad-soft disabled:opacity-50 dashdark:border-border dashdark:bg-surface-2',
 };
 
