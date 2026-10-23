@@ -369,33 +369,95 @@ mentioned in the Inji documentation is for creating the separate
 `oidckeystore.p12` used when onboarding Mimoto as an eSignet OIDC client; it
 is not required to regenerate Certify's `local.p12`.
 
-The local wallet setup uses the eSignet client `wallet-demo`, with the
-`wallet-demo-client` key alias and the local keystore password configured in
-Compose. The keystore must be placed at `certs/oidckeystore.p12`.
-Do not commit that file or its private key. A new environment must generate
-its own PKCS#12 file using the `certgen.zip` procedure from the Inji
-documentation, register the matching public JWK in eSignet, and set the
-`oidc_p12_password` Compose value to the keystore password.
+### Mimoto keystore and the `wallet-demo` client
 
-The `wallet` profile cannot start until that file exists. The keystore is
-environment-specific and is intentionally not included in this repository.
-For an eSignet/Mimoto demonstration, first generate or obtain a local
-`oidckeystore.p12`, place it under `certs/`, and onboard its public JWK for the
-`wallet-demo` client using the Postman collection. Then run:
+Mimoto signs its eSignet client assertion with the `wallet-demo-client` key in
+`certs/oidckeystore.p12`, as eSignet client `wallet-demo`. The keystore is
+environment-specific: never commit it (`.gitignore` excludes `certs/*.p12`).
 
-```powershell
-docker compose --profile esignet --profile wallet pull
-docker compose --profile esignet --profile wallet up -d
-```
+1. **Create the keystore before the first `--profile wallet` start.** If the
+   file is missing, Docker creates an empty *directory* named
+   `oidckeystore.p12` for the bind mount, and Mimoto exits with
+   `/home/mosip/certs/oidckeystore.p12 (Is a directory)`. Either copy the team
+   keystore into `certs/`, or generate one:
+
+   ```bash
+   cd certs
+   openssl genrsa -out wallet-demo.key 2048
+   openssl req -new -x509 -key wallet-demo.key -out wallet-demo.crt -days 365 -subj "/CN=wallet-demo-client"
+   openssl pkcs12 -export -inkey wallet-demo.key -in wallet-demo.crt \
+     -name wallet-demo-client -out oidckeystore.p12 -passout pass:local
+   chmod 644 oidckeystore.p12
+   cd ..
+   ```
+
+2. **Put the keystore password in `.env`** as `OIDC_P12_PASSWORD=...`
+   (Compose passes it to Mimoto as `oidc_p12_password`; the default is
+   `local`). A wrong value makes Mimoto exit with `keystore password was
+   incorrect`.
+
+3. **Start the profiles**, then **register the client** in eSignet. eSignet's
+   database starts with no clients, and without this step Inji Web's login
+   redirects to `localhost:3005/error?errorCode=invalid_request&errorMessage=Invalid+client_id`.
+
+   ```bash
+   docker compose --profile esignet --profile wallet up -d
+   ./scripts/register-wallet-client.sh
+   ```
+
+   The client is stored in the Postgres volume, so run the script again after
+   `down -v`. It reads `OIDC_P12_PASSWORD` from `.env`, selects the
+   `wallet-demo-client` entry explicitly (Mimoto's key manager adds its own
+   ROOT and MIMOTO entries to the same file) and registers its public JWK.
+
+4. **Switch Certify to the eSignet flow** with `CERTIFY_FLOW=esignet` in
+   `.env`, then `docker compose up -d --force-recreate certify`. In this mode
+   pre-authorized mock-wallet runs fail; remove the line and recreate Certify
+   to get them back.
+
+Checks: `docker compose --profile esignet --profile wallet ps mimoto-service`
+shows `Up`, and `curl http://localhost:8099/v1/mimoto/issuers` lists the
+Farmer and MockMdl issuers. `UnknownHostException: websub.websub` in Mimoto's
+log is expected (see above).
+
+Troubleshooting:
+
+| Symptom | Cause and fix |
+| --- | --- |
+| Playground shows Inji Web offline; `inji-web` up but `mimoto-service` missing from `ps` | Mimoto exited; check `docker compose --profile wallet logs mimoto-service` |
+| `oidckeystore.p12 (Is a directory)` | See step 1. After replacing the directory with the file, also run `docker compose --profile esignet --profile wallet rm -sf mimoto-service inji-web`: the old container keeps the directory mount, and `up` then fails with `not a directory: Are you trying to mount a directory onto a file` |
+| `keystore password was incorrect` | `OIDC_P12_PASSWORD` does not match the keystore (step 2), then `up -d --force-recreate mimoto-service` |
+| `openssl pkcs12` fails with `RC2-40-CBC ... unsupported` | Keystores made by certgen or Java keytool use RC2; OpenSSL 3 reads them with `-legacy` (the password is correct if there is no `Mac verify error`) |
+| Client registration returns `invalid_claim` | Use only `name`, `email`, `picture`, `phone_number` and `address` as `userClaims` (the script does) |
 
 ### Current local Web Wallet limitation
 
-The eSignet 2.0 and Mimoto 0.21 images currently reject Mimoto's
-`private_key_jwt` during the browser credential download with
-`invalid_client: Invalid client assertion`, before Certify is called. The
-local stack remains usable for service and issuer metadata checks, but do not
-use repeated browser retries as a flow test until Mimoto is upgraded or its
-OIDC assertion implementation is patched for this eSignet version.
+With the keystore and client set up as above, the eSignet login in Inji Web
+succeeds, but the credential download fails at the token step. Inji Web shows
+"Due to technical error, we were unable to download the card"; Mimoto logs
+`Exception occurred while generating pdf` (its name for the whole download)
+caused by `401 Unauthorized: {"error":"invalid_client","error_description":"Invalid client assertion"}`
+from eSignet. The request never reaches Certify (no `credential` call in the
+`certify-nginx` log).
+
+What has been ruled out (eSignet 2.0.0, Mimoto 0.21.0, 2026-10-23):
+
+- The client is registered and `ACTIVE`; the registered JWK is the
+  `wallet-demo-client` key, and that key's private key and certificate match
+  (same modulus).
+- eSignet's discovery advertises `issuer` `http://esignet.localhost:8088` and
+  `token_endpoint` `http://esignet.localhost:8088/oauth2/token`, which matches
+  Mimoto's `authorization_audience`.
+- Hand-signed assertions with the same key are also rejected, for every
+  combination of `aud` (issuer, token endpoint), `alg` (RS256, PS256) and
+  with or without a `kid` header (thumbprint, as the Postman collection
+  computes it). These tests used a dummy authorization code, so they are only
+  conclusive if eSignet checks the client assertion before the code.
+
+Next thing to check: the stored client row
+(`docker compose exec -T database psql -U postgres -d mosip_esignet -c "SELECT id, status, public_key FROM esignet.client_detail;"`)
+and eSignet's client-assertion validation for this build. Until then, use the
+mock wallet or the Inji Wallet app (pre-authorized flow) for live runs.
 
 For a working authentication/API demonstration, use the local eSignet
 Postman collection:
