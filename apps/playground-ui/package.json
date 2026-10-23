@@ -9,9 +9,10 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src e2e",
+    "lint": "eslint src e2e scripts",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "photos:fetch": "tsx scripts/fetch-landing-photos.ts"
   },
   "msw": {
     "workerDirectory": [

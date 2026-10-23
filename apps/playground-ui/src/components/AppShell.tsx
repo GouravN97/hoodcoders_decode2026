@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { BFF_URL, USE_MOCKS } from '../config';
 import { useRecentRuns } from '../store/recentRuns';
-import { ClockIcon, GridIcon, MenuIcon, XIcon } from './icons';
+import { ClockIcon, GridIcon, HomeIcon, MenuIcon, XIcon } from './icons';
 import { ThemeSwitch } from './ThemeSwitch';
 import { cx } from './ui';
 
@@ -64,6 +64,14 @@ function RecentRuns() {
   );
 }
 
+const navItemClass = ({ isActive }: { isActive: boolean }) =>
+  cx(
+    'flex items-center gap-2.5 rounded-full px-3.5 py-2 text-[13px] font-medium transition-colors dashdark:rounded-lg dashdark:px-3',
+    isActive
+      ? 'bg-accent-soft text-fg dashdark:bg-surface dashdark:text-accent'
+      : 'text-muted hover:bg-surface-2 hover:text-fg dashdark:hover:bg-transparent',
+  );
+
 function SidebarContent() {
   return (
     <div className="flex h-full flex-col gap-6 px-4 py-5">
@@ -71,21 +79,16 @@ function SidebarContent() {
         <Logo />
       </div>
       <nav aria-label="Main" className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-        <NavLink
-          to="/"
-          end
-          className={({ isActive }) =>
-            cx(
-              'flex items-center gap-2.5 rounded-full px-3.5 py-2 text-[13px] font-medium transition-colors dashdark:rounded-lg dashdark:px-3',
-              isActive
-                ? 'bg-accent-soft text-fg dashdark:bg-surface dashdark:text-accent'
-                : 'text-muted hover:bg-surface-2 hover:text-fg dashdark:hover:bg-transparent',
-            )
-          }
-        >
-          <GridIcon width={16} height={16} />
-          New run
-        </NavLink>
+        <div className="flex flex-col gap-1">
+          <NavLink to="/welcome" className={navItemClass}>
+            <HomeIcon width={16} height={16} />
+            Welcome
+          </NavLink>
+          <NavLink to="/" end className={navItemClass}>
+            <GridIcon width={16} height={16} />
+            New run
+          </NavLink>
+        </div>
         <RecentRuns />
       </nav>
       <ThemeSwitch />
