@@ -181,7 +181,8 @@ export function LandingPage() {
       </section>
 
       <section aria-labelledby="what-you-see" className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] lg:gap-16">
-        <LandingPhoto id="qr" frameClassName="aspect-[4/3]" />
+        {/* Framed at the drawing's own 617:324 shape so it fills the frame uncropped. */}
+        <LandingPhoto id="qr" frameClassName="aspect-[617/324]" />
         <div className="flex flex-col gap-8">
           <SectionHeading id="what-you-see" title="Nothing happens off screen">
             A wallet scanning a QR code looks simple. Underneath it is a chain of requests, tokens and signed payloads. The
@@ -241,7 +242,7 @@ export function LandingPage() {
           Photo credits
         </h2>
         <p className="max-w-2xl text-[13px] text-muted">
-          Photos are from Unsplash and free to use under the{' '}
+          Unsplash photos are free to use under the{' '}
           <a href="https://unsplash.com/license" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-fg">
             Unsplash License
           </a>
