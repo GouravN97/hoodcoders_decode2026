@@ -123,7 +123,7 @@ services:
       SPRING_CONFIG_NAME: mimoto
       SPRING_CONFIG_LOCATION: /home/mosip/
       SPRING_CLOUD_BOOTSTRAP_LOCATION: /home/mosip/mimoto-bootstrap.properties
-      oidc_p12_password: local
+      oidc_p12_password: ${OIDC_P12_PASSWORD:-local}
       WALLET_BINDING_PARTNER_API_KEY: local-wallet-binding-key
       SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/inji_mimoto
       POSTGRES_USER: postgres
