@@ -12,12 +12,12 @@ Everything the user sees for mandatory tasks 2, 3/4, 5 and 7:
 
 Two themes, switched at the bottom of the sidebar (or the menu on phones) and remembered per browser: **Noble** (light, the default, after the Noble Finance Figma template) and **Dashdark** (dark, after the Dashdark X admin kit). Colours and fonts are tokens in `src/index.css`; the few shape differences use the `dashdark:` Tailwind variant. `src/theme.ts` switches `data-theme` on `<html>`, and a small script in `index.html` applies the saved theme before first paint.
 
-## Landing page photos
+## Landing page images
 
-The landing page uses six free Unsplash photos (Unsplash License; no Unsplash+, Getty, iStock, Adobe Stock or Alamy). The list, with photographer, source page and licence for each, is in `src/features/landing/photos.ts` and `public/landing/CREDITS.md`. The image files go in `public/landing/`:
+The landing page uses free Unsplash photos (Unsplash License; no Unsplash+, Getty, iStock, Adobe Stock or Alamy) and three illustrations whose source and licence are **not yet confirmed**: confirm or replace those before publishing the page. The list, with photographer, source and licence for each, is in `src/features/landing/photos.ts` and `public/landing/CREDITS.md`. The files go in `public/landing/`:
 
 ```sh
-pnpm photos:fetch            # download any that are missing (add --force to re-download)
+pnpm photos:fetch            # download any missing Unsplash photos (add --force to re-download)
 ```
 
 Behind an HTTPS proxy, prefix it with `NODE_USE_ENV_PROXY=1`. Until a file is there, the page shows a theme-coloured placeholder in its place.

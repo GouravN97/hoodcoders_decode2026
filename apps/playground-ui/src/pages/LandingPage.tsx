@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { ArrowRightIcon, LayersIcon, MessagesIcon, PlayIcon, ReportIcon } from '../components/icons';
 import { Badge, buttonClass, cx } from '../components/ui';
 import { LandingPhoto } from '../features/landing/LandingPhoto';
-import { LANDING_PHOTO_LIST, type LandingPhotoId } from '../features/landing/photos';
+import { isUnsplash, LANDING_PHOTO_LIST, type LandingPhotoId } from '../features/landing/photos';
 
 /** The New run page (the role selector). */
 const NEW_RUN = '/';
@@ -61,7 +61,7 @@ function Hop({ label }: { label: string }) {
 function Step({ step }: { step: (typeof STEPS)[number] }) {
   return (
     <li className="flex min-w-0 flex-col gap-4">
-      <LandingPhoto id={step.photo} frameClassName="aspect-[4/3] sm:aspect-[16/9] lg:aspect-[4/5]" />
+      <LandingPhoto id={step.photo} frameClassName="aspect-[4/3] sm:aspect-[16/9] lg:aspect-[4/3]" />
       <div className="flex flex-col gap-2 px-1">
         <p className="flex items-center gap-2.5 text-[13px] text-muted dashdark:text-xs">
           <span
@@ -241,14 +241,14 @@ export function LandingPage() {
           Photo credits
         </h2>
         <p className="max-w-2xl text-[13px] text-muted">
-          All photos are from Unsplash and free to use under the{' '}
+          Photos are from Unsplash and free to use under the{' '}
           <a href="https://unsplash.com/license" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-fg">
             Unsplash License
           </a>
           .
         </p>
         <ul className="grid gap-x-8 gap-y-2 text-[13px] sm:grid-cols-2 lg:grid-cols-3">
-          {LANDING_PHOTO_LIST.map((p) => (
+          {LANDING_PHOTO_LIST.filter(isUnsplash).map((p) => (
             <li key={p.id} className="min-w-0">
               <span className="text-muted">{p.idea}: </span>
               <a href={p.sourceUrl} target="_blank" rel="noreferrer" className="underline decoration-border underline-offset-2 hover:decoration-current">

@@ -8,7 +8,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LANDING_PHOTO_LIST, unsplashDownloadUrl } from '../src/features/landing/photos';
+import { isUnsplash, LANDING_PHOTO_LIST, unsplashDownloadUrl } from '../src/features/landing/photos';
 
 const outDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'landing');
 const force = process.argv.includes('--force');
@@ -16,7 +16,8 @@ const force = process.argv.includes('--force');
 mkdirSync(outDir, { recursive: true });
 
 let failed = 0;
-for (const photo of LANDING_PHOTO_LIST) {
+// Only the Unsplash photos; the other images were added to public/landing/ by hand.
+for (const photo of LANDING_PHOTO_LIST.filter(isUnsplash)) {
   const target = join(outDir, photo.file);
   if (existsSync(target) && !force) {
     console.log(`skip   ${photo.file} (already there)`);

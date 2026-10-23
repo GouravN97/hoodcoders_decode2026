@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { cx } from '../../components/ui';
-import { landingPhotoSrc, LANDING_PHOTOS, type LandingPhotoId } from './photos';
+import { isUnsplash, landingPhotoSrc, LANDING_PHOTOS, type LandingPhotoId } from './photos';
 
 /**
- * One landing-page photo with its Unsplash credit. If the file has not been downloaded yet
+ * One landing-page image with its Unsplash credit (images whose source is unconfirmed get none). If the file has not been downloaded yet
  * (`pnpm --filter @playground/ui photos:fetch`), a theme-coloured panel stands in so the layout holds.
  */
 export function LandingPhoto({
@@ -31,6 +31,8 @@ export function LandingPhoto({
         className={cx(
           'relative overflow-hidden rounded-[20px] bg-surface-2',
           'dashdark:rounded-xl dashdark:ring-1 dashdark:ring-border dashdark:shadow-[0_8px_32px_-12px_rgb(4_2_20/0.8)]',
+          // A light illustration panel would melt into Noble's off-white page without an edge.
+          photo.fit === 'contain' && 'ring-1 ring-border',
           frameClassName,
         )}
       >
@@ -50,11 +52,16 @@ export function LandingPhoto({
             loading={eager ? 'eager' : 'lazy'}
             decoding="async"
             onError={() => setMissing(true)}
-            className="absolute inset-0 size-full object-cover dashdark:brightness-[0.88] dashdark:saturate-[0.9]"
+            // Illustrations and icons are shown whole, on a panel that continues their own background.
+            style={photo.fit === 'contain' ? { background: photo.panel ?? '#ffffff', padding: `${photo.inset ?? 6}%` } : undefined}
+            className={cx(
+              'absolute inset-0 size-full',
+              photo.fit === 'contain' ? 'object-contain' : 'object-cover dashdark:brightness-[0.88] dashdark:saturate-[0.9]',
+            )}
           />
         )}
       </div>
-      {credit && (
+      {credit && isUnsplash(photo) && (
         <figcaption className="truncate px-1 text-[11px] text-muted">
           Photo:{' '}
           <a href={photo.sourceUrl} target="_blank" rel="noreferrer" className="underline decoration-border underline-offset-2 hover:text-fg hover:decoration-current">
