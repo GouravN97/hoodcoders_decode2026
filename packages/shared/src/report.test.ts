@@ -6,6 +6,7 @@ const report: RunReport = {
   createdAt: '2026-10-18T10:00:00Z',
   finishedAt: '2026-10-18T10:00:42Z',
   durationMs: 42_000,
+  mode: 'full',
   issuer: { role: 'issuer', id: 'inji-certify', displayName: 'Inji Certify', version: '0.12.1' },
   wallet: { role: 'wallet', id: 'inji-wallet-mobile', displayName: 'Inji Wallet (mobile)' },
   verifier: { role: 'verifier', id: 'inji-verify', displayName: 'Inji Verify', version: '0.18.1' },
@@ -38,6 +39,27 @@ describe('renderReportMarkdown', () => {
     expect(md).toContain('| Error detail | Token exchange: Token request rejected: invalid_grant (HTTP 400) |');
     expect(md).toContain('| issuing | Token exchange | failed | tap | 512 ms |');
     expect(md).toContain('{"error":"invalid_grant"}');
+  });
+
+  it('reads reports saved before run modes as full runs', () => {
+    const { mode: _mode, ...legacy } = report;
+    expect(RunReportSchema.parse(legacy).mode).toBe('full');
+  });
+
+  it('does not judge an issue-only run against a verifier result', () => {
+    const md = renderReportMarkdown({
+      ...report,
+      mode: 'issue-only',
+      verdict: 'PASS',
+      passed: true,
+      error: undefined,
+      steps: [{ phase: 'holding', step: 'credential_held', status: 'done', evidenceKind: 'adapter' }],
+    });
+    expect(md).toContain('| Run mode | Issue only |');
+    expect(md).toContain('| Verifier | Inji Verify (0.18.1) — not used (issue-only run) |');
+    expect(md).toContain(
+      '| Outcome | Pass — credential issued and stored in the wallet; not presented (issue-only run) |',
+    );
   });
 
   it('escapes pipes inside table cells', () => {

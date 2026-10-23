@@ -1,6 +1,6 @@
 // In-memory store shared by the MSW handlers and the run simulator, so REST responses and
 // live events always describe the same run.
-import type { CheckFinding, ExchangeWithDecoded, RunDetail } from '@playground/shared';
+import type { CheckFinding, ExchangeWithDecoded, HeldCredential, RunDetail } from '@playground/shared';
 
 export interface MockRunRecord {
   run: RunDetail;
@@ -12,6 +12,8 @@ export interface MockRunRecord {
 }
 
 const runs = new Map<string, MockRunRecord>();
+/** What the headless mock wallet holds, oldest first; filled by mock runs that store a credential. */
+const heldCredentials: HeldCredential[] = [];
 
 export const db = {
   create(run: RunDetail): MockRunRecord {
@@ -27,5 +29,9 @@ export const db = {
   },
   get: (id: string) => runs.get(id),
   all: () => [...runs.values()],
-  clear: () => runs.clear(),
+  heldCredentials,
+  clear: () => {
+    runs.clear();
+    heldCredentials.length = 0;
+  },
 };

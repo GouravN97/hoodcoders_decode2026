@@ -7,17 +7,19 @@ import {
   InteropVerdictSchema,
   PresentationFlowSchema,
   RoleSchema,
+  RunModeSchema,
   VerificationOutcomeSchema,
 } from './domain';
 import { CheckFindingSchema } from './events';
 import {
   formatLabel,
+  modeLabel,
   outcomeLabel,
   roleLabel,
   stepLabel,
   verdictLabel,
 } from './labels';
-import { EvidenceKindSchema, RunPhaseSchema, StepStatusSchema } from './run';
+import { EvidenceKindSchema, RunPhaseSchema, runUsesRole, StepStatusSchema } from './run';
 
 export const ReportParticipantSchema = z.object({
   role: RoleSchema,
@@ -32,6 +34,8 @@ export const RunReportSchema = z.object({
   createdAt: z.string(),
   finishedAt: z.string().optional(),
   durationMs: z.number().optional(),
+  /** Runs saved before modes were honoured have no mode; read them as `full`. */
+  mode: RunModeSchema.default('full'),
   issuer: ReportParticipantSchema,
   wallet: ReportParticipantSchema,
   verifier: ReportParticipantSchema,
@@ -73,6 +77,24 @@ const cell = (v: string | number | undefined) =>
 
 const participant = (p: ReportParticipant) => (p.version ? `${p.displayName} (${p.version})` : p.displayName);
 
+/** The participant cell, or a note when this run mode never contacts that role. */
+function participantCell(r: RunReport, p: ReportParticipant): string {
+  return runUsesRole(r.mode, p.role)
+    ? cell(participant(p))
+    : cell(`${participant(p)} — not used (${r.mode} run)`);
+}
+
+function outcomeCell(r: RunReport): string {
+  if (!runUsesRole(r.mode, 'verifier')) {
+    return cell(
+      `${verdictLabel(r.verdict)} — ${r.passed ? 'credential issued and stored in the wallet' : 'credential not stored'}; not presented (issue-only run)`,
+    );
+  }
+  return cell(
+    `${verdictLabel(r.verdict)} — observed ${r.observedOutcome ? outcomeLabel(r.observedOutcome) : 'no result'}, expected ${outcomeLabel(r.expectedOutcome)}`,
+  );
+}
+
 export function formatDuration(ms: number | undefined): string {
   if (ms === undefined) return '—';
   if (ms < 1000) return `${Math.round(ms)} ms`;
@@ -84,15 +106,14 @@ export function renderReportMarkdown(r: RunReport): string {
   lines.push(`# Interop run report — ${r.passed ? 'PASS' : 'FAIL'}`, '');
   lines.push(`Run \`${r.runId}\` · ${r.createdAt}`, '');
   lines.push('| Field | Value |', '| --- | --- |');
-  lines.push(`| ${roleLabel('issuer')} | ${cell(participant(r.issuer))} |`);
-  lines.push(`| ${roleLabel('wallet')} | ${cell(participant(r.wallet))} |`);
-  lines.push(`| ${roleLabel('verifier')} | ${cell(participant(r.verifier))} |`);
+  lines.push(`| Run mode | ${modeLabel(r.mode)} |`);
+  lines.push(`| ${roleLabel('issuer')} | ${participantCell(r, r.issuer)} |`);
+  lines.push(`| ${roleLabel('wallet')} | ${participantCell(r, r.wallet)} |`);
+  lines.push(`| ${roleLabel('verifier')} | ${participantCell(r, r.verifier)} |`);
   lines.push(`| Format | ${cell(`${formatLabel(r.format)} (\`${r.format}\`)`)} |`);
   lines.push(`| Credential configuration | ${cell(r.credentialConfigurationId)} |`);
   lines.push(`| Proof type | ${cell(r.proofType)} |`);
-  lines.push(
-    `| Outcome | ${cell(`${verdictLabel(r.verdict)} — observed ${r.observedOutcome ? outcomeLabel(r.observedOutcome) : 'no result'}, expected ${outcomeLabel(r.expectedOutcome)}`)} |`,
-  );
+  lines.push(`| Outcome | ${outcomeCell(r)} |`);
   lines.push(
     `| Error detail | ${cell(r.error ? `${stepLabel(r.error.step)}: ${r.error.message}${r.error.status ? ` (HTTP ${r.error.status})` : ''}` : undefined)} |`,
   );

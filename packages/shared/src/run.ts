@@ -11,6 +11,8 @@ import {
   RunConfigSchema,
   VerificationOutcomeSchema,
   VerificationResultSchema,
+  type Role,
+  type RunMode,
 } from './domain';
 
 export const RunPhaseSchema = z.enum(['issuing', 'holding', 'presenting', 'verifying']);
@@ -59,6 +61,36 @@ export const RUN_STEP_TEMPLATE = [
   { phase: 'presenting', step: ProtocolStep.VP_RESPONSE, label: 'vp_token submitted' },
   { phase: 'verifying', step: ProtocolStep.VERIFY_RESULT, label: 'Verification result' },
 ] as const satisfies ReadonlyArray<{ phase: RunPhase; step: string; label: string }>;
+
+/**
+ * Which phases each run mode goes through (plan §5). Issuing and verifying are separate parties:
+ * `issue-only` ends once the credential is in the wallet, `present-only` starts from a credential
+ * the wallet already holds, so neither half depends on the other being up.
+ */
+export const RUN_MODE_PHASES: Record<RunMode, readonly RunPhase[]> = {
+  full: ['issuing', 'holding', 'presenting', 'verifying'],
+  'issue-only': ['issuing', 'holding'],
+  'present-only': ['holding', 'presenting', 'verifying'],
+  'direct-verify': ['verifying'],
+};
+
+/** Modes the orchestrator runs today; `direct-verify` is planned (plan §5) but not built yet. */
+export const SUPPORTED_RUN_MODES: readonly RunMode[] = ['full', 'issue-only', 'present-only'];
+
+export const runUsesPhase = (mode: RunMode, phase: RunPhase) =>
+  RUN_MODE_PHASES[mode].includes(phase);
+
+/** Whether a run in this mode talks to the implementation playing `role`. */
+export function runUsesRole(mode: RunMode, role: Role): boolean {
+  if (role === 'issuer') return runUsesPhase(mode, 'issuing');
+  if (role === 'verifier') return runUsesPhase(mode, 'presenting') || runUsesPhase(mode, 'verifying');
+  return mode !== 'direct-verify';
+}
+
+/** The run's sub-steps for a mode, in template order. */
+export function stepTemplateFor(mode: RunMode) {
+  return RUN_STEP_TEMPLATE.filter((t) => runUsesPhase(mode, t.phase));
+}
 
 export const StepErrorSchema = z.object({
   message: z.string(),

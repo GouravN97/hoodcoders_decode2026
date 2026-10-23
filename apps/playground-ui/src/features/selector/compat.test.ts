@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mockCatalog } from '../../mocks/catalog';
-import { buildRunConfig, commonFormats, disabledReason, supportedFlows } from './compat';
+import { buildRunConfig, commonFormats, constrainingRoles, disabledReason, supportedFlows } from './compat';
 
 const get = (id: string) => mockCatalog.find((c) => c.id === id)!;
 
@@ -41,5 +41,20 @@ describe('selector rules', () => {
       proofSuite: 'ES256',
       labels: { scenario: 'expired' },
     });
+    expect(buildRunConfig(sel, get('inji-certify'), get('mock-wallet'), get('inji-verify'), cc)?.mode).toBe('full');
+  });
+
+  it('carries the run mode, and a held credential only for present-only runs', () => {
+    const sel = { format: 'vc+sd-jwt' as const, credentialConfigurationId: 'X', presentationFlow: 'cross-device-qr' as const, expectedOutcome: 'VALID' as const, heldCredentialId: 'c1' };
+    const cc = { id: 'X', format: 'vc+sd-jwt' as const, displayName: 'x', proofSuites: ['ES256' as const] };
+    const roles = [get('inji-certify'), get('mock-wallet'), get('inji-verify')] as const;
+    expect(buildRunConfig({ ...sel, mode: 'present-only' }, ...roles, cc)).toMatchObject({ mode: 'present-only', heldCredentialId: 'c1' });
+    expect(buildRunConfig({ ...sel, mode: 'issue-only' }, ...roles, cc)).not.toHaveProperty('heldCredentialId');
+  });
+
+  it('ignores the verifier when working out formats for an issue-only run', () => {
+    const ldpOnlyVerifier = { ...get('inji-verify'), capabilities: { ...get('inji-verify').capabilities, formats: ['ldp_vc' as const] } };
+    expect(commonFormats(constrainingRoles('issue-only', get('inji-certify'), get('mock-wallet'), ldpOnlyVerifier))).toEqual(['ldp_vc', 'vc+sd-jwt']);
+    expect(commonFormats(constrainingRoles('full', get('inji-certify'), get('mock-wallet'), ldpOnlyVerifier))).toEqual(['ldp_vc']);
   });
 });

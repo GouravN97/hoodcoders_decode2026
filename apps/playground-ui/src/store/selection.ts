@@ -2,12 +2,17 @@ import type {
   CredentialFormat,
   PresentationFlow,
   Role,
+  RunMode,
   VerificationOutcome,
 } from '@playground/shared';
 import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 
 export interface SelectionState {
+  /** Full cycle, or only one half: issuing and verifying are separate parties. */
+  mode: RunMode;
+  /** present-only: a credential the wallet already holds; unset = newest matching one. */
+  heldCredentialId?: string;
   issuerId?: string;
   walletId?: string;
   verifierId?: string;
@@ -50,6 +55,7 @@ const safeStorage: StateStorage = {
 export const useSelection = create<SelectionState>()(
   persist(
     (set) => ({
+      mode: 'full',
       presentationFlow: 'cross-device-qr',
       expectedOutcome: 'VALID',
       select: (role, id) => set({ [ROLE_KEY[role]]: id }),
@@ -59,7 +65,8 @@ export const useSelection = create<SelectionState>()(
       name: 'playground.selection',
       storage: createJSONStorage(() => safeStorage),
       // Issuer, wallet and verifier start at None on every visit; only the run settings are remembered.
-      partialize: ({ issuerId: _i, walletId: _w, verifierId: _v, ...rest }) => rest,
+      // A held credential is not: the mock wallet forgets its credentials when it restarts.
+      partialize: ({ issuerId: _i, walletId: _w, verifierId: _v, heldCredentialId: _h, ...rest }) => rest,
       version: 2,
       migrate: (persisted) => {
         const { issuerId: _i, walletId: _w, verifierId: _v, ...rest } = (persisted ?? {}) as Partial<SelectionState>;

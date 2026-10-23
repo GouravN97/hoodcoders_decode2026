@@ -6,8 +6,22 @@ import {
   type CredentialFormat,
   type PresentationFlow,
   type RunConfig,
+  type RunMode,
 } from '@playground/shared';
 import type { SelectionState } from '../../store/selection';
+
+/**
+ * The implementations whose formats constrain a run in this mode. An issue-only run never meets
+ * the verifier; a present-only run still needs the issuer, whose metadata names the credential.
+ */
+export function constrainingRoles(
+  mode: RunMode,
+  issuer: CatalogEntry | undefined,
+  wallet: CatalogEntry | undefined,
+  verifier: CatalogEntry | undefined,
+): Array<CatalogEntry | undefined> {
+  return mode === 'issue-only' ? [issuer, wallet] : [issuer, wallet, verifier];
+}
 
 /** Formats every selected implementation supports, limited to the formats the playground runs. */
 export function commonFormats(selected: Array<CatalogEntry | undefined>): CredentialFormat[] {
@@ -37,7 +51,8 @@ export function supportedFlows(wallet: CatalogEntry | undefined, verifier: Catal
 
 /** The RunConfig the BFF receives, or null while the selection is incomplete. */
 export function buildRunConfig(
-  s: Pick<SelectionState, 'format' | 'credentialConfigurationId' | 'presentationFlow' | 'expectedOutcome'>,
+  s: Pick<SelectionState, 'format' | 'credentialConfigurationId' | 'presentationFlow' | 'expectedOutcome'> &
+    Partial<Pick<SelectionState, 'mode' | 'heldCredentialId'>>,
   issuer: CatalogEntry | undefined,
   wallet: CatalogEntry | undefined,
   verifier: CatalogEntry | undefined,
@@ -47,8 +62,9 @@ export function buildRunConfig(
   if (!issuer || !wallet || !verifier || !s.format || !credentialConfig) return null;
   const grantTypes = wallet.capabilities.grantTypes ?? ['pre-authorized_code'];
   const proofSuite = credentialConfig.proofSuites[0];
+  const mode = s.mode ?? 'full';
   return {
-    mode: 'full',
+    mode,
     issuerId: issuer.id,
     walletId: wallet.id,
     verifierId: verifier.id,
@@ -58,6 +74,7 @@ export function buildRunConfig(
     grantType: grantTypes.includes('pre-authorized_code') ? 'pre-authorized_code' : 'authorization_code',
     presentationFlow: s.presentationFlow,
     expectedOutcome: s.expectedOutcome,
+    ...(mode === 'present-only' && s.heldCredentialId ? { heldCredentialId: s.heldCredentialId } : {}),
     ...(scenario ? { labels: { scenario } } : {}),
   };
 }

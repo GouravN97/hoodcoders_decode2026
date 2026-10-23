@@ -1,10 +1,10 @@
-import { formatLabel, type CatalogEntry, type Role } from '@playground/shared';
+import { formatLabel, modeLabel, runUsesRole, type CatalogEntry, type Role } from '@playground/shared';
 import { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useCatalog, useCreateRun, useCredentialConfigurations } from '../api/queries';
 import { ArrowRightIcon, IssuerIcon, LayersIcon, PlayIcon, ShieldIcon, WalletIcon } from '../components/icons';
 import { Badge, Button, ErrorNote, PageHeader, Spinner, StatCard } from '../components/ui';
-import { buildRunConfig, commonFormats, supportedFlows } from '../features/selector/compat';
+import { buildRunConfig, commonFormats, constrainingRoles, supportedFlows } from '../features/selector/compat';
 import { CompatibilityHint } from '../features/selector/CompatibilityHint';
 import { RoleSelectorBoard } from '../features/selector/RoleSelectorBoard';
 import { RunConfigPanel } from '../features/selector/RunConfigPanel';
@@ -66,7 +66,10 @@ export function PlaygroundPage() {
   const missingRoles = (['issuer', 'wallet', 'verifier'] as const).filter((r) => !{ issuer, wallet, verifier }[r]);
 
   const configs = useCredentialConfigurations(issuer?.id);
-  const formats = useMemo(() => commonFormats([issuer, wallet, verifier]), [issuer, wallet, verifier]);
+  const formats = useMemo(
+    () => commonFormats(constrainingRoles(selection.mode, issuer, wallet, verifier)),
+    [selection.mode, issuer, wallet, verifier],
+  );
   const flows = useMemo(() => supportedFlows(wallet, verifier), [wallet, verifier]);
   const credentialConfig = configs.data?.find(
     (c) => c.id === selection.credentialConfigurationId && c.format === selection.format,
@@ -79,7 +82,10 @@ export function PlaygroundPage() {
       onSuccess: ({ id }) => {
         addRecent({
           id,
-          title: [issuer, wallet, verifier].map((c) => c?.displayName).join(' → '),
+          title: [issuer, wallet, verifier]
+            .filter((c) => c && runUsesRole(config.mode, c.role))
+            .map((c) => c?.displayName)
+            .join(' → '),
           wallet: wallet?.displayName ?? config.walletId,
           formatLabel: formatLabel(config.format),
           startedAt: Date.now(),
@@ -94,7 +100,7 @@ export function PlaygroundPage() {
       <PageHeader
         hero
         title="New interop run"
-        description="Pick who plays each role, choose a credential format, then run a live issue → hold → present → verify cycle and watch every protocol message."
+        description="Pick who plays each role, choose a credential format, then run a live issue → hold → present → verify cycle (or just one half of it) and watch every protocol message."
       />
 
       <CatalogStats entries={entries} formats={formats} loading={catalog.isPending} />
@@ -116,6 +122,7 @@ export function PlaygroundPage() {
             credentialConfigs={configs.data ?? []}
             configsLoading={configs.isLoading}
             issuer={issuer}
+            wallet={wallet}
           />
           <CompatibilityHint config={config} />
         </div>
@@ -132,6 +139,7 @@ export function PlaygroundPage() {
                 <ArrowRightIcon className="text-muted" />
                 <span className="font-medium">{verifier.displayName}</span>
                 {selection.format && <span className="text-muted">· {formatLabel(selection.format)}</span>}
+                {selection.mode !== 'full' && <span className="text-muted">· {modeLabel(selection.mode)}</span>}
               </>
             ) : (
               <span className="text-muted" data-testid="missing-roles">

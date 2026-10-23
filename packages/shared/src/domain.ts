@@ -138,6 +138,12 @@ export const RunConfigSchema = z.object({
   presentationFlow: PresentationFlowSchema,
   holderDidMethod: z.enum(['did:jwk', 'did:key']).optional(),
   tamper: TamperSpecSchema.optional(),
+  /**
+   * present-only: the credential the wallet should present, from an earlier run. Only wallets that
+   * can list what they hold (the mock wallet) use it; otherwise the newest matching one is used.
+   */
+  heldCredentialId: z.string().min(1).optional(),
+  /** Ignored by issue-only runs, which end once the credential is in the wallet. */
   expectedOutcome: VerificationOutcomeSchema,
   labels: z.record(z.string(), z.string()).optional(),
 });

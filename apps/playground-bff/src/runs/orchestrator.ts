@@ -9,9 +9,14 @@
 // headless ones.
 import { randomUUID } from 'node:crypto';
 import {
+  formatLabel,
+  modeLabel,
   ProtocolStep,
-  RUN_STEP_TEMPLATE,
+  runUsesPhase,
+  runUsesRole,
   stepLabel,
+  stepTemplateFor,
+  SUPPORTED_RUN_MODES,
   type Artifact,
   type ArtifactKind,
   type CatalogEntry,
@@ -26,6 +31,7 @@ import {
   type MockWalletTamper,
   type RunConfig,
   type RunDetail,
+  type RunPhase,
   type RunState,
   type RunStep,
   type StepError,
@@ -75,7 +81,7 @@ class StepOutcome extends Error {
   }
 }
 
-const TEMPLATE_STEPS: string[] = RUN_STEP_TEMPLATE.map((t) => t.step);
+const TEMPLATE_STEPS: string[] = stepTemplateFor('full').map((t) => t.step);
 
 /** Which run step a protocol step reported by an adapter belongs to. */
 function templateStepFor(step: string): string | undefined {
@@ -109,6 +115,8 @@ export class RunOrchestrator {
     if (!issuer) throw new RunConfigError(`Unknown issuer ${config.issuerId}`);
     if (!wallet) throw new RunConfigError(`Unknown wallet ${config.walletId}`);
     if (!verifier) throw new RunConfigError(`Unknown verifier ${config.verifierId}`);
+    if (!SUPPORTED_RUN_MODES.includes(config.mode))
+      throw new RunConfigError(`${modeLabel(config.mode)} runs are not supported yet`);
 
     const catalog = await this.registry.list(30_000);
     const run: RunDetail = {
@@ -118,8 +126,12 @@ export class RunOrchestrator {
       config,
       state: 'Configured',
       prediction: predict(config, catalog),
-      correlation: config.grantType === 'authorization_code' ? 'heuristic' : 'exact',
-      steps: RUN_STEP_TEMPLATE.map((t) => ({
+      // Wallet-initiated issuance is bound to the run by time window; everything else by key.
+      correlation:
+        runUsesPhase(config.mode, 'issuing') && config.grantType === 'authorization_code'
+          ? 'heuristic'
+          : 'exact',
+      steps: stepTemplateFor(config.mode).map((t) => ({
         phase: t.phase,
         step: t.step,
         status: 'pending' as const,
@@ -173,6 +185,16 @@ interface Evidence {
   kind: EvidenceKind;
   exchange?: Exchange;
 }
+
+/** What the presenting phase hands to the verifying phase. */
+interface Presentation {
+  request: PresentationRequestHandle;
+  /** Settles once Inji Verify reports the wallet's submission. */
+  submitted: Promise<void>;
+}
+
+/** A protocol message the wallet sent (not the BFF, not an out-of-band QR payload). */
+const fromWallet = (ex: Exchange) => ex.from !== 'bff' && !ex.outOfBand;
 
 class RunExecution {
   private readonly ctx: RunContext;
@@ -441,38 +463,74 @@ class RunExecution {
     }
   }
 
-  private async play(): Promise<void> {
-    const { issuer, wallet, verifier } = this.adapters;
-    const config = this.run.config;
-    const preAuth = config.grantType === 'pre-authorized_code';
+  private uses(phase: RunPhase) {
+    return runUsesPhase(this.run.config.mode, phase);
+  }
 
-    // ---------- preflight ----------
+  /**
+   * Runs the phases the run mode asks for (shared RUN_MODE_PHASES). Issuing and presenting never
+   * share in-memory state: a present-only run starts from what the wallet already holds, exactly
+   * as a separate relying party would meet it.
+   */
+  private async play(): Promise<void> {
+    if (!(await this.preflight())) return;
+
+    const held = this.uses('issuing')
+      ? await this.holdIssued((await this.issuePhase()).accepting)
+      : await this.holdExisting();
+
+    if (this.uses('presenting')) {
+      const presentation = await this.presentPhase(held);
+      await this.verifyPhase(presentation);
+    }
+    this.finish();
+  }
+
+  /** Health of the roles this run actually talks to; false when the run was aborted. */
+  private async preflight(): Promise<boolean> {
+    const { issuer, wallet, verifier } = this.adapters;
+    const mode = this.run.config.mode;
     this.status('Preflight');
     const required: Array<[string, Promise<string>]> = [
-      [issuer.descriptor.displayName, issuer.healthCheck()],
-      [verifier.descriptor.displayName, verifier.healthCheck()],
+      ...(runUsesRole(mode, 'issuer')
+        ? [[issuer.descriptor.displayName, issuer.healthCheck()] as [string, Promise<string>]]
+        : []),
+      ...(runUsesRole(mode, 'verifier')
+        ? [[verifier.descriptor.displayName, verifier.healthCheck()] as [string, Promise<string>]]
+        : []),
       ...(this.headless
         ? [[wallet.descriptor.displayName, wallet.healthCheck()] as [string, Promise<string>]]
         : []),
     ];
     const down = [];
     for (const [name, health] of required) if ((await health) === 'down') down.push(name);
-    if (down.length > 0) {
-      this.run.errorSummary = `Not responding: ${down.join(', ')}`;
-      for (const s of this.run.steps) this.step(s.step, 'skipped');
-      this.run.verdict = 'INCONCLUSIVE';
-      this.status('Aborted');
-      publish({
-        type: 'run.completed',
-        runId: this.run.id,
-        verdict: 'INCONCLUSIVE',
-        reportUrl: this.reportUrl(),
-      });
-      this.persist();
-      return;
-    }
+    if (down.length === 0) return true;
 
-    // ---------- issuing ----------
+    this.run.errorSummary = `Not responding: ${down.join(', ')}`;
+    for (const s of this.run.steps) this.step(s.step, 'skipped');
+    this.run.verdict = 'INCONCLUSIVE';
+    this.status('Aborted');
+    publish({
+      type: 'run.completed',
+      runId: this.run.id,
+      verdict: 'INCONCLUSIVE',
+      reportUrl: this.reportUrl(),
+    });
+    this.persist();
+    return false;
+  }
+
+  // ---------- issuing ----------
+
+  /**
+   * OpenID4VCI from offer to credential. Returns the headless wallet's acceptance, if any, wrapped
+   * so the async return does not wait on it.
+   */
+  private async issuePhase(): Promise<{ accepting?: Promise<HeldCredential> }> {
+    const { issuer, wallet } = this.adapters;
+    const config = this.run.config;
+    const preAuth = config.grantType === 'pre-authorized_code';
+
     this.status('Issuing');
     this.step('offer_prepared', 'active');
     let handle: IssuanceHandle;
@@ -508,7 +566,6 @@ class RunExecution {
     this.delivery('issuance', delivery);
     const accepting: Promise<HeldCredential> | undefined = wallet.acceptOffer?.(this.ctx, handle);
     accepting?.catch(() => {}); // observed through waitFor
-    const fromWallet = (ex: Exchange) => ex.from !== 'bff' && !ex.outOfBand;
 
     this.done(
       'offer_delivered',
@@ -546,8 +603,15 @@ class RunExecution {
       this.artifact('credential', credentialRaw, issued.exchange?.id, config.format);
     this.done(ProtocolStep.VCI_CREDENTIAL, issued);
     disarm(this.run.id);
+    return accepting ? { accepting } : {};
+  }
 
-    // ---------- holding ----------
+  // ---------- holding ----------
+
+  /** After issuing: the headless wallet's word, or the person confirming on the run screen. */
+  private async holdIssued(
+    accepting: Promise<HeldCredential> | undefined,
+  ): Promise<HeldCredential | undefined> {
     this.status('Holding');
     this.step('credential_held', 'active');
     let held: HeldCredential | undefined;
@@ -559,11 +623,53 @@ class RunExecution {
       this.step('credential_held', 'done', { evidenceKind: 'manual' });
     }
     this.run.delivery = undefined;
+    return held;
+  }
 
-    // ---------- presenting ----------
+  /**
+   * present-only: no issuer involved. A wallet the playground can look into is asked for the
+   * credential (by id, or the newest matching one); for a phone or Inji Web the person confirms
+   * the credential is already in the wallet.
+   */
+  private async holdExisting(): Promise<HeldCredential | undefined> {
+    const { wallet } = this.adapters;
+    const config = this.run.config;
+    this.status('Holding');
+    this.step('credential_held', 'active');
+
+    if (!wallet.listCredentials) {
+      await this.waitManual('credential_held', this.settings.manualTimeoutMs);
+      this.step('credential_held', 'done', { evidenceKind: 'manual' });
+      return undefined;
+    }
+
+    const all = await this.attempt('credential_held', () =>
+      wallet.listCredentials!(this.ctx.signal),
+    );
+    const held = pickHeldCredential(all, config);
+    if (!held) {
+      const name = wallet.descriptor.displayName;
+      throw new StepOutcome('credential_held', 'failed', {
+        message: config.heldCredentialId
+          ? `${name} holds no ${formatLabel(config.format)} credential with id ${config.heldCredentialId}`
+          : `${name} holds no ${formatLabel(config.format)} ${config.credentialConfigurationId} credential. Run an issue-only or full run first.`,
+      });
+    }
+    this.artifact('credential', held.raw, undefined, held.format);
+    this.step('credential_held', 'done', { evidenceKind: 'adapter' });
+    return held;
+  }
+
+  // ---------- presenting ----------
+
+  /** OpenID4VP: create the request, deliver it, observe the wallet's vp_token. */
+  private async presentPhase(held: HeldCredential | undefined): Promise<Presentation> {
+    const { wallet, verifier } = this.adapters;
+    const config = this.run.config;
+
     this.status('Presenting');
     this.step('request_created', 'active');
-    const credentialType = await this.credentialType();
+    const credentialType = await this.credentialType(held);
     const request = await this.attempt('request_created', () =>
       verifier.createPresentationRequest(this.ctx, {
         id: config.credentialConfigurationId,
@@ -597,8 +703,9 @@ class RunExecution {
     this.step('request_delivered', 'active');
     this.delivery('presentation', wallet.presentationDelivery(this.ctx, request));
     const tamper = this.tamperFor(config);
+    const credentialId = held?.id ?? config.heldCredentialId;
     const responding = wallet.respond?.(this.ctx, request, {
-      ...(held ? { credentialId: held.id } : {}),
+      ...(credentialId ? { credentialId } : {}),
       ...(tamper ? { tamper } : {}),
     });
     responding?.catch(() => {});
@@ -663,8 +770,14 @@ class RunExecution {
       }
     }
     this.run.delivery = undefined;
+    return { request, submitted };
+  }
 
-    // ---------- verifying ----------
+  // ---------- verifying ----------
+
+  private async verifyPhase({ request, submitted }: Presentation): Promise<void> {
+    const { verifier } = this.adapters;
+    const config = this.run.config;
     this.status('Verifying');
     this.step(ProtocolStep.VERIFY_RESULT, 'active');
     await submitted.catch(() => undefined);
@@ -697,7 +810,6 @@ class RunExecution {
       evidenceKind: 'adapter',
       ...(resultExchange ? { exchangeId: resultExchange.id } : {}),
     });
-    this.finish();
   }
 
   /** Long-polls Inji Verify until the wallet has submitted; rejects if the request expires. */
@@ -718,9 +830,16 @@ class RunExecution {
     });
   }
 
-  /** The `type` (JSON-LD) or `vct` (SD-JWT) the issuer advertises for the run's configuration. */
-  private async credentialType(): Promise<string> {
+  /**
+   * The `type` (JSON-LD) or `vct` (SD-JWT) to request. A present-only run reads it from the held
+   * credential itself; otherwise (or when that fails) from the issuer's published metadata.
+   */
+  private async credentialType(held?: HeldCredential): Promise<string> {
     const id = this.run.config.credentialConfigurationId;
+    if (!this.uses('issuing') && held) {
+      const own = credentialTypeOf(held.raw);
+      if (own) return own;
+    }
     try {
       const configs = await this.adapters.issuer.listCredentialConfigurations();
       return configs.find((c) => c.id === id)?.credentialType ?? id;
@@ -747,9 +866,17 @@ class RunExecution {
       if (s.status === 'pending' || s.status === 'active') this.step(s.step, 'skipped');
     const steps = this.run.steps;
     const inconclusive = steps.some((s) => s.status === 'inconclusive');
+    // An issue-only run passes once the credential is in the wallet; the others are judged on
+    // the verifier's answer.
+    const verifies = this.uses('verifying');
     const failed =
-      steps.some((s) => s.status === 'failed') || (!this.run.observedOutcome && !inconclusive);
-    const matched = !failed && this.run.observedOutcome === this.run.config.expectedOutcome;
+      steps.some((s) => s.status === 'failed') ||
+      (verifies && !this.run.observedOutcome && !inconclusive);
+    const matched =
+      !failed &&
+      (verifies
+        ? this.run.observedOutcome === this.run.config.expectedOutcome
+        : steps.every((s) => s.status === 'done'));
     const warned = this.record.findings.some((f) => f.severity === 'WARN');
     const verdict: InteropVerdict = inconclusive
       ? 'INCONCLUSIVE'
@@ -814,4 +941,41 @@ export function presentationDefinitionFrom(body: string | undefined): string | u
         : undefined;
   const pd = payload?.['presentation_definition'];
   return pd ? JSON.stringify(pd, null, 2) : undefined;
+}
+
+/**
+ * present-only: the credential to present. `heldCredentialId` wins when set (and must match the
+ * run's format); otherwise the newest credential of the run's format and configuration.
+ */
+export function pickHeldCredential(
+  held: HeldCredential[],
+  config: Pick<RunConfig, 'format' | 'credentialConfigurationId' | 'heldCredentialId'>,
+): HeldCredential | undefined {
+  if (config.heldCredentialId)
+    return held.find((c) => c.id === config.heldCredentialId && c.format === config.format);
+  return held
+    .filter(
+      (c) =>
+        c.format === config.format &&
+        c.credentialConfigurationId === config.credentialConfigurationId,
+    )
+    .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))[0];
+}
+
+/** `vct` of an SD-JWT VC, or the most specific `type` of a JSON-LD VC. */
+export function credentialTypeOf(raw: string): string | undefined {
+  const d = decodeBody(raw);
+  if (d.kind === 'sd-jwt' || d.kind === 'jwt') {
+    const vct = (d.kind === 'sd-jwt' ? d.issuerJwt : d.jwt).payload['vct'];
+    return typeof vct === 'string' && vct ? vct : undefined;
+  }
+  if (d.kind === 'json') {
+    const type = (d.value as { type?: unknown }).type;
+    const types = Array.isArray(type) ? type : [type];
+    const specific = types.filter(
+      (t): t is string => typeof t === 'string' && t !== 'VerifiableCredential',
+    );
+    return specific.at(-1);
+  }
+  return undefined;
 }

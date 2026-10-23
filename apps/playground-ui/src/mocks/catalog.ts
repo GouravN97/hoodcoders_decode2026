@@ -2,6 +2,7 @@
 // card in the selector even before the BFF exists.
 import {
   CatalogFileSchema,
+  runUsesRole,
   type CatalogEntry,
   type HealthStatus,
   type Prediction,
@@ -47,7 +48,9 @@ export function predict(config: RunConfig): Prediction {
   if (!issuer || !wallet || !verifier) {
     return { status: 'unknown', reasons: [{ severity: 'warn', message: 'Pick an issuer, a wallet and a verifier' }] };
   }
-  for (const entry of [issuer, wallet, verifier]) {
+  // Same rule as the BFF: only roles the run mode talks to count.
+  const presenting = runUsesRole(config.mode, 'verifier');
+  for (const entry of [issuer, wallet, verifier].filter((e) => runUsesRole(config.mode, e.role))) {
     if (!entry.capabilities.formats.includes(config.format)) {
       reasons.push({ role: entry.role, severity: 'error', message: `${entry.displayName} does not support ${config.format}` });
     }
@@ -57,17 +60,17 @@ export function predict(config: RunConfig): Prediction {
   }
   const wq = wallet.capabilities.queryLanguages ?? [];
   const vq = verifier.capabilities.queryLanguages ?? [];
-  if (wq.length && vq.length && !wq.some((q) => vq.includes(q))) {
+  if (presenting && wq.length && vq.length && !wq.some((q) => vq.includes(q))) {
     reasons.push({
       severity: 'error',
       message: `Wallet speaks ${wq.join(', ')}; verifier requests ${vq.join(', ')}`,
     });
   }
   const flows = wallet.capabilities.presentationFlows ?? [];
-  if (flows.length && !flows.includes(config.presentationFlow)) {
+  if (presenting && flows.length && !flows.includes(config.presentationFlow)) {
     reasons.push({ role: 'wallet', severity: 'error', message: `${wallet.displayName} does not support ${config.presentationFlow}` });
   }
-  if (wallet.id === 'inji-web') {
+  if (runUsesRole(config.mode, 'issuer') && wallet.id === 'inji-web') {
     reasons.push({
       role: 'wallet',
       severity: 'info',

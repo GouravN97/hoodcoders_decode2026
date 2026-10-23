@@ -6,6 +6,7 @@ import {
   CreateRunResponseSchema,
   CredentialConfigurationsResponseSchema,
   ExchangesResponseSchema,
+  HeldCredentialsResponseSchema,
   PredictResponseSchema,
   RunReportSchema,
   RunResponseSchema,
@@ -56,6 +57,8 @@ export const api = {
       `/api/catalog/${encodeURIComponent(issuerId)}/credential-configurations`,
       CredentialConfigurationsResponseSchema,
     ),
+  heldCredentials: (walletId: string) =>
+    getJson(`/api/catalog/${encodeURIComponent(walletId)}/credentials`, HeldCredentialsResponseSchema),
   predict: (config: RunConfig) =>
     getJson('/api/compatibility/predict', PredictResponseSchema, post(config)),
   createRun: (config: RunConfig) => getJson('/api/runs', CreateRunResponseSchema, post(config)),

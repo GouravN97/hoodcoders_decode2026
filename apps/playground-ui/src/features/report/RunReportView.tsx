@@ -1,8 +1,10 @@
 import {
   formatDuration,
   formatLabel,
+  modeLabel,
   outcomeLabel,
   phaseLabel,
+  runUsesRole,
   stepLabel,
   verdictLabel,
   type InteropVerdict,
@@ -77,6 +79,15 @@ function DownloadButtons({ runId }: { runId: string }) {
 
 function ReportBody({ report }: { report: RunReport }) {
   const tone = VERDICT_TONE[report.verdict];
+  const verifies = runUsesRole(report.mode, 'verifier');
+  const usedOrNot = (p: ReportParticipant) =>
+    runUsesRole(report.mode, p.role) ? (
+      who(p)
+    ) : (
+      <span className="text-muted">
+        {who(p)} — not used in this run
+      </span>
+    );
   return (
     <>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 pb-4 pt-2">
@@ -89,16 +100,23 @@ function ReportBody({ report }: { report: RunReport }) {
             )}
           </p>
         </div>
-        <p className="text-[13px] text-muted">
-          Expected <strong className="text-fg">{outcomeLabel(report.expectedOutcome)}</strong>, verifier said{' '}
-          <strong className="text-fg">{report.observedOutcome ? outcomeLabel(report.observedOutcome) : 'nothing'}</strong>
-          .
-        </p>
+        {verifies ? (
+          <p className="text-[13px] text-muted">
+            Expected <strong className="text-fg">{outcomeLabel(report.expectedOutcome)}</strong>, verifier said{' '}
+            <strong className="text-fg">{report.observedOutcome ? outcomeLabel(report.observedOutcome) : 'nothing'}</strong>
+            .
+          </p>
+        ) : (
+          <p className="text-[13px] text-muted">
+            Issue-only run: passes once the credential is stored in the wallet.
+          </p>
+        )}
       </div>
       <dl className="border-t border-border" aria-label="Report fields">
-        <Row label="Issuer">{who(report.issuer)}</Row>
-        <Row label="Wallet">{who(report.wallet)}</Row>
-        <Row label="Verifier">{who(report.verifier)}</Row>
+        <Row label="Run mode">{modeLabel(report.mode)}</Row>
+        <Row label="Issuer">{usedOrNot(report.issuer)}</Row>
+        <Row label="Wallet">{usedOrNot(report.wallet)}</Row>
+        <Row label="Verifier">{usedOrNot(report.verifier)}</Row>
         <Row label="Format">
           {formatLabel(report.format)} <span className="font-mono text-xs text-muted">{report.format}</span>
         </Row>
@@ -106,7 +124,14 @@ function ReportBody({ report }: { report: RunReport }) {
           <span className="font-mono">{report.proofType ?? '—'}</span>
         </Row>
         <Row label="Outcome">
-          {report.passed ? 'Pass' : 'Fail'} — {report.observedOutcome ? outcomeLabel(report.observedOutcome) : 'no verification result'}
+          {report.passed ? 'Pass' : 'Fail'} —{' '}
+          {!verifies
+            ? report.passed
+              ? 'credential issued and stored'
+              : 'credential not stored'
+            : report.observedOutcome
+              ? outcomeLabel(report.observedOutcome)
+              : 'no verification result'}
         </Row>
         <Row label="Error detail">
           {report.error ? (
