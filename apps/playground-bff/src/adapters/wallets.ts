@@ -31,7 +31,12 @@ export function qrVersionFor(bytes: number): number {
   return i === -1 ? 41 : i + 1;
 }
 
-export function qr(payload: string, hint: string, ttlMs = 300_000): DeliveryInstruction {
+export function qr(
+  payload: string,
+  hint: string,
+  ttlMs = 300_000,
+  expiresAt?: string,
+): DeliveryInstruction {
   const bytes = byteLength(payload);
   return {
     kind: 'qr',
@@ -39,7 +44,7 @@ export function qr(payload: string, hint: string, ttlMs = 300_000): DeliveryInst
     bytes,
     qrVersion: qrVersionFor(bytes),
     hint,
-    expiresAt: new Date(Date.now() + ttlMs).toISOString(),
+    expiresAt: expiresAt ?? new Date(Date.now() + ttlMs).toISOString(),
   };
 }
 
@@ -78,6 +83,8 @@ export class InjiMobileWalletAdapter extends HumanWalletAdapter {
     return qr(
       handle.offerUri,
       'Open Inji Wallet, tap “+” → “Scan QR code” and scan this credential offer.',
+      300_000,
+      handle.expiresAt,
     );
   }
 }
@@ -168,7 +175,11 @@ export class MockWalletAdapter implements WalletAdapter {
     }
     if (!res.ok) {
       await res.body?.cancel();
-      throw new AdapterError('credential_held', `Mock wallet answered HTTP ${res.status}`, res.status);
+      throw new AdapterError(
+        'credential_held',
+        `Mock wallet answered HTTP ${res.status}`,
+        res.status,
+      );
     }
     return z.array(HeldCredentialSchema).parse(await res.json());
   }

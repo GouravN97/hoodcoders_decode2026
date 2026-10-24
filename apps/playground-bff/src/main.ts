@@ -65,6 +65,10 @@ const registry = new ImplementationRegistry(CATALOG_DIR, {
   certifyApiUrl: env.CERTIFY_API_URL || tapUrl('certify'),
   verifyApiUrl: env.VERIFY_API_URL || tapUrl('verify'),
   verifyClientId: env.VERIFY_CLIENT_ID ?? 'did:web:verify.localhost%3A8443:v1:verify',
+  // Optional stable overrides. Without them the Hovi adapter discovers the public browser-client
+  // values from playground.hovi.id, where they are intentionally exposed to every visitor.
+  hoviSupabaseUrl: env.HOVI_SUPABASE_URL,
+  hoviSupabaseAnonKey: env.HOVI_SUPABASE_ANON_KEY,
 });
 const runs = new RunStore(DATA_DIR);
 const orchestrator = new RunOrchestrator(registry, runs, {

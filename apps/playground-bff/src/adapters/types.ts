@@ -30,6 +30,13 @@ export interface IssuanceHandle {
   /** `openid-credential-offer://…`; absent for wallet-initiated (authorization code) flows. */
   offerUri?: string;
   offerId?: string;
+  /** The issuer's absolute expiry, when its offer response publishes one. */
+  expiresAt?: string;
+  /**
+   * External issuers receive the wallet's token and credential requests directly, outside the
+   * Protocol Tap. In that case the holder confirms successful storage from the run screen.
+   */
+  observation?: 'tap' | 'manual';
   /** Where the user starts a wallet-initiated flow. */
   entryUrl?: string;
 }

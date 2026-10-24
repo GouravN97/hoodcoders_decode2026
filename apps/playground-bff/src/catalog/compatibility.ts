@@ -1,6 +1,11 @@
 // CompatibilityResolver (plan §8.2): intersects capability descriptors to predict whether a
 // combination should work, with reasons. Same rules as the UI's mock resolver.
-import { runUsesRole, type CatalogEntry, type Prediction, type RunConfig } from '@playground/shared';
+import {
+  runUsesRole,
+  type CatalogEntry,
+  type Prediction,
+  type RunConfig,
+} from '@playground/shared';
 
 export function predict(config: RunConfig, catalog: CatalogEntry[]): Prediction {
   const issuer = catalog.find((c) => c.id === config.issuerId && c.role === 'issuer');
@@ -39,6 +44,19 @@ export function predict(config: RunConfig, catalog: CatalogEntry[]): Prediction 
       role: 'wallet',
       severity: 'error',
       message: `${wallet.displayName} does not support the ${config.grantType} grant`,
+    });
+  }
+  const issuerProfiles = issuer.capabilities.vciProfiles ?? [];
+  const walletProfiles = wallet.capabilities.vciProfiles ?? [];
+  if (
+    issuing &&
+    issuerProfiles.length > 0 &&
+    walletProfiles.length > 0 &&
+    !issuerProfiles.some((profile) => walletProfiles.includes(profile))
+  ) {
+    reasons.push({
+      severity: 'error',
+      message: `Issuer speaks ${issuerProfiles.join(', ')}; wallet speaks ${walletProfiles.join(', ')}`,
     });
   }
   const wq = wallet.capabilities.queryLanguages ?? [];

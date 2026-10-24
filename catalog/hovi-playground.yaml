@@ -1,0 +1,23 @@
+# Hovi's public OpenID4VCI 1.0 interoperability test issuer.
+id: hovi-playground
+role: issuer
+displayName: Hovi Playground
+description: 'Public Hovi test issuer. Creates PID offers for testing external OpenID4VCI 1.0 issuance into a wallet. Use Issue only for wallet-import checks.'
+vendor: external
+adapter: HoviPlaygroundIssuerAdapter
+publicUrl: https://playground.hovi.id
+versionProbe:
+  kind: static
+  value: live
+capabilities:
+  formats: [dc+sd-jwt, mso_mdoc]
+  proofSuites: [ES256]
+  grantTypes: [pre-authorized_code]
+  vciProfiles: [oid4vci-1.0]
+  deliveryChannels: [qr, deeplink]
+  automation: headless
+  supportsTamper: false
+notes: >-
+  The phone talks to Hovi directly, outside the local Protocol Tap. The holder therefore confirms
+  successful storage from the run page. Hovi's public browser client configuration is discovered
+  at runtime; HOVI_SUPABASE_URL and HOVI_SUPABASE_ANON_KEY can pin it when needed.

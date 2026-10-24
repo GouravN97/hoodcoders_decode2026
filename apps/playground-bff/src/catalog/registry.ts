@@ -15,6 +15,10 @@ import {
 import { parse } from 'yaml';
 import { InjiCertifyIssuerAdapter } from '../adapters/inji-certify.ts';
 import { InjiVerifyServiceAdapter } from '../adapters/inji-verify.ts';
+import {
+  AnimoPlaygroundIssuerAdapter,
+  HoviPlaygroundIssuerAdapter,
+} from '../adapters/external-playgrounds.ts';
 import type {
   AnyAdapter,
   IssuerAdapter,
@@ -31,6 +35,8 @@ export interface AdapterSettings {
   certifyApiUrl: string;
   verifyApiUrl: string;
   verifyClientId: string;
+  hoviSupabaseUrl?: string;
+  hoviSupabaseAnonKey?: string;
 }
 
 type Factory = (d: ImplementationDescriptor, s: AdapterSettings) => AnyAdapter;
@@ -45,6 +51,12 @@ const FACTORIES: Record<string, Factory> = {
       s.verifyApiUrl || d.internalUrl || d.publicUrl,
       s.verifyClientId,
     ),
+  HoviPlaygroundIssuerAdapter: (d, s) =>
+    new HoviPlaygroundIssuerAdapter(d, {
+      supabaseUrl: s.hoviSupabaseUrl,
+      anonKey: s.hoviSupabaseAnonKey,
+    }),
+  AnimoPlaygroundIssuerAdapter: (d) => new AnimoPlaygroundIssuerAdapter(d),
   InjiMobileWalletAdapter: (d) => new InjiMobileWalletAdapter(d),
   InjiWebWalletAdapter: (d) => new InjiWebWalletAdapter(d),
   MockWalletAdapter: (d) => new MockWalletAdapter(d),
