@@ -6,14 +6,23 @@
 # Certify, :3003 for Verify), which records it and forwards it unchanged. When the BFF is not
 # running, nginx falls back to the service itself (`backup`), so the stack keeps working.
 
+server_names_hash_bucket_size 128;
+
+# Re-resolve upstream names through Docker's DNS: a container recreated on its own (e.g. by
+# `docker compose up -d` after an .env change) gets a new IP, and nginx would otherwise keep
+# proxying to the old one and answer 502.
+resolver 127.0.0.11 valid=10s ipv6=off;
+
 upstream certify_api {
-    server playground-bff:3002 max_fails=1 fail_timeout=10s;
-    server certify:8090 backup;
+    zone certify_api 64k;
+    server playground-bff:3002 max_fails=1 fail_timeout=10s resolve;
+    server certify:8090 backup resolve;
 }
 
 upstream verify_api {
-    server playground-bff:3003 max_fails=1 fail_timeout=10s;
-    server verify-service:8080 backup;
+    zone verify_api 64k;
+    server playground-bff:3003 max_fails=1 fail_timeout=10s resolve;
+    server verify-service:8080 backup resolve;
 }
 
 server {
@@ -22,6 +31,9 @@ server {
     # Public HTTPS address: https://${CERTIFY_PUBLIC_HOST}:8443. Containers reach it through the
     # network alias on this service, browsers on the host through the published port.
     listen 8443 ssl default_server;
+    # :443 too, inside the Docker network only (not published): containers resolve the public
+    # hostnames to this gateway, and portless did:web identifiers (tunnel mode) resolve on :443.
+    listen 443 ssl default_server;
     server_name ${CERTIFY_PUBLIC_HOST} localhost;
     ssl_certificate     /certs/certify.crt;
     ssl_certificate_key /certs/certify.key;
@@ -81,6 +93,7 @@ server {
 server {
     listen 80;
     listen 8443 ssl;
+    listen 443 ssl;
     server_name ${VERIFY_PUBLIC_HOST};
     ssl_certificate     /certs/certify.crt;
     ssl_certificate_key /certs/certify.key;
