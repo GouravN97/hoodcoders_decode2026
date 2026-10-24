@@ -81,14 +81,17 @@ set_env_var() {
   if grep -q "^${key}=" .env; then
     sed -i "s|^${key}=.*|${key}=${val}|" .env
   else
+    # Without a final newline the new entry would be glued onto the last line.
+    [[ -z "$(tail -c1 .env)" ]] || echo >> .env
     echo "${key}=${val}" >> .env
   fi
 }
 set_env_var CERTIFY_PUBLIC_HOST "$CERTIFY_HOST"
+set_env_var CERTIFY_DID          "did:web:${CERTIFY_HOST}"
 set_env_var VERIFY_PUBLIC_HOST  "$VERIFY_HOST"
 set_env_var VERIFY_PUBLIC_URL   "https://${VERIFY_HOST}:8443"
-# No port in the DID: the tunnel also serves :443, and Inji Wallet's OpenID4VP library does not
-# percent-decode "%3A8443" when resolving did:web ("Invalid URL host: <host>%3A8443").
+# No port in either DID: the tunnel also serves :443, and the did:web resolvers in Inji Wallet
+# (OpenID4VP) and Inji Verify do not percent-decode "%3A8443" ("Invalid URL host: <host>%3A8443").
 set_env_var VERIFY_DID          "did:web:${VERIFY_HOST}:v1:verify"
 info ".env updated."
 
@@ -101,8 +104,8 @@ info "Recreating containers that use the hostnames (profiles: $PROFILES) …"
 docker compose "${profile_args[@]}" up -d
 
 # ── issuer DID in the database ────────────────────────────────────────────────
-# Same value as db/04-certify-public-host.sh, which only runs when the volume is first created.
-NEW_DID="did:web:${CERTIFY_HOST}%3A8443"
+# Same DID as CERTIFY_DID above (db/04-certify-public-host.sh only runs when the volume is first created).
+NEW_DID="did:web:${CERTIFY_HOST}"
 info "Waiting for the database …"
 for (( i=0; i<60; i++ )); do
   docker compose exec -T database psql -U postgres -d inji_certify -tAc 'SELECT 1' >/dev/null 2>&1 && break

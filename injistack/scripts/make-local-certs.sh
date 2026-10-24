@@ -17,11 +17,16 @@ if [ -f certify.crt ] && [ -f truststore.p12 ] && [ "$(cat hostname 2>/dev/null)
   echo "Local certificates for $NAMES already exist"
 else
   echo "Creating local certificates for $NAMES"
-  rm -f ca.* certify.* truststore.p12 hostname
-  openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -sha256 \
-    -subj "/CN=Inji playground local CA" \
-    -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign" \
-    -keyout ca.key -out ca.crt
+  rm -f certify.* truststore.p12 hostname
+  # Keep the CA across hostname changes (e.g. every tunnel-up.sh run): containers read it once
+  # at startup (NODE_EXTRA_CA_CERTS, truststores) and browsers may already trust it.
+  if [ ! -f ca.key ] || [ ! -f ca.crt ]; then
+    rm -f ca.*
+    openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -sha256 \
+      -subj "/CN=Inji playground local CA" \
+      -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign" \
+      -keyout ca.key -out ca.crt
+  fi
   openssl req -newkey rsa:2048 -nodes -sha256 -subj "/CN=$HOST" -keyout certify.key -out certify.csr
   printf 'subjectAltName=DNS:%s,DNS:%s,DNS:localhost\nextendedKeyUsage=serverAuth\nbasicConstraints=CA:FALSE\n' "$HOST" "$VERIFY_HOST" > certify.ext
   openssl x509 -req -in certify.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 825 -sha256 \

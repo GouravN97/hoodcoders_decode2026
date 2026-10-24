@@ -31,6 +31,9 @@ server {
     # Public HTTPS address: https://${CERTIFY_PUBLIC_HOST}:8443. Containers reach it through the
     # network alias on this service, browsers on the host through the published port.
     listen 8443 ssl default_server;
+    # :443 too, inside the Docker network only (not published): containers resolve the public
+    # hostnames to this gateway, and portless did:web identifiers (tunnel mode) resolve on :443.
+    listen 443 ssl default_server;
     server_name ${CERTIFY_PUBLIC_HOST} localhost;
     ssl_certificate     /certs/certify.crt;
     ssl_certificate_key /certs/certify.key;
@@ -90,6 +93,7 @@ server {
 server {
     listen 80;
     listen 8443 ssl;
+    listen 443 ssl;
     server_name ${VERIFY_PUBLIC_HOST};
     ssl_certificate     /certs/certify.crt;
     ssl_certificate_key /certs/certify.key;
