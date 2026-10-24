@@ -238,6 +238,9 @@ VERIFY_DID=did:web:verify.example.test:v1:verify
 Certify's public address keeps the `:8443` port, so its tunnel must serve that
 port too. The tunnel must present a certificate the phone trusts.
 
+For testing, `scripts/tunnel-up.sh` does all of this with two Cloudflare quick
+tunnels. See [Test with Inji Wallet on an Android emulator](#test-with-inji-wallet-on-an-android-emulator).
+
 ## Upgrading an existing database
 
 `db/verify_init.sql` now matches Inji Verify 0.18.2's schema: the
@@ -476,32 +479,171 @@ Postman validates eSignet authentication, consent, token, and UserInfo. It
 does not replace the browser credential-download path through Mimoto and
 Certify.
 
-## Run Inji Wallet against the local backend
+## Test with Inji Wallet on an Android emulator
 
-The Wallet is a native mobile app and cannot be served by this Compose file.
-The native Wallet source is not included in this orchestration directory.
-Clone the pinned Inji Wallet repository separately, then copy its
-`.env.local.example` to `.env.local`, replacing `<host-ip>` with the host
-machine's LAN address when using a physical device. Android emulators use
-`10.0.2.2`; iOS simulators can use `localhost`.
+This is how the real Inji Wallet app was run against this stack. Both formats
+(`vc+sd-jwt` and `ldp_vc`) reach **VALID** at Inji Verify, and the expired
+credential configurations reach **EXPIRED**. The commands assume Ubuntu; the
+same steps work on macOS with the matching installers.
 
-```powershell
-cd path\to\inji-wallet
-npm install
-npm start -- --reset-cache
+### What you need
+
+| Item | Version / note |
+| --- | --- |
+| Inji Wallet source | Tag `v1.0.0-alpha.1` of [inji/inji-wallet](https://github.com/inji/inji-wallet). The Play Store app has no credential-offer support. MOSIP recommends this tag for the playground. |
+| Java | 17. Android Studio's bundled JDK is newer and does not build this app. |
+| Node / npm | Node 18.17.1 (via nvm) |
+| Android SDK | Platform API 35, Build-Tools 35.0.0, NDK 21.4.7075529, Platform-Tools, Emulator, Command-line Tools |
+| Emulator | Any x86_64 image with Google APIs. KVM must be enabled. We used `Medium_Phone_API_37.0`. |
+| cloudflared | For two quick tunnels; `scripts/tunnel-up.sh` runs it |
+
+### 1. Install the Android tooling (once)
+
+```sh
+sudo apt install -y openjdk-17-jdk cpu-checker qemu-kvm
+sudo adduser $USER kvm && kvm-ok          # log out and in afterwards
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+nvm install 18.17.1
+sudo snap install android-studio --classic
 ```
 
-In another terminal, launch the platform build:
+1. In Android Studio's setup wizard, choose **Standard**.
+2. Open **SDK Manager** and tick **Show Package Details**.
+3. Add the SDK packages listed in the table above.
+4. Create a virtual device in **Device Manager**.
 
-```powershell
-npm run android:mosip
-# or: npm run ios
+Then add the tools to your PATH in `~/.bashrc`:
+
+```sh
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export ANDROID_HOME=$HOME/Android/Sdk
+export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
 ```
 
-For a physical phone, the phone and computer must be on the same network and
-ports `8099`, `8091`, and `3000` must be reachable from the phone. To scan the
-playground's credential offers and presentation requests, the phone must also
-reach the public Certify and Verify addresses; see [Phones and tunnels](#phones-and-tunnels).
+### 2. Build and install the app (once)
+
+```sh
+git clone --branch v1.0.0-alpha.1 https://github.com/inji/inji-wallet ~/mosip/inji-wallet
+cd ~/mosip/inji-wallet
+nvm use 18.17.1
+npm ci                                   # not npm install, see below
+emulator -list-avds                      # exact AVD name
+emulator -avd Medium_Phone_API_37.0 &
+adb devices                              # wait for "emulator-5554  device"
+npm start -- --reset-cache &             # Metro, leave it running
+npm run android:mosip                    # builds and installs; first build is slow
+```
+
+- **Use `npm ci`, not `npm install`.** `npm install` re-resolves the dependencies,
+  pulls in a newer axios, and the app then crashes at startup.
+- **Emulator-only patch.** `1.0.0-alpha.1` expects a hardware-backed keystore. On
+  an emulator, which only has a software keystore, the app hangs on first launch
+  unless the key-storage check in `cryptoUtil.ts` accepts the software keystore.
+  We patched that locally and also turned off the React Native dev error overlay
+  in `index.js`, so it doesn't cover the screen. Neither patch is committed, and
+  neither is needed on a real phone.
+- **Leave Inji Wallet's own `.env` as it is.** The credential-offer flow talks to
+  Certify directly; it doesn't use the wallet's `MIMOTO_HOST`.
+
+When the app opens, set a passcode and finish onboarding. **+** should then show
+**Scan & Download Card**.
+
+### 3. Start the stack and the tunnels (every session)
+
+The emulator cannot reach `localhost` or `*.localhost`. It needs public hostnames,
+which `scripts/tunnel-up.sh` provides:
+
+```sh
+cd injistack
+docker compose --profile wallet up -d
+./scripts/tunnel-up.sh
+```
+
+The script:
+
+1. Starts two Cloudflare quick tunnels (Certify and Verify) to the HTTPS gateway.
+2. Writes the new hostnames into `.env`.
+3. Recreates the containers that use them.
+4. Points Certify's credential configurations at the new issuer DID.
+5. Waits until the issuer metadata loads through the tunnel.
+
+It is ready when it prints `Certify reachable through the tunnel`. Quick-tunnel
+hostnames change every time cloudflared restarts, so rerun the script after a
+restart. Credentials issued under the old hostname then stop verifying, so issue
+new ones. Stop the tunnels with `./scripts/tunnel-up.sh stop`.
+
+Both DIDs are portless in tunnel mode (`did:web:<host>` and
+`did:web:<host>:v1:verify`). The did:web resolvers in Inji Wallet and Inji Verify
+do not decode `%3A8443` (`Invalid URL host: <host>%3A8443`).
+
+### 4. Run the cycle
+
+Start the emulator and Metro if they are not running, then unlock the app.
+
+1. Open the playground at <http://localhost:8100> and choose:
+   - **Inji Certify**, **Inji Wallet (mobile)** and **Inji Verify**
+   - **Credential format:** `vc+sd-jwt` or `ldp_vc`
+   - **Credential:** `FarmerCredentialSdJwt` or `FarmerCredential`
+   - **Expected result:** **Valid**
+
+   Then start the run.
+2. **Issue.** When the offer QR appears, copy its `openid-credential-offer://…`
+   link, from under the QR or from the inspector, and send it to the app:
+   ```sh
+   adb shell "am start -W -a android.intent.action.VIEW -d '<openid-credential-offer://…>'"
+   ```
+   The app registers the `openid-credential-offer` and `openid4vp` schemes, so no
+   camera is needed. Accept **Trust issuer**, wait for the card, then click
+   **I can see the credential in my wallet** in the playground.
+3. **Present.** When the verification QR appears, send its `openid4vp://…` link
+   the same way:
+   ```sh
+   adb shell "am start -W -a android.intent.action.VIEW -d '<openid4vp://…>'"
+   ```
+   In the app, pick the card from this run and approve sharing.
+4. **Check.** The run ends with the verifier's verdict and the report.
+   - The inspector (`http://localhost:8100/runs/<id>?view=inspector`) shows every
+     message: the offer, token and credential, then the authorization request,
+     `vp_token` and verification result.
+   - The report is also at `/api/runs/<id>/report?format=md`.
+
+### 5. Other outcomes
+
+| Expected result | How |
+| --- | --- |
+| **Valid** | Steps above, with `FarmerCredential` (ldp_vc) or `FarmerCredentialSdJwt` (vc+sd-jwt) |
+| **Valid but Expired** | Choose **Credential** `FarmerCredentialExpired` (ldp_vc) or `FarmerCredentialSdJwtExpired` (vc+sd-jwt) and **Expected result** **Expired**. These are genuinely signed copies whose validity ended on 2025-01-01. The app stores an expired `ldp_vc` and shows it as "Valid"; Inji Verify reports **EXPIRED**. |
+| **Invalid** | Inji Wallet cannot tamper with a credential, so use the **mock wallet** with a tamper switch (see [Playground, Protocol Tap and mock wallet](#playground-protocol-tap-and-mock-wallet)) |
+
+### Troubleshooting
+
+| Symptom | Cause and fix |
+| --- | --- |
+| `curl` on the tunnel returns HTML or a 400 instead of JSON | The tunnel points at `http://localhost:8443`. The gateway's 8443 listener is HTTPS. Use `tunnel-up.sh`, which tunnels to `https://localhost:8443` with `--no-tls-verify`. |
+| 502 / bad gateway | A container is down, or still starting (Certify takes 1–2 min). Check `docker compose ps` and `docker compose logs --tail=50 certify certify-nginx`. |
+| Containers still use the old hostname | `docker compose restart` does not re-read `.env`. Use `docker compose up -d` (the script does). |
+| `database "mosip_certify" does not exist` | Certify's database is `inji_certify`. |
+| Wallet: `Invalid URL host: "<host>%3A8443"` | A DID with a port. Rerun `tunnel-up.sh`, which writes portless DIDs. |
+| ldp_vc: Verify reports `Illegal character in fragment` on `…#0#0` | Old `ldp_vc` template. Fixed in `db/certify_init.sql`, which only runs on a new volume. Recreate it with `docker compose --profile wallet down -v` (this deletes local data and the local CA). |
+| The app asks for a selfie before sharing | The card has an empty `face` claim (old template, or an old card). Delete the card and issue a new one. |
+| App crashes at startup | Dependencies were re-resolved. Restore `package-lock.json` (`git checkout package-lock.json`) and run `npm ci`. |
+| App hangs on first launch on the emulator | The hardware-keystore check; see the emulator-only patch in step 2. |
+| `A dev server is already running … on port 8081` | Metro is already running. That's fine; skip `npm start`. |
+| `Unknown AVD name` | Use the exact name from `emulator -list-avds`. |
+| The emulator shuts itself down | Memory pressure next to the Docker stack. Lower the AVD's RAM to 2048 MB in Device Manager and close other apps. |
+| Old cards stop verifying | The tunnel hostnames changed. Issue new cards after each `tunnel-up.sh`. |
+
+### On a physical Android phone
+
+Install the same build over USB:
+
+1. Turn on **Developer options → USB debugging** and connect the phone.
+2. Run `adb reverse tcp:8081 tcp:8081`.
+3. Run `npm run android:mosip`.
+
+Then scan the playground's QR codes with the phone's camera instead of using
+`adb`. The tunnels from step 3 work the same way. The emulator-only patch is not
+needed.
 
 ## Stop and reset
 
