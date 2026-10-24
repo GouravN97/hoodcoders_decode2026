@@ -26,4 +26,5 @@ notes: >-
   inji-openid4vp is documented against draft 23 / presentation_definition. Tested with
   1.0.0-alpha.1: did:web identifiers with a port ("%3A8443") do not resolve; for ldp_vc the
   VP holder is credentialSubject.id + "#0"; a credential with a face claim (even "") needs a
-  selfie match before it can be shared.
+  selfie match before it can be shared. An ldp_vc past its expirationDate is stored and
+  shown as "Valid"; Inji Verify reports it EXPIRED.
