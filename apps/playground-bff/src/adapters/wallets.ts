@@ -9,6 +9,7 @@ import {
   type ImplementationDescriptor,
   type MockWalletTamper,
 } from '@playground/shared';
+import { z } from 'zod';
 import { AdapterError, probeHealth, staticVersion } from './http.ts';
 import type {
   IssuanceHandle,
@@ -150,6 +151,26 @@ export class MockWalletAdapter implements WalletAdapter {
       );
     }
     return json;
+  }
+
+  async listCredentials(signal: AbortSignal) {
+    let res: Response;
+    try {
+      res = await fetch(`${this.base}/credentials`, {
+        signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
+      });
+    } catch (e) {
+      if (signal.aborted) throw e;
+      throw new AdapterError(
+        'credential_held',
+        `Mock wallet unreachable at ${this.base}: ${(e as { cause?: { code?: string } }).cause?.code ?? (e as Error).message}`,
+      );
+    }
+    if (!res.ok) {
+      await res.body?.cancel();
+      throw new AdapterError('credential_held', `Mock wallet answered HTTP ${res.status}`, res.status);
+    }
+    return z.array(HeldCredentialSchema).parse(await res.json());
   }
 
   async acceptOffer(ctx: RunContext, handle: IssuanceHandle) {

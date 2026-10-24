@@ -80,6 +80,8 @@ export interface WalletAdapter extends RoleAdapter {
   presentationDelivery(ctx: RunContext, handle: PresentationRequestHandle): DeliveryInstruction;
   /** Headless wallets only: take the offer and return the stored credential. */
   acceptOffer?(ctx: RunContext, handle: IssuanceHandle): Promise<HeldCredential>;
+  /** Wallets the playground can look into: what they already hold (present-only runs). */
+  listCredentials?(signal: AbortSignal): Promise<HeldCredential[]>;
   /** Headless wallets only: answer the presentation request. */
   respond?(
     ctx: RunContext,

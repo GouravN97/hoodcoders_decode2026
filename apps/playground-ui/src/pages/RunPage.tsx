@@ -1,4 +1,4 @@
-import { formatLabel, verdictLabel } from '@playground/shared';
+import { formatLabel, runUsesPhase, verdictLabel } from '@playground/shared';
 import { useCallback } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { ApiRequestError } from '../api/client';
@@ -82,6 +82,7 @@ export function RunPage() {
   const terminal = isTerminal(data);
   const wallet = catalog.data?.find((c) => c.id === data.config.walletId);
   const credential = data.artifacts.find((a) => a.kind === 'credential');
+  const issuing = runUsesPhase(data.config.mode, 'issuing');
   const awaitingHold =
     wallet?.capabilities.automation === 'human-in-the-loop' &&
     data.steps.some((s) => s.step === 'credential_held' && s.status === 'active');
@@ -100,11 +101,17 @@ export function RunPage() {
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <VerificationResultCard run={data} />
         <StepErrorPanel steps={data.steps} onSelectExchange={jumpToExchange} />
-        {awaitingHold && <HoldConfirmCard runId={data.id} walletName={wallet?.displayName ?? 'the wallet'} />}
+        {awaitingHold && (
+          <HoldConfirmCard
+            runId={data.id}
+            walletName={wallet?.displayName ?? 'the wallet'}
+            alreadyHeld={!issuing}
+          />
+        )}
         {data.delivery && !terminal && (
           <DeliveryPanel purpose={data.delivery.purpose} instruction={data.delivery.instruction} />
         )}
-        {!credential && !data.delivery && !terminal && (
+        {issuing && !credential && !data.delivery && !terminal && (
           <div className="flex items-center gap-2 rounded-xl border border-dashed border-border p-4 text-[13px] text-muted">
             <Spinner /> Preparing the credential offer…
           </div>
@@ -117,18 +124,28 @@ export function RunPage() {
         sections={[
           {
             id: 'credential',
-            label: 'Issued credential',
+            label: issuing ? 'Issued credential' : 'Held credential',
             shortLabel: 'Credential',
-            meta: credential ? (credential.format ? formatLabel(credential.format) : 'Issued') : 'Not issued yet',
+            meta: credential
+              ? credential.format
+                ? formatLabel(credential.format)
+                : issuing
+                  ? 'Issued'
+                  : 'Held'
+              : issuing
+                ? 'Not issued yet'
+                : 'Not shown yet',
             Icon: CredentialIcon,
             content: credential ? (
               <CredentialCard artifact={credential} />
             ) : (
               <Card>
                 <EmptyState title="No credential yet">
-                  {terminal
-                    ? 'The run ended before the issuer sent a credential.'
-                    : 'The credential shows here as soon as the issuer sends it.'}
+                  {!issuing
+                    ? 'This run presents a credential the wallet already holds. It shows here when the playground can read it from the wallet.'
+                    : terminal
+                      ? 'The run ended before the issuer sent a credential.'
+                      : 'The credential shows here as soon as the issuer sends it.'}
                 </EmptyState>
               </Card>
             ),

@@ -5,6 +5,7 @@ import { api } from './client';
 export const queryKeys = {
   catalog: ['catalog'] as const,
   credentialConfigurations: (issuerId: string) => ['catalog', issuerId, 'credential-configurations'] as const,
+  heldCredentials: (walletId: string) => ['catalog', walletId, 'credentials'] as const,
   prediction: (config: RunConfig | null) => ['prediction', config] as const,
   run: (id: string) => ['runs', id] as const,
   exchanges: (id: string) => ['runs', id, 'exchanges'] as const,
@@ -20,6 +21,15 @@ export const useCredentialConfigurations = (issuerId: string | undefined) =>
     queryFn: () => api.credentialConfigurations(issuerId!),
     enabled: Boolean(issuerId),
     staleTime: 60_000,
+  });
+
+/** What the wallet already holds; only fetched for present-only runs. */
+export const useHeldCredentials = (walletId: string | undefined, enabled: boolean) =>
+  useQuery({
+    queryKey: queryKeys.heldCredentials(walletId ?? ''),
+    queryFn: () => api.heldCredentials(walletId!),
+    enabled: enabled && Boolean(walletId),
+    staleTime: 5_000,
   });
 
 export const usePrediction = (config: RunConfig | null) =>

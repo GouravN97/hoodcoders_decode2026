@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { CatalogEntrySchema, CredentialConfigurationSummarySchema, PredictionSchema } from './catalog';
 import { ExchangeSchema, RunConfigSchema } from './domain';
+import { HeldCredentialSchema } from './mockWallet';
 import { RunDetailSchema } from './run';
 
 /** GET /api/catalog */
@@ -9,6 +10,16 @@ export const CatalogResponseSchema = z.array(CatalogEntrySchema);
 
 /** GET /api/catalog/:id/credential-configurations */
 export const CredentialConfigurationsResponseSchema = z.array(CredentialConfigurationSummarySchema);
+
+/**
+ * GET /api/catalog/:id/credentials — what a wallet already holds, for present-only runs.
+ * `listable` is false for wallets the playground cannot look into (phone, Inji Web).
+ */
+export const HeldCredentialsResponseSchema = z.object({
+  listable: z.boolean(),
+  credentials: z.array(HeldCredentialSchema),
+});
+export type HeldCredentialsResponse = z.infer<typeof HeldCredentialsResponseSchema>;
 
 /** POST /api/compatibility/predict */
 export const PredictRequestSchema = RunConfigSchema;

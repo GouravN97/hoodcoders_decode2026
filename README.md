@@ -28,6 +28,18 @@ Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji V
 
 The UI also still runs entirely against in-browser mocks with `pnpm dev`.
 
+### Run modes
+
+Issuing and verifying are separate parties, so each half can run on its own. Pick one under **What to run** in the run settings:
+
+| Mode | Phases | Talks to |
+| --- | --- | --- |
+| Full cycle | issue → hold → present → verify | issuer, wallet, verifier |
+| Issue only | issue → hold; passes once the credential is in the wallet | issuer, wallet |
+| Present & verify only | hold → present → verify, using a credential the wallet already holds | wallet, verifier |
+
+For present-only runs the mock wallet lists what earlier runs stored in it, so you can pick a credential (it forgets them when its container restarts). With Inji Wallet on a phone or Inji Web, you confirm on the run screen that the credential is already in the wallet. Present-only is the easiest way to test the verifier while the issuer is down, or to present an already-expired credential for **Valid-but-expired**.
+
 ## Getting started
 
 Needs Node 20+ and pnpm.

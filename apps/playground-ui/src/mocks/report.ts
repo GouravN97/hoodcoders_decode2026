@@ -43,6 +43,7 @@ export function buildRunReport(record: MockRunRecord, catalog: CatalogEntry[]): 
           durationMs: new Date(run.finishedAt).getTime() - new Date(run.createdAt).getTime(),
         }
       : {}),
+    mode: run.config.mode,
     issuer: participant('issuer', run.config.issuerId),
     wallet: participant('wallet', run.config.walletId),
     verifier: participant('verifier', run.config.verifierId),
