@@ -22,9 +22,9 @@ Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji V
 | --- | --- |
 | Certify → mock wallet → Inji Verify, SD-JWT (`vc+sd-jwt`) | Valid and tampered (Invalid) runs pass, in the browser and over the API |
 | Certify → mock wallet → Inji Verify, JSON-LD (`ldp_vc`) | Built; needs internet access for the JSON-LD contexts, not yet run against the real stack |
-| Certify → Inji Wallet (phone) → Inji Verify | QR codes, tap evidence and the "I can see the credential" step work; needs public URLs for the phone (see [`injistack/README.md`](injistack/README.md#phones-and-tunnels)) |
+| Certify → Inji Wallet (Android app, `v1.0.0-alpha.1`) → Inji Verify | `vc+sd-jwt` and `ldp_vc` both verify **VALID** on an emulator through Cloudflare quick tunnels ([how to test](injistack/README.md#test-with-inji-wallet-on-an-android-emulator)) |
 | Inji Web | Mimoto, Inji Web and the eSignet login work once the keystore and `wallet-demo` client are set up ([`register-wallet-client.sh`](injistack/scripts/register-wallet-client.sh)); the download still fails because eSignet rejects the client assertion with `invalid_client` ([details and what was ruled out](injistack/README.md#current-local-web-wallet-limitation)) |
-| Valid-but-expired | Needs a short-lived credential configuration in Certify; not done |
+| Valid-but-expired | `FarmerCredentialExpired` (ldp_vc) and `FarmerCredentialSdJwtExpired` (vc+sd-jwt) are signed with validity in the past; Inji Verify reports **EXPIRED** |
 
 The UI also still runs entirely against in-browser mocks with `pnpm dev`.
 
