@@ -95,7 +95,7 @@ info ".env updated."
 info "Updating credential_config DID in database …"
 
 # Find all credential config IDs and update them
-DB_CMD=(docker compose exec -T database psql -U postgres -d mosip_certify)
+DB_CMD=(docker compose exec -T database psql -U postgres -d inji_certify)
 
 # List configs so we know what we're updating
 CONFIGS="$("${DB_CMD[@]}" -tAc "SELECT id FROM certify.credential_config;" 2>/dev/null || true)"
