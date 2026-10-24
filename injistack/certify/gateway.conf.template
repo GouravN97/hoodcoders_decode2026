@@ -6,14 +6,23 @@
 # Certify, :3003 for Verify), which records it and forwards it unchanged. When the BFF is not
 # running, nginx falls back to the service itself (`backup`), so the stack keeps working.
 
+server_names_hash_bucket_size 128;
+
+# Re-resolve upstream names through Docker's DNS: a container recreated on its own (e.g. by
+# `docker compose up -d` after an .env change) gets a new IP, and nginx would otherwise keep
+# proxying to the old one and answer 502.
+resolver 127.0.0.11 valid=10s ipv6=off;
+
 upstream certify_api {
-    server playground-bff:3002 max_fails=1 fail_timeout=10s;
-    server certify:8090 backup;
+    zone certify_api 64k;
+    server playground-bff:3002 max_fails=1 fail_timeout=10s resolve;
+    server certify:8090 backup resolve;
 }
 
 upstream verify_api {
-    server playground-bff:3003 max_fails=1 fail_timeout=10s;
-    server verify-service:8080 backup;
+    zone verify_api 64k;
+    server playground-bff:3003 max_fails=1 fail_timeout=10s resolve;
+    server verify-service:8080 backup resolve;
 }
 
 server {

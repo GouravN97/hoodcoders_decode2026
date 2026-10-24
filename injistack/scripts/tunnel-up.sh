@@ -29,7 +29,7 @@ stop_tunnels() {
     rm -f "$PID_FILE"
   fi
   # Tunnels started by older versions of this script, or by hand with the same command.
-  pkill -f 'cloudflared tunnel --url https\?://localhost:8443' 2>/dev/null || true
+  pkill -f 'cloudflared tunnel --url https?://localhost:8443' 2>/dev/null || true
 }
 
 if [[ "${1:-}" == "stop" ]]; then
@@ -87,7 +87,9 @@ set_env_var() {
 set_env_var CERTIFY_PUBLIC_HOST "$CERTIFY_HOST"
 set_env_var VERIFY_PUBLIC_HOST  "$VERIFY_HOST"
 set_env_var VERIFY_PUBLIC_URL   "https://${VERIFY_HOST}:8443"
-set_env_var VERIFY_DID          "did:web:${VERIFY_HOST}%3A8443:v1:verify"
+# No port in the DID: the tunnel also serves :443, and Inji Wallet's OpenID4VP library does not
+# percent-decode "%3A8443" when resolving did:web ("Invalid URL host: <host>%3A8443").
+set_env_var VERIFY_DID          "did:web:${VERIFY_HOST}:v1:verify"
 info ".env updated."
 
 # ── recreate containers ──────────────────────────────────────────────────────
