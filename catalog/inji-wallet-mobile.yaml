@@ -6,6 +6,10 @@ description: "MOSIP's Android wallet app. A person scans the QR codes on a phone
 vendor: inji
 adapter: InjiMobileWalletAdapter
 publicUrl: ${MIMOTO_PUBLIC_URL:-http://localhost:8099}
+# The app reports no version to the playground, so the version is the tag it was built from.
+versionProbe:
+  kind: static
+  value: ${INJI_WALLET_VERSION:-1.0.0-alpha.1}
 capabilities:
   formats: [ldp_vc, vc+sd-jwt, mso_mdoc]
   proofSuites: [Ed25519Signature2020, ES256]
@@ -18,4 +22,8 @@ capabilities:
   deliveryChannels: [qr, deeplink]
   automation: human-in-the-loop
   supportsTamper: false
-notes: inji-openid4vp is documented against draft 23 / presentation_definition.
+notes: >-
+  inji-openid4vp is documented against draft 23 / presentation_definition. Tested with
+  1.0.0-alpha.1: did:web identifiers with a port ("%3A8443") do not resolve; for ldp_vc the
+  VP holder is credentialSubject.id + "#0"; a credential with a face claim (even "") needs a
+  selfie match before it can be shared.
