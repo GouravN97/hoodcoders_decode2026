@@ -121,3 +121,40 @@ For live runs start the Compose stack ([`injistack/README.md`](injistack/README.
 ## License
 
 [Mozilla Public License 2.0](LICENSE)
+
+## Interoperability gaps found
+
+Gaps found while running the playground against the pinned stack (Inji Certify `0.14.0`, Inji Verify `0.18.2`, Inji Wallet `1.0.0-alpha.1`, Mimoto `0.21.0`, eSignet `2.0.0`). **Confirmed** means reproduced in a live run, with the messages captured. **Open** means seen but not yet root-caused, or predicted but not yet tested. None has been filed upstream yet.
+
+### Inji Verify `0.18.2`
+
+| # | Gap | Status | Details |
+| --- | --- | --- | --- |
+| 1 | **Wrong credential type accepted.** The presentation definition asks for one type (`$.vct` / `$.type`); a credential of another type is returned `SUCCESS`. Verify checks the signature but not the input descriptor it asked for. Both `vc+sd-jwt` and `ldp_vc`. | Confirmed (`T-WRONG-TYPE`) | [results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182) |
+| 2 | **SD-JWT key-binding nonce not checked.** A resubmitted `vp_token`, or a new one whose key-binding JWT is signed over an earlier request's nonce, is accepted. For `ldp_vc` the same tampers are refused at `direct_post` with a nonce error, so only SD-JWT is affected. | Confirmed (`T-NONCE-REPLAY`) | [results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182) |
+| 3 | **did:web with a port does not resolve.** `did:web:verify.localhost%3A8443:…` fails with `Invalid URL host: <host>%3A8443`; the resolver does not decode the percent-encoded port that the did:web spec requires. Worked around with portless DIDs behind tunnels. | Confirmed | [injistack](injistack/README.md#3-start-the-stack-and-the-tunnels-every-session) |
+
+For 1 and 2 it is not yet known whether the cause is Inji Verify or the `vc-verifier` library it uses, or whether Inji Verify `1.0.x` (DCQL) behaves the same. Both need checking before filing issues.
+
+### Inji Wallet mobile `1.0.0-alpha.1`
+
+| # | Gap | Status | Details |
+| --- | --- | --- | --- |
+| 4 | **Malformed holder ID in `ldp_vc` presentations.** The VP holder is `did:jwk:…#0#0` (the wallet appends `#0` to a DID URL that already ends in `#0`). Verify rejects it with `Illegal character in fragment`. Issuance and VP submission work; the mobile JSON-LD lane cannot pass. SD-JWT is unaffected. | Confirmed | [injistack](injistack/README.md#test-with-inji-wallet-on-an-android-emulator) |
+| 5 | **did:web with a port does not resolve** (same as 3, in the wallet's resolver). | Confirmed | [injistack](injistack/README.md#3-start-the-stack-and-the-tunnels-every-session) |
+| 6 | **Expired credential shown as "Valid".** An `ldp_vc` past its `expirationDate` is stored and labelled Valid in the wallet; Inji Verify correctly reports EXPIRED. | Confirmed | [injistack](injistack/README.md#5-other-outcomes) |
+| 7 | **An empty `face` claim forces a selfie match.** A credential with a `face` claim, even `""`, cannot be shared until the holder passes a face match. | Confirmed | [injistack](injistack/README.md#troubleshooting) |
+| 8 | **OpenID4VCI 1.0 issuers may not be accepted.** The wallet speaks OpenID4VCI draft 13 and `vc+sd-jwt`; the Hovi and Animo playgrounds advertise OpenID4VCI 1.0 metadata (nonce endpoint) and `dc+sd-jwt`. Offers are created and fetched correctly, but the wallet import has not been tested on a phone yet. `mso_mdoc` is the closer match. | Open (predicted) | [results](docs/external-credential-interoperability-results.md) |
+| 9 | **Needs a hardware-backed keystore.** On an emulator (software keystore only) the app can hang during onboarding, so testing needs a local patch or a physical phone. | Confirmed | [injistack](injistack/README.md#2-build-and-install-the-app-once) |
+
+### Inji Certify `0.14.0`
+
+| # | Gap | Status | Details |
+| --- | --- | --- | --- |
+| 10 | **SD-JWT is issued only as `vc+sd-jwt`.** Current SD-JWT VC issuers and wallets (Hovi, Animo, EUDI) use `dc+sd-jwt`, so Certify's SD-JWT credentials and theirs do not match by format identifier. | Confirmed | [catalog](catalog/inji-certify.yaml) |
+
+### Inji Web, Mimoto `0.21.0` and eSignet `2.0.0`
+
+| # | Gap | Status | Details |
+| --- | --- | --- | --- |
+| 11 | **Credential download fails with `invalid_client`.** After a successful eSignet login, Mimoto's token request is rejected with `401 invalid_client: Invalid client assertion`, so the request never reaches Certify. The client, key and audience have been checked and ruled out; hand-signed assertions are rejected too. Mimoto also reports the failure as `Exception occurred while generating pdf`, which hides the real cause. | Open (root cause unknown) | [injistack](injistack/README.md#current-local-web-wallet-limitation) |

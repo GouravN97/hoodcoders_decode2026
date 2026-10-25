@@ -71,3 +71,17 @@ test('each role row scrolls sideways when its choices do not fit', async ({ page
   await expect(last).toBeInViewport();
   await expect(wallets.getByRole('button', { name: 'Show earlier wallets' })).toBeEnabled();
 });
+
+test('wide screens show Issuer → Wallet → Verifier as three columns', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/');
+  const box = async (role: string) =>
+    (await page.getByRole('group', { name: role, exact: true }).boundingBox())!;
+  const [issuer, wallet, verifier] = [await box('Issuer'), await box('Wallet'), await box('Verifier')];
+  expect(issuer.x).toBeLessThan(wallet.x);
+  expect(wallet.x).toBeLessThan(verifier.x);
+  expect(Math.abs(issuer.y - verifier.y)).toBeLessThan(2);
+  // In a column every choice is visible without sideways scrolling.
+  await expect(page.getByTestId('choice-mock-wallet')).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Show more wallets' })).toHaveCount(0);
+});
