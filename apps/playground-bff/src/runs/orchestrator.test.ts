@@ -77,6 +77,8 @@ interface Scenario {
   tokenStatus?: number;
   walletSilent?: boolean;
   human?: boolean;
+  /** Issuer is outside the Tap; successful storage is confirmed from the run screen. */
+  externalManual?: boolean;
   outcome?: 'VALID' | 'INVALID';
   issuerDown?: boolean;
   verifierDown?: boolean;
@@ -122,6 +124,7 @@ function setup(s: Scenario) {
       return {
         offerUri: 'openid-credential-offer://?credential_offer_uri=https%3A%2F%2Ftest%2Foffer%2F1',
         offerId: '1',
+        ...(s.externalManual ? { observation: 'manual' as const } : {}),
       };
     },
   };
@@ -365,6 +368,34 @@ describe('RunOrchestrator run modes', () => {
     expect(run.verdict).toBe('FAIL');
   });
 
+  it('completes an external issuer run from explicit wallet-storage confirmation', async () => {
+    const { orchestrator, store } = setup({ human: true, externalManual: true });
+    const { id } = await orchestrator.create({ ...config, mode: 'issue-only' });
+    for (let i = 0; i < 100; i++) {
+      if (statusOf(store.get(id)!.run, 'credential_held')?.status === 'active') break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(orchestrator.confirmManual(id, 'credential_held')).toBe(true);
+    const run = await finished(store, id);
+    expect(run.verdict).toBe('PASS_WITH_WARNINGS');
+    expect(statusOf(run, 'offer_delivered')).toMatchObject({
+      status: 'done',
+      evidenceKind: 'adapter',
+    });
+    expect(statusOf(run, ProtocolStep.VCI_TOKEN)).toMatchObject({
+      status: 'done',
+      evidenceKind: 'manual',
+    });
+    expect(statusOf(run, ProtocolStep.VCI_CREDENTIAL)).toMatchObject({
+      status: 'done',
+      evidenceKind: 'manual',
+    });
+    expect(statusOf(run, 'credential_held')).toMatchObject({
+      status: 'done',
+      evidenceKind: 'manual',
+    });
+  });
+
   it('present-only presents a credential from an earlier run without the issuer', async () => {
     const { orchestrator, store, calls } = setup({
       issuerDown: true,
@@ -394,7 +425,10 @@ describe('RunOrchestrator run modes', () => {
 
   it('present-only uses the credential the user picked', async () => {
     const { orchestrator, store, calls } = setup({
-      held: [heldCredential({ id: 'a' }), heldCredential({ id: 'b', receivedAt: '2026-10-22T10:00:00Z' })],
+      held: [
+        heldCredential({ id: 'a' }),
+        heldCredential({ id: 'b', receivedAt: '2026-10-22T10:00:00Z' }),
+      ],
     });
     const run = await finished(
       store,
@@ -411,7 +445,9 @@ describe('RunOrchestrator run modes', () => {
       (await orchestrator.create({ ...config, mode: 'present-only' })).id,
     );
     expect(statusOf(run, 'credential_held')).toMatchObject({ status: 'failed' });
-    expect(statusOf(run, 'credential_held')?.error?.message).toContain('Run an issue-only or full run first');
+    expect(statusOf(run, 'credential_held')?.error?.message).toContain(
+      'Run an issue-only or full run first',
+    );
     expect(calls.createPresentationRequest).toBe(0);
     expect(run.verdict).toBe('FAIL');
   });
@@ -439,7 +475,11 @@ describe('pickHeldCredential', () => {
   const held = [
     heldCredential({ id: 'sd-old', receivedAt: '2026-10-01T00:00:00Z' }),
     heldCredential({ id: 'sd-new', receivedAt: '2026-10-02T00:00:00Z' }),
-    heldCredential({ id: 'other', credentialConfigurationId: 'Other', receivedAt: '2026-10-03T00:00:00Z' }),
+    heldCredential({
+      id: 'other',
+      credentialConfigurationId: 'Other',
+      receivedAt: '2026-10-03T00:00:00Z',
+    }),
     heldCredential({ id: 'ld', format: 'ldp_vc', receivedAt: '2026-10-04T00:00:00Z' }),
   ];
   const base = { format: 'vc+sd-jwt' as const, credentialConfigurationId: 'Farmer' };

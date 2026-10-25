@@ -76,6 +76,52 @@ export const CREDENTIAL_CONFIGURATIONS: CredentialConfigFixture[] = [
   },
 ];
 
+const HOVI_CREDENTIAL_CONFIGURATIONS: CredentialConfigFixture[] = [
+  {
+    id: 'pid-sdjwt',
+    format: 'dc+sd-jwt',
+    displayName: 'Personal Identification Data (PID) — SD-JWT VC',
+    credentialType: 'urn:eudi:pid:1',
+    proofSuite: 'ES256',
+  },
+  {
+    id: 'pid-mdoc',
+    format: 'mso_mdoc',
+    displayName: 'Personal Identification Data (PID) — mDoc',
+    credentialType: 'eu.europa.ec.eudi.pid.1',
+    proofSuite: 'ES256',
+  },
+];
+
+const ANIMO_CREDENTIAL_CONFIGURATIONS: CredentialConfigFixture[] = [
+  {
+    id: 'eudi-pid-sd-jwt-bdr',
+    format: 'dc+sd-jwt',
+    displayName: 'EUDI PID — SD-JWT VC',
+    credentialType: 'urn:eudi:pid:1',
+    proofSuite: 'ES256',
+  },
+  {
+    id: 'eudi-pid-mdoc-bdr',
+    format: 'mso_mdoc',
+    displayName: 'EUDI PID — mDoc',
+    credentialType: 'eu.europa.ec.eudi.pid.1',
+    proofSuite: 'ES256',
+  },
+];
+
+const ALL_CREDENTIAL_CONFIGURATIONS = [
+  ...CREDENTIAL_CONFIGURATIONS,
+  ...HOVI_CREDENTIAL_CONFIGURATIONS,
+  ...ANIMO_CREDENTIAL_CONFIGURATIONS,
+];
+
+export function credentialConfigurationsForIssuer(issuerId: string) {
+  if (issuerId === 'hovi-playground') return HOVI_CREDENTIAL_CONFIGURATIONS;
+  if (issuerId === 'animo-playground') return ANIMO_CREDENTIAL_CONFIGURATIONS;
+  return CREDENTIAL_CONFIGURATIONS;
+}
+
 const iso = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 const epoch = (d: Date) => Math.floor(d.getTime() / 1000);
 
@@ -134,8 +180,8 @@ export async function buildFixtures(opts: {
 }): Promise<RunFixtures> {
   const { format, scenario } = opts;
   const config =
-    CREDENTIAL_CONFIGURATIONS.find((c) => c.id === opts.credentialConfigurationId) ??
-    CREDENTIAL_CONFIGURATIONS.find((c) => c.format === format)!;
+    ALL_CREDENTIAL_CONFIGURATIONS.find((c) => c.id === opts.credentialConfigurationId) ??
+    ALL_CREDENTIAL_CONFIGURATIONS.find((c) => c.format === format)!;
   const isSdJwt = format !== 'ldp_vc';
   const now = new Date();
 
@@ -194,7 +240,11 @@ export async function buildFixtures(opts: {
   }).toString();
 
   const cNonce = randomToken(12);
-  const accessToken = await new SignJWT({ scope: config.id, c_nonce: cNonce, client_id: 'wallet-demo' })
+  const accessToken = await new SignJWT({
+    scope: config.id,
+    c_nonce: cNonce,
+    client_id: 'wallet-demo',
+  })
     .setProtectedHeader({ alg: 'ES256', typ: 'at+jwt', kid: `${ISSUER_DID}#key-0` })
     .setIssuer(ISSUER_URL)
     .setSubject(crypto.randomUUID())
@@ -218,7 +268,11 @@ export async function buildFixtures(opts: {
     .sign(holderKeys.privateKey);
 
   const credentialRequest = isSdJwt
-    ? { format: 'vc+sd-jwt', vct: config.credentialType, proof: { proof_type: 'jwt', jwt: proofJwt } }
+    ? {
+        format: 'vc+sd-jwt',
+        vct: config.credentialType,
+        proof: { proof_type: 'jwt', jwt: proofJwt },
+      }
     : {
         format: 'ldp_vc',
         credential_definition: {
@@ -332,7 +386,10 @@ export async function buildFixtures(opts: {
         format: { ldp_vc: { proof_type: ['Ed25519Signature2020'] } },
         constraints: {
           fields: [
-            { path: ['$.type'], filter: { type: 'array', contains: { const: config.credentialType } } },
+            {
+              path: ['$.type'],
+              filter: { type: 'array', contains: { const: config.credentialType } },
+            },
           ],
         },
       };
@@ -405,9 +462,15 @@ export async function buildFixtures(opts: {
         vc: credentialRaw,
         verificationStatus: vcStatus,
         ...(vcStatus === 'INVALID'
-          ? { errorCode: 'ERR_SIGNATURE_VERIFICATION_FAILED', errorMessage: 'Proof does not match the credential data' }
+          ? {
+              errorCode: 'ERR_SIGNATURE_VERIFICATION_FAILED',
+              errorMessage: 'Proof does not match the credential data',
+            }
           : vcStatus === 'EXPIRED'
-            ? { errorCode: 'ERR_VC_EXPIRED', errorMessage: `Credential expired at ${iso(validUntil)}` }
+            ? {
+                errorCode: 'ERR_VC_EXPIRED',
+                errorMessage: `Credential expired at ${iso(validUntil)}`,
+              }
             : {}),
       },
     ],

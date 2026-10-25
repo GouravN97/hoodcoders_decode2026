@@ -1,6 +1,6 @@
 // Pure selection rules for the selector screen (unit-tested).
 import {
-  MANDATORY_FORMATS,
+  PLAYGROUND_FORMATS,
   type CatalogEntry,
   type CredentialConfigurationSummary,
   type CredentialFormat,
@@ -23,35 +23,58 @@ export function constrainingRoles(
   return mode === 'issue-only' ? [issuer, wallet] : [issuer, wallet, verifier];
 }
 
-/** Formats every selected implementation supports, limited to the formats the playground runs. */
+/** Formats every selected implementation supports. */
 export function commonFormats(selected: Array<CatalogEntry | undefined>): CredentialFormat[] {
   const chosen = selected.filter((e): e is CatalogEntry => Boolean(e));
-  return MANDATORY_FORMATS.filter((f) => chosen.every((e) => e.capabilities.formats.includes(f)));
+  return PLAYGROUND_FORMATS.filter((f) => chosen.every((e) => e.capabilities.formats.includes(f)));
+}
+
+/**
+ * Issue-only runs may deliberately test a format the wallet does not advertise. That is how this
+ * playground turns a suspected incompatibility into observed evidence instead of hiding the test.
+ */
+export function selectableFormats(
+  mode: RunMode,
+  issuer: CatalogEntry | undefined,
+  wallet: CatalogEntry | undefined,
+  verifier: CatalogEntry | undefined,
+): CredentialFormat[] {
+  if (mode === 'issue-only' && issuer) {
+    return PLAYGROUND_FORMATS.filter((format) => issuer.capabilities.formats.includes(format));
+  }
+  return commonFormats(constrainingRoles(mode, issuer, wallet, verifier));
 }
 
 /** Why a card cannot be picked given the other roles' selections, or undefined if it can. */
-export function disabledReason(entry: CatalogEntry, others: Array<CatalogEntry | undefined>): string | undefined {
+export function disabledReason(
+  entry: CatalogEntry,
+  others: Array<CatalogEntry | undefined>,
+): string | undefined {
   if (entry.health === 'down') return `${entry.displayName} is not responding`;
-  if (!MANDATORY_FORMATS.some((f) => entry.capabilities.formats.includes(f))) {
-    return 'Supports none of the formats the playground runs (JSON-LD VC, SD-JWT VC)';
-  }
-  const chosen = others.filter((e): e is CatalogEntry => Boolean(e));
-  if (chosen.length > 0 && commonFormats([entry, ...chosen]).length === 0) {
-    return `Shares no credential format with ${chosen.map((c) => c.displayName).join(' and ')}`;
-  }
+  // Do not hide expected failures. The compatibility panel explains format/profile mismatches and
+  // the user can switch to Issue only to test an external issuer against a wallet anyway.
+  void others;
   return undefined;
 }
 
-export function supportedFlows(wallet: CatalogEntry | undefined, verifier: CatalogEntry | undefined): PresentationFlow[] {
+export function supportedFlows(
+  wallet: CatalogEntry | undefined,
+  verifier: CatalogEntry | undefined,
+): PresentationFlow[] {
   const all: PresentationFlow[] = ['cross-device-qr', 'same-device-deeplink'];
   return all.filter((f) =>
-    [wallet, verifier].every((e) => !e?.capabilities.presentationFlows || e.capabilities.presentationFlows.includes(f)),
+    [wallet, verifier].every(
+      (e) => !e?.capabilities.presentationFlows || e.capabilities.presentationFlows.includes(f),
+    ),
   );
 }
 
 /** The RunConfig the BFF receives, or null while the selection is incomplete. */
 export function buildRunConfig(
-  s: Pick<SelectionState, 'format' | 'credentialConfigurationId' | 'presentationFlow' | 'expectedOutcome'> &
+  s: Pick<
+    SelectionState,
+    'format' | 'credentialConfigurationId' | 'presentationFlow' | 'expectedOutcome'
+  > &
     Partial<Pick<SelectionState, 'mode' | 'heldCredentialId'>>,
   issuer: CatalogEntry | undefined,
   wallet: CatalogEntry | undefined,
@@ -71,10 +94,14 @@ export function buildRunConfig(
     format: s.format,
     credentialConfigurationId: credentialConfig.id,
     ...(proofSuite ? { proofSuite } : {}),
-    grantType: grantTypes.includes('pre-authorized_code') ? 'pre-authorized_code' : 'authorization_code',
+    grantType: grantTypes.includes('pre-authorized_code')
+      ? 'pre-authorized_code'
+      : 'authorization_code',
     presentationFlow: s.presentationFlow,
     expectedOutcome: s.expectedOutcome,
-    ...(mode === 'present-only' && s.heldCredentialId ? { heldCredentialId: s.heldCredentialId } : {}),
+    ...(mode === 'present-only' && s.heldCredentialId
+      ? { heldCredentialId: s.heldCredentialId }
+      : {}),
     ...(scenario ? { labels: { scenario } } : {}),
   };
 }

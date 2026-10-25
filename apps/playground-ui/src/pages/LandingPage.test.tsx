@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { isUnsplash, LANDING_PHOTO_LIST, LANDING_PHOTOS } from '../features/landing/photos';
@@ -16,7 +16,9 @@ const renderPage = () =>
 describe('LandingPage', () => {
   it('introduces the playground and links to the New run page', () => {
     renderPage();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/issuer to wallet to verifier/);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      /issuer to wallet to verifier/,
+    );
     const starts = screen.getAllByRole('link', { name: 'Start a new run' });
     expect(starts.length).toBeGreaterThanOrEqual(2);
     for (const link of starts) expect(link).toHaveAttribute('href', '/');
@@ -24,7 +26,9 @@ describe('LandingPage', () => {
 
   it('walks through the three roles in order', () => {
     renderPage();
-    const steps = screen.getByRole('heading', { name: 'One credential, three parties' }).closest('section')!;
+    const steps = screen
+      .getByRole('heading', { name: 'One credential, three parties' })
+      .closest('section')!;
     const titles = Array.from(steps.querySelectorAll('h3')).map((h) => h.textContent);
     expect(titles).toEqual(['Issues the credential', 'Holds it, then presents it', 'Checks it']);
   });
@@ -48,7 +52,7 @@ describe('LandingPage', () => {
 });
 
 describe('landing photo credits', () => {
-  const credits = readFileSync(fileURLToPath(new URL('../../public/landing/CREDITS.md', import.meta.url)), 'utf8');
+  const credits = readFileSync(resolve('public/landing/CREDITS.md'), 'utf8');
 
   it('takes Unsplash photos only from the free licence', () => {
     for (const photo of LANDING_PHOTO_LIST.filter(isUnsplash)) {

@@ -475,9 +475,13 @@ class RunExecution {
   private async play(): Promise<void> {
     if (!(await this.preflight())) return;
 
-    const held = this.uses('issuing')
-      ? await this.holdIssued((await this.issuePhase()).accepting)
-      : await this.holdExisting();
+    let held: HeldCredential | undefined;
+    if (this.uses('issuing')) {
+      const issuance = await this.issuePhase();
+      held = issuance.manuallyHeld ? undefined : await this.holdIssued(issuance.accepting);
+    } else {
+      held = await this.holdExisting();
+    }
 
     if (this.uses('presenting')) {
       const presentation = await this.presentPhase(held);
@@ -526,7 +530,10 @@ class RunExecution {
    * OpenID4VCI from offer to credential. Returns the headless wallet's acceptance, if any, wrapped
    * so the async return does not wait on it.
    */
-  private async issuePhase(): Promise<{ accepting?: Promise<HeldCredential> }> {
+  private async issuePhase(): Promise<{
+    accepting?: Promise<HeldCredential>;
+    manuallyHeld?: boolean;
+  }> {
     const { issuer, wallet } = this.adapters;
     const config = this.run.config;
     const preAuth = config.grantType === 'pre-authorized_code';
@@ -541,7 +548,7 @@ class RunExecution {
         (e) => e.step === ProtocolStep.VCI_CREDENTIAL_OFFER && e.method === 'POST',
       );
       const oob = this.outOfBand(
-        'certify',
+        issuer.descriptor.id,
         ProtocolStep.VCI_CREDENTIAL_OFFER,
         handle.offerUri!,
         ['offer'],
@@ -566,6 +573,31 @@ class RunExecution {
     this.delivery('issuance', delivery);
     const accepting: Promise<HeldCredential> | undefined = wallet.acceptOffer?.(this.ctx, handle);
     accepting?.catch(() => {}); // observed through waitFor
+
+    // Hovi and Animo receive the wallet's protocol calls directly; those requests cannot pass
+    // through our local Tap. Keep the QR visible while the holder checks the wallet, then use that
+    // explicit confirmation as evidence that the offer, token and credential steps completed.
+    if (handle.observation === 'manual') {
+      this.step('offer_delivered', 'done', { evidenceKind: 'adapter' });
+      this.status('Holding');
+      this.step('credential_held', 'active');
+      await this.waitManual('credential_held', this.settings.manualTimeoutMs);
+      for (const step of [ProtocolStep.VCI_TOKEN, ProtocolStep.VCI_CREDENTIAL]) {
+        this.step(step, 'active');
+        this.step(step, 'done', { evidenceKind: 'manual' });
+      }
+      this.step('credential_held', 'done', { evidenceKind: 'manual' });
+      this.finding({
+        checkId: 'EXTERNAL-ISSUER-MANUAL-EVIDENCE',
+        stage: 'issuance',
+        severity: 'WARN',
+        message:
+          'The wallet contacted the external issuer directly. Token and credential completion are inferred from the holder confirming that the credential is visible in the wallet.',
+        specRef: 'OpenID4VCI 1.0 — credential offer and pre-authorized code flow',
+      });
+      this.run.delivery = undefined;
+      return { manuallyHeld: true };
+    }
 
     this.done(
       'offer_delivered',

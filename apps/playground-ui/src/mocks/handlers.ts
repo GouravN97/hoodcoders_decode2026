@@ -13,7 +13,7 @@ import { delay, http, HttpResponse } from 'msw';
 import { BFF_URL } from '../config';
 import { mockCatalog, predict } from './catalog';
 import { db } from './db';
-import { CREDENTIAL_CONFIGURATIONS } from './fixtures';
+import { credentialConfigurationsForIssuer } from './fixtures';
 import { buildRunReport } from './report';
 import { confirmManualEvidence, startSimulation } from './simulator';
 
@@ -31,16 +31,16 @@ export const handlers = [
     const entry = mockCatalog.find((c) => c.id === params.id);
     if (!entry || entry.role !== 'issuer') return error(404, `Unknown issuer ${String(params.id)}`);
     return HttpResponse.json(
-      CREDENTIAL_CONFIGURATIONS.filter((c) => entry.capabilities.formats.includes(c.format)).map(
-        (c) => ({
+      credentialConfigurationsForIssuer(entry.id)
+        .filter((c) => entry.capabilities.formats.includes(c.format))
+        .map((c) => ({
           id: c.id,
           format: c.format,
           displayName: c.displayName,
           credentialType: c.credentialType,
           proofSuites: [c.proofSuite],
           ...(c.validitySeconds ? { validitySeconds: c.validitySeconds } : {}),
-        }),
-      ),
+        })),
     );
   }),
 
@@ -64,14 +64,16 @@ export const handlers = [
 
   http.post(api('/runs'), async ({ request }) => {
     const parsed = CreateRunRequestSchema.safeParse(await request.json());
-    if (!parsed.success) return error(400, `Invalid run config: ${parsed.error.issues[0]?.message}`);
+    if (!parsed.success)
+      return error(400, `Invalid run config: ${parsed.error.issues[0]?.message}`);
     const config = parsed.data;
     const wallet = mockCatalog.find((c) => c.id === config.walletId && c.role === 'wallet');
     const ids = [config.issuerId, config.walletId, config.verifierId];
     if (!wallet || ids.some((id) => !mockCatalog.some((c) => c.id === id))) {
       return error(400, 'Unknown implementation in run config');
     }
-    if (!SUPPORTED_RUN_MODES.includes(config.mode)) return error(400, `Run mode ${config.mode} is not supported yet`);
+    if (!SUPPORTED_RUN_MODES.includes(config.mode))
+      return error(400, `Run mode ${config.mode} is not supported yet`);
     const run: RunDetail = {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
@@ -80,7 +82,11 @@ export const handlers = [
       state: 'Configured',
       prediction: predict(config),
       correlation: config.walletId === 'inji-web' ? 'heuristic' : 'exact',
-      steps: stepTemplateFor(config.mode).map((t) => ({ phase: t.phase, step: t.step, status: 'pending' as const })),
+      steps: stepTemplateFor(config.mode).map((t) => ({
+        phase: t.phase,
+        step: t.step,
+        status: 'pending' as const,
+      })),
       versions: ids.map((id) => ({
         implementationId: id,
         version: mockCatalog.find((c) => c.id === id)?.version ?? 'unknown',
