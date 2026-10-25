@@ -34,7 +34,7 @@ export function ImplementationCard({
       title={disabledReason}
       data-testid={`choice-${entry.id}`}
       className={cx(
-        'relative flex w-72 shrink-0 snap-start flex-col gap-3 rounded-2xl border bg-surface p-4 transition-[border-color,box-shadow,opacity]',
+        'relative flex w-72 shrink-0 snap-start flex-col gap-3 rounded-2xl border bg-surface p-4 transition-[border-color,box-shadow,opacity] xl:w-full',
         'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent dashdark:rounded-xl',
         selected ? 'border-accent ring-1 ring-accent' : 'border-border',
         disabled ? 'cursor-not-allowed opacity-55' : 'cursor-pointer',

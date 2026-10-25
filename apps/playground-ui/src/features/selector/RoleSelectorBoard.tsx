@@ -1,6 +1,13 @@
 import { ROLES, roleLabel, type CatalogEntry, type Role } from '@playground/shared';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon, IssuerIcon, ShieldIcon, WalletIcon } from '../../components/icons';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ArrowRightIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  IssuerIcon,
+  ShieldIcon,
+  WalletIcon,
+} from '../../components/icons';
 import { Button, Card, cx, EmptyState } from '../../components/ui';
 import { selectedIdFor, useSelection } from '../../store/selection';
 import { disabledReason } from './compat';
@@ -94,9 +101,10 @@ function RoleRow({ role, catalog, others }: { role: Role; catalog: CatalogEntry[
         {entries.length === 0 ? (
           <EmptyState title="Nothing in the catalog">Add a YAML file to catalog/ with role: {role}.</EmptyState>
         ) : (
+          // A sideways-scrolling row on narrow screens; a vertical list in its own column on wide ones.
           <div
             ref={ref}
-            className="flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto overscroll-x-contain px-4 pb-4 pt-2 [scrollbar-width:thin] sm:scroll-px-5 sm:px-5"
+            className="flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto overscroll-x-contain px-4 pb-4 pt-2 [scrollbar-width:thin] sm:scroll-px-5 sm:px-5 xl:snap-none xl:flex-col xl:overflow-x-visible"
           >
             {entries.map((entry) => (
               <ImplementationCard
@@ -126,10 +134,23 @@ export function RoleSelectorBoard({ catalog }: { catalog: CatalogEntry[] }) {
     }
   }, [catalog, selection]);
 
+  // Stacked rows on narrow screens; three columns, Issuer → Wallet → Verifier, on wide ones.
   return (
-    <div className="flex min-w-0 flex-col gap-4" role="group" aria-label="Choose an implementation for each role">
-      {ROLES.map((role) => (
-        <RoleRow key={role} role={role} catalog={catalog} others={ROLES.filter((r) => r !== role).map(selectedEntry)} />
+    <div
+      className="flex min-w-0 flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-start xl:gap-2"
+      role="group"
+      aria-label="Choose an implementation for each role"
+      data-testid="role-selector"
+    >
+      {ROLES.map((role, i) => (
+        <Fragment key={role}>
+          {i > 0 && (
+            <span aria-hidden className="mt-8 hidden self-start text-muted xl:block">
+              <ArrowRightIcon width={18} height={18} />
+            </span>
+          )}
+          <RoleRow role={role} catalog={catalog} others={ROLES.filter((r) => r !== role).map(selectedEntry)} />
+        </Fragment>
       ))}
     </div>
   );
