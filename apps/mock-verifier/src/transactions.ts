@@ -1,7 +1,7 @@
 // Presentation transactions, in memory with a time-to-live. A status long poll waits on a
 // transaction until it changes or the poll times out.
 import type { PresentationDefinition } from '@playground/protocol-core';
-import type { MockVerifierResult } from '@playground/shared';
+import type { DcqlQuery, MockVerifierResult } from '@playground/shared';
 
 export type TransactionStatus = 'ACTIVE' | 'VP_SUBMITTED' | 'EXPIRED';
 
@@ -9,7 +9,11 @@ export interface Transaction {
   requestId: string;
   transactionId: string;
   nonce: string;
-  presentationDefinition: PresentationDefinition;
+  responseMode: 'direct_post' | 'dc_api';
+  /** direct_post requests (Presentation Exchange). */
+  presentationDefinition?: PresentationDefinition;
+  /** dc_api requests (DCQL). */
+  dcqlQuery?: DcqlQuery;
   createdAt: number;
   expiresAt: number;
   submitted: boolean;

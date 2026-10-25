@@ -4,7 +4,7 @@
 import { EventEmitter } from 'node:events';
 import { mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { CheckFinding, Exchange, RunDetail, RunEvent } from '@playground/shared';
+import type { CheckFinding, DcApiResponseRequest, Exchange, RunDetail, RunEvent } from '@playground/shared';
 import { getExchangesByRun, restoreRun } from '../store/exchange-store.ts';
 
 export interface RunRecord {
@@ -13,6 +13,8 @@ export interface RunRecord {
   controller: AbortController;
   /** Pending manual-evidence waits, keyed by step id. */
   manualWaiters: Map<string, () => void>;
+  /** A dc-api run waiting for the browser's navigator.credentials.get result. */
+  dcApiWaiter?: (response: DcApiResponseRequest) => void;
 }
 
 /** Every RunEvent the BFF publishes; the realtime gateway forwards them to the run's room. */

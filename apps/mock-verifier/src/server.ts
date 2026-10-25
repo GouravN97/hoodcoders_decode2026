@@ -3,6 +3,7 @@
 //   GET  api/requests/:id/status       long poll: ACTIVE | VP_SUBMITTED | EXPIRED (BFF)
 //   GET  api/results/:transactionId    outcome and every check (BFF)
 //   POST api/verify-credential         a credential on its own (the BFF's second opinion)
+//   POST api/dc-api/:requestId         a Digital Credentials API response, relayed by the BFF
 //   GET|POST oid4vp/request/:id        signed request object (wallet)
 //   POST oid4vp/response/:id           direct_post (wallet)
 //   GET  did.json                      the verifier's did:web document (wallet)
@@ -12,6 +13,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { pemToDer, type PresentationDefinition } from '@playground/protocol-core';
 import {
   MockVerifierCreateRequestSchema,
+  MockVerifierDcApiResponseSchema,
   MockVerifierVerifyCredentialSchema,
   type MockVerifierCreateResponse,
 } from '@playground/shared';
@@ -19,7 +21,13 @@ import type { z } from 'zod';
 import type { VerifierConfig } from './config.ts';
 import { signRequestObject, type VerifierKey } from './keys.ts';
 import { TransactionStore } from './transactions.ts';
-import { verifyCredentialOnly, verifyResponse } from './verify.ts';
+import { verifyCredentialOnly, verifyDcApiResponse, verifyResponse } from './verify.ts';
+
+const VP_FORMATS = {
+  'vc+sd-jwt': { 'sd-jwt_alg_values': ['ES256', 'EdDSA'], 'kb-jwt_alg_values': ['ES256', 'EdDSA'] },
+  'dc+sd-jwt': { 'sd-jwt_alg_values': ['ES256', 'EdDSA'], 'kb-jwt_alg_values': ['ES256', 'EdDSA'] },
+  mso_mdoc: { alg: ['ES256'] },
+};
 
 class HttpError extends Error {
   constructor(
@@ -85,24 +93,50 @@ export function createVerifierServer(config: VerifierConfig, key: VerifierKey, s
       const body = await readJson(req, MockVerifierCreateRequestSchema);
       const requestId = `req_${crypto.randomUUID()}`;
       const now = Date.now();
+      const nonce = randomHex(16);
       store.add({
         requestId,
         transactionId: body.transactionId ?? `txn_${randomHex(16)}`,
-        nonce: randomHex(16),
-        presentationDefinition: body.presentationDefinition as unknown as PresentationDefinition,
+        nonce,
+        responseMode: body.responseMode,
+        ...(body.presentationDefinition
+          ? { presentationDefinition: body.presentationDefinition as unknown as PresentationDefinition }
+          : {}),
+        ...(body.dcqlQuery ? { dcqlQuery: body.dcqlQuery } : {}),
         createdAt: now,
         expiresAt: now + config.requestTtlMs,
         submitted: false,
       });
+      const common = {
+        requestId,
+        transactionId: store.byRequestId(requestId)!.transactionId,
+        clientId: config.clientId,
+        expiresAt: new Date(now + config.requestTtlMs).toISOString(),
+      };
+      if (body.responseMode === 'dc_api') {
+        // OpenID4VP 1.0 over the Digital Credentials API, unsigned: no client_id; the browser
+        // tells the wallet the page origin, which the presentation is then bound to.
+        const answer: MockVerifierCreateResponse = {
+          ...common,
+          dcApiRequest: {
+            protocol: 'openid4vp-v1-unsigned',
+            data: {
+              response_type: 'vp_token',
+              response_mode: 'dc_api',
+              nonce,
+              dcql_query: body.dcqlQuery,
+              client_metadata: { vp_formats_supported: VP_FORMATS },
+            },
+          },
+        };
+        return send(res, 201, answer);
+      }
       const requestUri = `${config.publicUrl}/oid4vp/request/${requestId}`;
       const params = new URLSearchParams({ client_id: config.clientId, request_uri: requestUri });
       const answer: MockVerifierCreateResponse = {
-        requestId,
-        transactionId: store.byRequestId(requestId)!.transactionId,
+        ...common,
         authorizationRequestUri: `openid4vp://authorize?${params}`,
         requestUri,
-        clientId: config.clientId,
-        expiresAt: new Date(now + config.requestTtlMs).toISOString(),
       };
       return send(res, 201, answer);
     }
@@ -121,6 +155,18 @@ export function createVerifierServer(config: VerifierConfig, key: VerifierKey, s
       return send(res, 200, tx.result);
     }
 
+    if (method === 'POST' && (m = path.match(/^\/api\/dc-api\/([^/]+)$/))) {
+      const tx = store.byRequestId(decodeURIComponent(m[1]!));
+      if (!tx) throw new HttpError(404, 'Unknown request');
+      if (tx.responseMode !== 'dc_api') throw new HttpError(400, 'This request was not made for the Digital Credentials API');
+      if (tx.submitted) throw new HttpError(400, 'A response was already submitted for this request');
+      if (store.status(tx) === 'EXPIRED') throw new HttpError(400, 'The request has expired');
+      const body = await readJson(req, MockVerifierDcApiResponseSchema);
+      const result = await verifyDcApiResponse(tx, body.origin, body.data, context());
+      store.submit(tx, result);
+      return send(res, 200, result);
+    }
+
     if (method === 'POST' && path === '/api/verify-credential') {
       const body = await readJson(req, MockVerifierVerifyCredentialSchema);
       return send(res, 200, await verifyCredentialOnly(body.credential, context()));
@@ -131,6 +177,7 @@ export function createVerifierServer(config: VerifierConfig, key: VerifierKey, s
       const tx = store.byRequestId(decodeURIComponent(m[1]!));
       if (!tx) throw new HttpError(404, 'Unknown request', 'invalid_request_uri');
       if (store.status(tx) === 'EXPIRED') throw new HttpError(400, 'The request has expired', 'invalid_request_uri');
+      if (!tx.presentationDefinition) throw new HttpError(400, 'This request is for the Digital Credentials API', 'invalid_request_uri');
       if (method === 'POST') await readBody(req);
       const jwt = await signRequestObject(key, {
         iss: config.clientId,
@@ -141,14 +188,7 @@ export function createVerifierServer(config: VerifierConfig, key: VerifierKey, s
         nonce: tx.nonce,
         state: tx.requestId,
         presentation_definition: tx.presentationDefinition,
-        client_metadata: {
-          client_name: 'Playground mock verifier',
-          vp_formats: {
-            'vc+sd-jwt': { 'sd-jwt_alg_values': ['ES256', 'EdDSA'], 'kb-jwt_alg_values': ['ES256', 'EdDSA'] },
-            'dc+sd-jwt': { 'sd-jwt_alg_values': ['ES256', 'EdDSA'], 'kb-jwt_alg_values': ['ES256', 'EdDSA'] },
-            mso_mdoc: { alg: ['ES256'] },
-          },
-        },
+        client_metadata: { client_name: 'Playground mock verifier', vp_formats: VP_FORMATS },
       });
       return send(res, 200, jwt, 'application/oauth-authz-req+jwt');
     }

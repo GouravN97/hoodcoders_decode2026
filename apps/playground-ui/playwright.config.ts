@@ -17,8 +17,8 @@ export default defineConfig({
   projects: LIVE_URL
     ? [{ name: 'live', use: { ...devices['Desktop Chrome'] }, testMatch: /live\.spec\.ts/ }]
     : [
-        { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: /live\.spec\.ts/ },
-        { name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: /layout\.spec\.ts/ },
+        { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: /(live|same-device)\.spec\.ts/ },
+        { name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: /(layout|same-device)\.spec\.ts/ },
       ],
   ...(LIVE_URL
     ? {}

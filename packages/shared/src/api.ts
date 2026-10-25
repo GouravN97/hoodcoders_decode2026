@@ -59,6 +59,20 @@ export const ManualEvidenceRequestSchema = z.object({
 });
 export type ManualEvidenceRequest = z.infer<typeof ManualEvidenceRequestSchema>;
 
+/**
+ * POST /api/runs/:id/dc-api-response: what navigator.credentials.get returned in the browser (a
+ * DigitalCredential's protocol and data), or the error it threw, with the page origin and the
+ * browser it ran in.
+ */
+export const DcApiResponseRequestSchema = z.object({
+  origin: z.string().min(1),
+  userAgent: z.string().optional(),
+  protocol: z.string().optional(),
+  data: z.unknown().optional(),
+  error: z.object({ name: z.string(), message: z.string() }).optional(),
+});
+export type DcApiResponseRequest = z.infer<typeof DcApiResponseRequestSchema>;
+
 /** Error body returned by every endpoint on a non-2xx response. */
 export const ApiErrorSchema = z.object({
   message: z.string(),

@@ -143,3 +143,18 @@ Observed in the credential Certify returns (not inferred from source):
 The issuer signature and every element digest of a Certify-issued mDL also verify in `packages/protocol-core` unit tests, against a saved credential (`src/fixtures/certify-0.14.0-mock-mdl.mdoc`).
 
 Not run: Certify mock mDoc → **Inji Wallet** issue-only on the emulator (needs the Cloudflare tunnels).
+
+## Same-device link and Digital Credentials API
+
+Date: 25 October 2026  
+Branch: `feat/same-device-dc-api`
+
+**Same-device link (Android emulator, `Medium_Phone_API_37.0`, Inji Wallet `1.0.0-alpha.1` debug build).** The playground was opened in the emulator's Chrome at `http://10.0.2.2:8100/runs/<id>` for a Certify → Inji Wallet (mobile) run. The phone layout showed **Open in wallet**; tapping it made Chrome start `io.mosip.residentapp/.MainActivity` with the `openid-credential-offer://` link (`ActivityTaskManager: START … cat=[BROWSABLE] dat=openid-credential-offer:///…`), and Inji Wallet came to the foreground at its unlock screen. The issuance was not completed: the offer's host is a Cloudflare quick-tunnel name and no tunnel was running. This is an emulator result, not a physical phone.
+
+**Digital Credentials API.** No wallet tested here offers it: Inji Wallet `1.0.0-alpha.1` registers no Credential Manager provider. What was checked:
+
+| Check | Result |
+| --- | --- |
+| UI, stubbed `navigator.credentials.get` (Playwright) | The page sends `openid4vp-v1-unsigned` with `response_mode: dc_api` and a DCQL query; the stubbed answer is relayed and the run completes; a refusal (`NotAllowedError`) fails the delivery step with that error |
+| UI, browser without the API | Explanation shown, no button. Playwright's own Chromium already exposes `DigitalCredential`, so the test removes it |
+| Server side, live (BFF → Protocol Tap → mock verifier) | A script stands in for the browser's wallet with a real Certify `vc+sd-jwt` credential: bound to the page origin (`aud` = `origin:http://localhost:8100`) → **VALID**; bound to another origin → INVALID at holder binding (`aud is "origin:https://evil.example"`) |

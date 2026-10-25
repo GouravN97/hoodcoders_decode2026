@@ -13,6 +13,7 @@ import {
   type CatalogEntry,
   type CheckFinding,
   type CredentialFormat,
+  type DcApiResponseRequest,
   type DeliveryInstruction,
   type DeliveryPurpose,
   type EvidenceKind,
@@ -35,6 +36,7 @@ import { mockCatalog } from './catalog';
 import { db, type MockRunRecord } from './db';
 import {
   buildFixtures,
+  credentialTypeOf,
   simulatedMockVerifierResult,
   verifierEndpoints,
   type RunFixtures,
@@ -558,6 +560,7 @@ class RunSimulation {
   }
 
   private async presentAndVerify(): Promise<boolean> {
+    if (this.run.config.presentationFlow === 'dc-api') return this.presentDcApi();
     const { fx, run } = this;
     const format = run.config.format;
     const from = this.walletName;
@@ -740,6 +743,166 @@ class RunSimulation {
     return true;
   }
 
+  /** Waits for the browser's navigator.credentials.get result; undefined on timeout. */
+  private waitDcApi(timeoutMs: number): Promise<DcApiResponseRequest | undefined> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.record.dcApiWaiter = undefined;
+        resolve(undefined);
+      }, timeoutMs / this.speed);
+      const poll = setInterval(() => {
+        if (this.record.cancelled) {
+          clearTimeout(timer);
+          clearInterval(poll);
+          reject(new Cancelled());
+        }
+      }, 200);
+      this.record.dcApiWaiter = (response) => {
+        clearTimeout(timer);
+        clearInterval(poll);
+        this.record.dcApiWaiter = undefined;
+        resolve(response);
+      };
+    });
+  }
+
+  /**
+   * Digital Credentials API, as the BFF runs it: an unsigned OpenID4VP 1.0 / DCQL request goes to
+   * the browser's own wallet and its answer is relayed to the mock verifier. The verifier's checks
+   * after the response shape are simulated (the browser API is stubbed in mock mode).
+   */
+  private async presentDcApi(): Promise<boolean> {
+    const { fx, run } = this;
+    const format = run.config.format;
+    const v = fx.verifier;
+    this.status('Presenting');
+    this.step('request_created', 'active');
+    await this.sleep(400);
+    const credentialType = credentialTypeOf(run.config.credentialConfigurationId);
+    const dcqlQuery = {
+      credentials: [{ id: run.config.credentialConfigurationId, format, meta: { vct_values: [credentialType] }, claims: [{ path: ['fullName'] }] }],
+    };
+    const dcRequest = {
+      protocol: 'openid4vp-v1-unsigned' as const,
+      data: {
+        response_type: 'vp_token',
+        response_mode: 'dc_api',
+        nonce: fx.nonce,
+        dcql_query: dcqlQuery,
+        client_metadata: { vp_formats_supported: { [format]: { 'sd-jwt_alg_values': ['ES256'], 'kb-jwt_alg_values': ['ES256'] } } },
+      },
+    };
+    const createId = this.exchange({
+      component: v.component,
+      from: 'bff',
+      method: 'POST',
+      url: v.create,
+      status: 201,
+      step: ProtocolStep.VERIFY_CREATE_REQUEST,
+      reqContentType: 'application/json',
+      reqBody: this.json({ transactionId: fx.transactionId, responseMode: 'dc_api', dcqlQuery }),
+      resBody: this.json({ requestId: fx.requestId, transactionId: fx.transactionId, dcApiRequest: dcRequest, clientId: v.clientId }),
+      correlationKeys: [fx.requestId, fx.transactionId],
+    });
+    const oob = this.exchange({
+      component: v.component,
+      from: 'bff',
+      method: 'OOB',
+      url: `navigator.credentials.get (${dcRequest.protocol})`,
+      step: ProtocolStep.VP_AUTH_REQUEST,
+      reqBody: this.json(dcRequest),
+      outOfBand: true,
+      correlationKeys: [fx.requestId],
+      artifactKinds: ['auth_request', 'dcql_query'],
+    });
+    this.artifact('auth_request', this.json(dcRequest), oob);
+    this.artifact('dcql_query', this.json(dcqlQuery), createId);
+    this.step('request_created', 'done', { evidenceKind: 'adapter', exchangeId: createId });
+
+    this.step('request_delivered', 'active');
+    this.delivery('presentation', {
+      kind: 'dc-api',
+      protocol: dcRequest.protocol,
+      request: dcRequest.data,
+      hint: "Ask this browser's wallet for the credential. The browser shows its own prompt.",
+    });
+    const answer = await this.waitDcApi(300_000);
+    if (!answer) {
+      this.step('request_delivered', 'inconclusive', { error: { message: "No answer from the browser's Digital Credentials API within 5 min" } });
+      await this.finish();
+      return false;
+    }
+    run.config.labels = {
+      ...run.config.labels,
+      'dc-api.origin': answer.origin,
+      ...(answer.userAgent ? { 'dc-api.userAgent': answer.userAgent } : {}),
+      ...(answer.error ? { 'dc-api.error': `${answer.error.name}: ${answer.error.message}` } : {}),
+    };
+    if (answer.error) {
+      this.step('request_delivered', 'failed', {
+        error: { message: `The browser's navigator.credentials.get failed: ${answer.error.name}: ${answer.error.message}` },
+      });
+      await this.finish();
+      return false;
+    }
+    this.step('request_delivered', 'done', { evidenceKind: 'manual' });
+    this.step(ProtocolStep.VP_REQUEST_OBJECT, 'skipped');
+    this.step(ProtocolStep.VP_RESPONSE, 'active');
+    const respId = this.exchange({
+      component: v.component,
+      from: 'wallet',
+      method: 'POST',
+      url: `${v.create.replace(/\/api\/requests$/, '')}/api/dc-api/${fx.requestId}`,
+      status: 200,
+      step: ProtocolStep.VP_RESPONSE,
+      reqContentType: 'application/json',
+      reqBody: this.json({ origin: answer.origin, data: answer.data }),
+      resBody: '{}',
+      correlationKeys: [fx.requestId],
+      artifactKinds: ['vp_token'],
+    });
+    const tokens = (answer.data as { vp_token?: Record<string, unknown> } | undefined)?.vp_token ?? {};
+    const entry = tokens[run.config.credentialConfigurationId];
+    const vpToken = Array.isArray(entry) ? entry[0] : entry;
+    if (typeof vpToken === 'string') this.artifact('vp_token', vpToken, respId, format);
+    this.step(ProtocolStep.VP_RESPONSE, 'done', { evidenceKind: 'tap', exchangeId: respId });
+    this.run.delivery = undefined;
+
+    this.status('Verifying');
+    this.step(ProtocolStep.VERIFY_RESULT, 'active');
+    await this.sleep(500);
+    const credentialStages = simulatedMockVerifierResult(fx.problem, format, false).stages.filter(
+      (st) => !['response-shape', 'state', 'submission', 'requested-credential'].includes(st.id),
+    );
+    const stages: VerificationStage[] =
+      typeof vpToken === 'string'
+        ? [
+            { id: 'response-shape', label: 'Response shape', status: 'pass', message: `vp_token.${run.config.credentialConfigurationId} holds a presentation (simulated checks follow)` },
+            { id: 'state', label: 'State', status: 'skip', message: 'Not used: a Digital Credentials API response returns to the page that asked' },
+            ...credentialStages,
+          ]
+        : [{ id: 'response-shape', label: 'Response shape', status: 'fail', message: `vp_token has no presentation for credential query ${run.config.credentialConfigurationId}` }];
+    const outcome: VerificationOutcome = typeof vpToken !== 'string' ? 'REJECTED' : stages.some((st) => st.status === 'fail') ? 'INVALID' : 'VALID';
+    const verifierRaw: MockVerifierResult = { transactionId: fx.transactionId, outcome, stages, format, verifiedAt: new Date().toISOString() };
+    const resultId = this.exchange({
+      component: v.component,
+      from: 'bff',
+      method: 'GET',
+      url: v.result(fx.transactionId),
+      status: 200,
+      step: ProtocolStep.VERIFY_RESULT,
+      resBody: this.json(verifierRaw),
+      correlationKeys: [fx.transactionId],
+      artifactKinds: ['verification_result'],
+    });
+    this.artifact('verification_result', this.json(verifierRaw), resultId);
+    this.run.observedOutcome = outcome;
+    this.run.result = { outcome, perCredential: [{ index: 0, outcome }], verifierRaw, stages };
+    this.publish({ type: 'run.result', runId: run.id, outcome, verifierRaw, stages });
+    this.step(ProtocolStep.VERIFY_RESULT, 'done', { evidenceKind: 'adapter', exchangeId: resultId });
+    return true;
+  }
+
   /** The mock verifier's mDoc checks, run for real on the simulated DeviceResponse. */
   private async mockVerifierMdoc(): Promise<Pick<MockVerifierResult, 'outcome' | 'stages'>> {
     const { fx } = this;
@@ -916,6 +1079,12 @@ export async function startSimulation(record: MockRunRecord, wallet: CatalogEntr
       sim.status('Aborted');
     }
   }
+}
+
+export function deliverDcApiResponse(runId: string, response: DcApiResponseRequest): boolean {
+  const waiter = db.get(runId)?.dcApiWaiter;
+  waiter?.(response);
+  return Boolean(waiter);
 }
 
 export function confirmManualEvidence(runId: string, step: string): boolean {

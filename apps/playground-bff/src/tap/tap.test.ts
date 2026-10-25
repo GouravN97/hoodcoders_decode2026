@@ -38,6 +38,7 @@ describe('classifyStep', () => {
     ['GET', '/mock-verifier/oid4vp/request/req_1', ProtocolStep.VP_REQUEST_OBJECT],
     ['POST', '/mock-verifier/oid4vp/request/req_1', ProtocolStep.VP_REQUEST_OBJECT],
     ['POST', '/mock-verifier/oid4vp/response/req_1', ProtocolStep.VP_RESPONSE],
+    ['POST', '/mock-verifier/api/dc-api/req_1', ProtocolStep.VP_RESPONSE],
     ['GET', 'https://verify.localhost:8443/mock-verifier/did.json', ProtocolStep.DID_RESOLUTION],
   ])('%s %s → %s', (method, url, step) => {
     expect(classifyStep(method, url)).toBe(step);

@@ -5,6 +5,7 @@ import {
   canReplayFrom,
   CreateRunRequestSchema,
   filterRuns,
+  DcApiResponseRequestSchema,
   ManualEvidenceRequestSchema,
   planTamper,
   PredictRequestSchema,
@@ -27,7 +28,7 @@ import { mockCatalog, predict } from './catalog';
 import { db } from './db';
 import { credentialConfigurationsForIssuer } from './fixtures';
 import { buildRunReport } from './report';
-import { confirmManualEvidence, startSimulation } from './simulator';
+import { confirmManualEvidence, deliverDcApiResponse, startSimulation } from './simulator';
 
 const api = (path: string) => `${BFF_URL}/api${path}`;
 const error = (statusCode: number, message: string) =>
@@ -193,6 +194,16 @@ export const handlers = [
       return error(409, `Step ${parsed.data.step} is not waiting for confirmation`);
     }
     return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.post(api('/runs/:id/dc-api-response'), async ({ params, request }) => {
+    const parsed = DcApiResponseRequestSchema.safeParse(await request.json());
+    if (!parsed.success) return error(400, 'Invalid DC API response');
+    if (!db.get(String(params.id))) return error(404, 'Run not found');
+    if (!deliverDcApiResponse(String(params.id), parsed.data)) {
+      return error(409, 'This run is not waiting for a Digital Credentials API response');
+    }
+    return new HttpResponse(null, { status: 202 });
   }),
 
   http.post(api('/runs/:id/cancel'), ({ params }) => {

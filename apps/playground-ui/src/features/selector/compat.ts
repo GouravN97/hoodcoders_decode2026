@@ -53,11 +53,14 @@ export function supportedFlows(
   verifier: CatalogEntry | undefined,
 ): PresentationFlow[] {
   const all: PresentationFlow[] = ['cross-device-qr', 'same-device-deeplink'];
-  return all.filter((f) =>
+  const both = all.filter((f) =>
     [wallet, verifier].every(
       (e) => !e?.capabilities.presentationFlows || e.capabilities.presentationFlows.includes(f),
     ),
   );
+  // The browser's own wallet answers a Digital Credentials API request, so only the verifier decides;
+  // the prediction says that no wallet in the catalog advertises it.
+  return verifier?.capabilities.presentationFlows?.includes('dc-api') ? [...both, 'dc-api'] : both;
 }
 
 /** The RunConfig the BFF receives, or null while the selection is incomplete. */

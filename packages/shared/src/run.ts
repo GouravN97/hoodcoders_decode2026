@@ -125,6 +125,16 @@ export const DeliveryInstructionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('deeplink'), url: z.string(), hint: z.string() }),
   z.object({ kind: z.literal('open-url'), url: z.string(), hint: z.string() }),
   z.object({ kind: z.literal('automated') }),
+  /**
+   * Digital Credentials API: the page calls navigator.credentials.get({ digital: { requests: [{
+   * protocol, data }] } }) and posts what the browser's wallet returns to /api/runs/:id/dc-api-response.
+   */
+  z.object({
+    kind: z.literal('dc-api'),
+    protocol: z.literal('openid4vp-v1-unsigned'),
+    request: z.record(z.string(), z.unknown()),
+    hint: z.string(),
+  }),
 ]);
 export type DeliveryInstruction = z.infer<typeof DeliveryInstructionSchema>;
 

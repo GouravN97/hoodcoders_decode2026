@@ -304,4 +304,54 @@ describe('mock verifier', () => {
       expect(stageStatus(result)['holder-binding']).toBe('skip');
     });
   });
+
+  describe('Digital Credentials API (OpenID4VP 1.0, DCQL)', () => {
+    const ORIGIN = 'https://playground.test';
+    const dcRequest = async () => {
+      const res = await fetch(`${base}/api/requests`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          responseMode: 'dc_api',
+          dcqlQuery: {
+            credentials: [{ id: 'farmer', format: 'vc+sd-jwt', meta: { vct_values: ['FarmerCredentialSdJwt'] }, claims: [{ path: ['fullName'] }] }],
+          },
+        }),
+      });
+      expect(res.status).toBe(201);
+      return (await res.json()) as { requestId: string; transactionId: string; authorizationRequestUri?: string; dcApiRequest: { protocol: string; data: { nonce: string; response_mode: string } } };
+    };
+    const answer = (requestId: string, origin: string, vpToken: unknown) =>
+      fetch(`${base}/api/dc-api/${requestId}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ origin, data: { vp_token: { farmer: vpToken } } }),
+      });
+
+    it('builds an unsigned DCQL request and accepts a presentation bound to the page origin', async () => {
+      const req = await dcRequest();
+      expect(req.authorizationRequestUri).toBeUndefined();
+      expect(req.dcApiRequest).toMatchObject({ protocol: 'openid4vp-v1-unsigned', data: { response_mode: 'dc_api' } });
+      const credential = await issue();
+      const vp = await presentSdJwt({ raw: credential.raw, holder, nonce: req.dcApiRequest.data.nonce, audience: `origin:${ORIGIN}` });
+      expect((await answer(req.requestId, ORIGIN, [vp])).status).toBe(200);
+      const result = await resultOf(req.transactionId);
+      expect(result.outcome).toBe('VALID');
+      expect(stageStatus(result)).toMatchObject({ 'response-shape': 'pass', state: 'skip', 'requested-credential': 'pass', 'holder-binding': 'pass' });
+    });
+
+    it('fails holder binding for another origin, and the request has no request object to fetch', async () => {
+      const req = await dcRequest();
+      const vp = await presentSdJwt({ raw: (await issue()).raw, holder, nonce: req.dcApiRequest.data.nonce, audience: 'origin:https://evil.test' });
+      await answer(req.requestId, ORIGIN, [vp]);
+      expect(stageStatus(await resultOf(req.transactionId))['holder-binding']).toBe('fail');
+      expect((await fetch(`${base}/oid4vp/request/${req.requestId}`)).status).toBe(400);
+    });
+
+    it('rejects a response without a presentation for the credential query', async () => {
+      const req = await dcRequest();
+      await answer(req.requestId, ORIGIN, []);
+      expect((await resultOf(req.transactionId)).outcome).toBe('REJECTED');
+    });
+  });
 });

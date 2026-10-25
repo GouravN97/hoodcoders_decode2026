@@ -1031,6 +1031,8 @@ sequenceDiagram
 
 ### 10.4 Same-device and Digital Credentials API
 
+> **Implemented (25 October 2026).** Same device: the delivery panel shows **Open in wallet** for wallet links on phone-sized or touch screens; on the Android emulator the link opened Inji Wallet 1.0.0-alpha.1. DC API: `dc-api` delivery, `POST /api/runs/:id/dc-api-response`, and the mock verifier's unsigned OpenID4VP 1.0 / DCQL request and response check (`aud` = `origin:<origin>`), SD-JWT only. No wallet in the catalog advertises the API, so the UI is tested with a stubbed `navigator.credentials.get`, and the server side live with a script standing in for the browser's wallet. Origin, user agent and errors go to the run's labels.
+
 - **Same-device deep link:** `DeliveryInstruction.kind = 'deeplink'`. The UI shows a button that opens `openid4vp://…` on the phone's own browser; the wallet completes the flow and redirects back. Correlation is identical to 10.3.
 - **Digital Credentials API:** when the verifier supports the DC API response mode and the browser exposes `navigator.credentials.get` with digital credentials, `SdkVerifierEmbed` uses the SDK's same-device path. Record the browser and OS in the run labels, because DC API support differs across platforms.
 

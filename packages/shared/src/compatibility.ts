@@ -83,7 +83,22 @@ export function predict(
     });
   }
   const flows = wallet.capabilities.presentationFlows ?? [];
-  if (presenting && flows.length && !flows.includes(config.presentationFlow)) {
+  if (presenting && config.presentationFlow === 'dc-api') {
+    // The browser's own wallet answers navigator.credentials.get; the selected wallet is not asked.
+    if (!(verifier.capabilities.presentationFlows ?? []).includes('dc-api'))
+      reasons.push({ role: 'verifier', severity: 'error', message: `${verifier.displayName} does not support the Digital Credentials API` });
+    if (!catalog.some((c) => c.role === 'wallet' && c.capabilities.presentationFlows?.includes('dc-api')))
+      reasons.push({
+        role: 'wallet',
+        severity: 'error',
+        message: 'No wallet in the catalog advertises the Digital Credentials API; it is tested only with a stubbed browser API',
+      });
+    reasons.push({
+      role: 'wallet',
+      severity: 'info',
+      message: "The browser's own wallet answers the request (navigator.credentials.get); the selected wallet is not contacted",
+    });
+  } else if (presenting && flows.length && !flows.includes(config.presentationFlow)) {
     reasons.push({
       role: 'wallet',
       severity: 'error',
