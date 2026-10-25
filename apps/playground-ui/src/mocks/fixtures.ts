@@ -7,6 +7,8 @@
 import {
   describeTamper,
   type CredentialFormat,
+  type MockVerifierResult,
+  type VerificationStage,
   type ReplayInput,
   type TamperEvidence,
   type TamperId,
@@ -19,6 +21,47 @@ export type Scenario = 'valid' | 'invalid-signature' | 'expired' | 'fail-at-toke
 export const ISSUER_URL = 'https://certify.playground.local';
 export const VERIFIER_URL = 'https://verify.playground.local';
 export const VERIFIER_CLIENT_ID = 'did:web:verify.playground.local';
+
+/** Where each verifier the simulator knows is reached; the mock verifier is a path on the Verify host. */
+export interface VerifierEndpoints {
+  component: string;
+  clientId: string;
+  clientName: string;
+  create: string;
+  requestObject: (requestId: string) => string;
+  response: (requestId: string) => string;
+  status: (requestId: string) => string;
+  result: (transactionId: string) => string;
+  verifyCredential: string;
+}
+
+export function verifierEndpoints(verifierId: string): VerifierEndpoints {
+  if (verifierId === 'mock-verifier') {
+    const base = `${VERIFIER_URL}/mock-verifier`;
+    return {
+      component: 'mock-verifier',
+      clientId: 'did:web:verify.playground.local:mock-verifier',
+      clientName: 'Playground mock verifier',
+      create: `${base}/api/requests`,
+      requestObject: (id) => `${base}/oid4vp/request/${id}`,
+      response: (id) => `${base}/oid4vp/response/${id}`,
+      status: (id) => `${base}/api/requests/${id}/status?wait=50000`,
+      result: (txn) => `${base}/api/results/${txn}`,
+      verifyCredential: `${base}/api/verify-credential`,
+    };
+  }
+  return {
+    component: 'verify',
+    clientId: VERIFIER_CLIENT_ID,
+    clientName: 'Inji Verify (playground)',
+    create: `${VERIFIER_URL}/v1/verify/vp-request`,
+    requestObject: (id) => `${VERIFIER_URL}/v1/verify/vp-request/${id}`,
+    response: () => `${VERIFIER_URL}/v1/verify/vp-submission/direct-post`,
+    status: (id) => `${VERIFIER_URL}/v1/verify/vp-request/${id}/status`,
+    result: (txn) => `${VERIFIER_URL}/v1/verify/vp-result/${txn}`,
+    verifyCredential: `${VERIFIER_URL}/v1/verify/vc-verification`,
+  };
+}
 const ISSUER_DID = 'did:web:certify.playground.local';
 
 const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
@@ -160,6 +203,74 @@ function ldpProof(verificationMethod: string, purpose: string, created: Date, ex
   };
 }
 
+/** What a simulated verifier finds wrong with the presentation, if anything. */
+export type SimulatedProblem = 'none' | 'signature' | 'disclosure' | 'type' | 'nonce' | 'expired';
+
+/**
+ * The mock verifier's stages for a simulated presentation, or for the credential alone (the
+ * second opinion: no presentation, no holder binding). Mirrors apps/mock-verifier's pipeline.
+ */
+export function simulatedMockVerifierResult(
+  problem: SimulatedProblem,
+  format: CredentialFormat,
+  credentialOnly: boolean,
+): Pick<MockVerifierResult, 'outcome' | 'stages'> {
+  const st = (id: string, label: string, status: VerificationStage['status'], message: string): VerificationStage => ({
+    id,
+    label,
+    status,
+    message,
+  });
+  if (format === 'ldp_vc' || format === 'mso_mdoc') {
+    return {
+      outcome: 'ERROR',
+      stages: [st('format', 'Credential format', 'fail', `${format} presentations are not checked by this mock verifier (SD-JWT VC only)`)],
+    };
+  }
+  const p = credentialOnly && (problem === 'type' || problem === 'nonce') ? 'none' : problem;
+  const stages: VerificationStage[] = credentialOnly
+    ? []
+    : [
+        st('response-shape', 'Response shape', 'pass', 'vp_token and presentation_submission present'),
+        st('state', 'State', 'pass', 'state matches the request'),
+        st('submission', 'Presentation submission', 'pass', `Maps to input descriptor farmer-sd-jwt as ${format}`),
+        p === 'type'
+          ? st('requested-credential', 'Requested credential', 'fail', `requested $.vct = ${WRONG_CREDENTIAL_TYPE}, not met`)
+          : st('requested-credential', 'Requested credential', 'pass', `${format} credential satisfies input descriptor farmer-sd-jwt`),
+      ];
+  stages.push(st('format', 'SD-JWT format', 'pass', `typ ${format}, 10 disclosures`));
+  stages.push(
+    p === 'signature'
+      ? st('issuer-signature', 'Issuer signature', 'fail', 'signature verification failed')
+      : st('issuer-signature', 'Issuer signature', 'pass', `ES256 signature verified with the jwk in the JWT header`),
+  );
+  stages.push(
+    p === 'signature'
+      ? st('issuer-trust', 'Issuer trust', 'skip', 'Not checked: the signature did not verify')
+      : st('issuer-trust', 'Issuer trust', 'pass', `${ISSUER_URL} is on the trust list`),
+  );
+  stages.push(
+    p === 'disclosure'
+      ? st('disclosures', 'Disclosures', 'fail', 'Not committed to by the issuer: fullName')
+      : st('disclosures', 'Disclosures', 'pass', 'Disclosures match digests in the issuer JWT'),
+  );
+  stages.push(
+    credentialOnly
+      ? st('holder-binding', 'Holder binding', 'skip', 'Credential-only check: no presentation to bind')
+      : p === 'nonce'
+        ? st('holder-binding', 'Holder binding', 'fail', 'nonce is not the one this request sent')
+        : st('holder-binding', 'Holder binding', 'pass', "Key-binding JWT signed by the holder key, bound to this request's nonce and client_id"),
+  );
+  stages.push(
+    p === 'expired'
+      ? st('validity', 'Validity period', 'fail', 'Expired at 2026-01-01T00:00:00.000Z')
+      : st('validity', 'Validity period', 'pass', 'Valid until 2027-10-20T00:00:00.000Z'),
+  );
+  const outcome =
+    p === 'none' ? 'VALID' : p === 'expired' ? 'EXPIRED' : 'INVALID';
+  return { outcome, stages };
+}
+
 export interface RunFixtures {
   preAuthorizedCode: string;
   offerId: string;
@@ -186,6 +297,9 @@ export interface RunFixtures {
   presentationSubmission: object;
   vpSubmissionBody: string;
   vpResult: object;
+  /** What a verifier should find wrong (drives the simulated mock verifier and second opinion). */
+  problem: SimulatedProblem;
+  verifier: VerifierEndpoints;
   /** What the wallet's tamper changed, when the run applies one. */
   tamperEvidence?: TamperEvidence;
 }
@@ -198,8 +312,11 @@ export async function buildFixtures(opts: {
   /** A wallet-hook tamper the mock wallet applies when presenting (plan §13). */
   tamper?: TamperId;
   replay?: ReplayInput;
+  /** Catalog id of the run's verifier; decides URLs, client_id and the result's shape. */
+  verifierId?: string;
 }): Promise<RunFixtures> {
   const { format, scenario, tamper, replay } = opts;
+  const verifier = verifierEndpoints(opts.verifierId ?? 'inji-verify');
   const config =
     ALL_CREDENTIAL_CONFIGURATIONS.find((c) => c.id === opts.credentialConfigurationId) ??
     ALL_CREDENTIAL_CONFIGURATIONS.find((c) => c.format === format)!;
@@ -363,7 +480,7 @@ export async function buildFixtures(opts: {
     );
     const kbJwt = await new SignJWT({ nonce: boundNonce, sd_hash: sdHash })
       .setProtectedHeader({ alg: 'ES256', typ: 'kb+jwt' })
-      .setAudience(VERIFIER_CLIENT_ID)
+      .setAudience(verifier.clientId)
       .setIssuedAt()
       .sign(holderKeys.privateKey);
     vpToken = `${presented}${kbJwt}`;
@@ -403,7 +520,7 @@ export async function buildFixtures(opts: {
       verifiableCredential: [presentedVc],
       proof: ldpProof(`${holderDid}#0`, 'authentication', now, {
         challenge: boundNonce,
-        domain: VERIFIER_CLIENT_ID,
+        domain: verifier.clientId,
       }),
     });
   }
@@ -484,29 +601,39 @@ export async function buildFixtures(opts: {
     purpose: 'Check the farmer credential for the interop playground run',
     input_descriptors: [inputDescriptor],
   };
-  const responseUri = `${VERIFIER_URL}/v1/verify/vp-submission/direct-post`;
+  const responseUri = verifier.response(requestId);
   const requestObject = {
     response_type: 'vp_token',
     response_mode: 'direct_post',
-    client_id: VERIFIER_CLIENT_ID,
+    client_id: verifier.clientId,
     client_id_scheme: 'did',
     response_uri: responseUri,
     nonce,
     state: requestId,
     presentation_definition: presentationDefinition,
     client_metadata: {
-      client_name: 'Inji Verify (playground)',
+      client_name: verifier.clientName,
       vp_formats: isSdJwt
         ? { 'vc+sd-jwt': { 'sd-jwt_alg_values': ['ES256'] } }
         : { ldp_vp: { proof_type: ['Ed25519Signature2020'] } },
     },
   };
-  const createVpRequestBody = {
-    clientId: VERIFIER_CLIENT_ID,
+  const authorizationRequestUri = `openid4vp://authorize?${new URLSearchParams({
+    client_id: verifier.clientId,
+    request_uri: verifier.requestObject(requestId),
+  }).toString()}`;
+  const createVpRequestBody =
+    verifier.component === 'mock-verifier'
+      ? { transactionId, presentationDefinition }
+      : { clientId: VERIFIER_CLIENT_ID, transactionId, presentationDefinition };
+  const createVpRequestResponse = verifier.component === 'mock-verifier' ? {
+    requestId,
     transactionId,
-    presentationDefinition,
-  };
-  const createVpRequestResponse = {
+    authorizationRequestUri,
+    requestUri: verifier.requestObject(requestId),
+    clientId: verifier.clientId,
+    expiresAt: iso(new Date(now.getTime() + 300_000)),
+  } : {
     transactionId,
     requestId,
     authorizationDetails: {
@@ -520,11 +647,6 @@ export async function buildFixtures(opts: {
     },
     expiresAt: epoch(now) + 300,
   };
-  const authorizationRequestUri = `openid4vp://authorize?${new URLSearchParams({
-    client_id: VERIFIER_CLIENT_ID,
-    request_uri: `${VERIFIER_URL}/v1/verify/vp-request/${requestId}`,
-  }).toString()}`;
-
   const presentationSubmission = {
     id: crypto.randomUUID(),
     definition_id: presentationDefinition.id,
@@ -594,6 +716,18 @@ export async function buildFixtures(opts: {
     presentationSubmission,
     vpSubmissionBody,
     vpResult,
+    problem: tamper === 'T-SIG-FLIP' || (!tamper && !replay && scenario === 'invalid-signature')
+      ? 'signature'
+      : tamper === 'T-CLAIM-EDIT'
+        ? 'disclosure'
+        : tamper === 'T-WRONG-TYPE'
+          ? 'type'
+          : replay
+            ? 'nonce'
+            : expired
+              ? 'expired'
+              : 'none',
+    verifier,
     ...(tamperEvidence ? { tamperEvidence } : {}),
   };
 }

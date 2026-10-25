@@ -8,6 +8,18 @@ import {
   RoleSchema,
 } from './domain';
 
+/**
+ * Catalog values may reference the environment as ${VAR} or ${VAR:-default}, so the same files
+ * describe `pnpm dev` and the Docker Compose stack. Without an environment (the browser mocks) the
+ * defaults apply.
+ */
+export function interpolateEnv(text: string, env: Record<string, string | undefined> = {}): string {
+  return text.replace(
+    /\$\{(\w+)(?::-([^}]*))?\}/g,
+    (_, name: string, fallback?: string) => env[name] || fallback || '',
+  );
+}
+
 /** Schema of a `catalog/*.yaml` file. */
 export const CatalogFileSchema = ImplementationDescriptorSchema;
 

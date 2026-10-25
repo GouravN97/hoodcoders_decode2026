@@ -101,3 +101,17 @@ test('the sequence diagram of a live run is drawn from captured messages, and th
   expect(md).toContain('```mermaid\nsequenceDiagram');
   expect(md).toContain('W--)L: Request to library (inferred)');
 });
+
+test('the history lists the saved live runs and the matrix exports their latest results', async ({ page }) => {
+  await page.goto('/history');
+  await expect(page.getByRole('note')).toHaveCount(0); // no sample data against the real BFF
+  const rows = page.getByRole('table', { name: 'Runs' }).locator('tbody tr');
+  await expect(rows.first()).toBeVisible();
+  await expect(rows.first()).toContainText('Inji Verify');
+
+  await page.goto('/history?tab=matrix');
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export Markdown' }).click();
+  const text = await (await (await download).createReadStream()).toArray().then((c) => Buffer.concat(c).toString('utf8'));
+  expect(text).toMatch(/\| Inji Certify 0\.14\.0 \| Mock wallet 0\.1\.0 \| Inji Verify 0\.18\.2 \|/);
+});

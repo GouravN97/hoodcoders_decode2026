@@ -200,7 +200,8 @@ test('side menu shows one section at a time and remembers the choice in the URL'
   await expect(report).toBeVisible();
   await expect(credential).toBeHidden();
   await expect(inspector).toBeHidden();
-  await expect(page.getByRole('tab', { name: /^Protocol inspector/ })).toContainText('14 messages');
+  // 14 protocol messages plus the second opinion the mock verifier gives on the credential.
+  await expect(page.getByRole('tab', { name: /^Protocol inspector/ })).toContainText('15 messages');
 
   await openSection(page, 'Issued credential');
   await expect(credential).toBeVisible();

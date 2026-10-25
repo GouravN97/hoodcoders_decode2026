@@ -170,6 +170,32 @@ export const RunConfigSchema = z.object({
 });
 export type RunConfig = z.infer<typeof RunConfigSchema>;
 
+/** One check a verifier reports making (the mock verifier reports every stage it runs). */
+export const VerificationStageSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  status: z.enum(['pass', 'fail', 'warn', 'skip']),
+  message: z.string(),
+});
+export type VerificationStage = z.infer<typeof VerificationStageSchema>;
+
+/**
+ * The other verifier's verdict on the same presented credential, checked on its own (no
+ * presentation, no holder binding). Recorded as finding VER-002.
+ */
+export const SecondOpinionSchema = z.object({
+  verifierId: z.string(),
+  displayName: z.string().optional(),
+  outcome: VerificationOutcomeSchema,
+  stages: z.array(VerificationStageSchema).optional(),
+  reason: z.string().optional(),
+  /** False when the run's verdict rests on presentation checks a credential-only check cannot make. */
+  comparable: z.boolean(),
+  agrees: z.boolean(),
+  exchangeId: z.string().optional(),
+});
+export type SecondOpinion = z.infer<typeof SecondOpinionSchema>;
+
 export const VerificationResultSchema = z.object({
   outcome: VerificationOutcomeSchema,
   perCredential: z.array(
@@ -180,6 +206,9 @@ export const VerificationResultSchema = z.object({
     }),
   ),
   verifierRaw: z.unknown(),
+  /** Every check the verifier made, when it reports them. */
+  stages: z.array(VerificationStageSchema).optional(),
+  secondOpinion: SecondOpinionSchema.optional(),
 });
 export type VerificationResult = z.infer<typeof VerificationResultSchema>;
 

@@ -42,7 +42,13 @@ export function applyRunEvent(run: RunDetail, event: RunEvent): RunDetail {
       return {
         ...run,
         observedOutcome: event.outcome,
-        result: { outcome: event.outcome, perCredential: run.result?.perCredential ?? [], verifierRaw: event.verifierRaw },
+        result: {
+          outcome: event.outcome,
+          perCredential: run.result?.perCredential ?? [],
+          verifierRaw: event.verifierRaw,
+          ...(event.stages ? { stages: event.stages } : {}),
+          ...(event.secondOpinion ? { secondOpinion: event.secondOpinion } : {}),
+        },
       };
     case 'run.completed':
       return { ...run, verdict: event.verdict };

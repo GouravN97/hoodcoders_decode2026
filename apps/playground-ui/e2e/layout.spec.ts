@@ -42,3 +42,12 @@ test('the sequence diagram scrolls inside the inspector instead of widening the 
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/sequence-${test.info().project.name}.png`, fullPage: true });
 });
+
+test('history and matrix tables scroll inside their cards', async ({ page }) => {
+  for (const path of ['/history', '/history?tab=matrix']) {
+    await page.goto(path);
+    await expect(page.getByRole('table').first()).toBeVisible();
+    await noHorizontalScroll(page);
+  }
+  await page.screenshot({ path: `test-results/matrix-${test.info().project.name}.png`, fullPage: true });
+});

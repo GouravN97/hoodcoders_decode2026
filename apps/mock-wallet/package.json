@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@playground/protocol-core": "workspace:*",
     "@playground/shared": "workspace:*",
     "jose": "6.2.12",
     "jsonld": "9.0.0",

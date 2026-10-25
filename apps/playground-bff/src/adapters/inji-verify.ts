@@ -3,6 +3,7 @@
 // long-poll the status and fetch the result. All calls go through the Protocol Tap.
 import {
   ProtocolStep,
+  type CredentialFormat,
   type ImplementationDescriptor,
   type VerificationOutcome,
 } from '@playground/shared';
@@ -146,7 +147,26 @@ export function mapVpResultError(body: string | undefined): VerifierResult | und
   };
 }
 
+/**
+ * Content-Type for POST /vc-verification: Inji Verify 0.18.x picks the credential format from it
+ * (VCVerificationServiceImpl.verify); anything that is not SD-JWT or CWT is read as ldp_vc.
+ */
+export const vcVerificationContentType = (format: CredentialFormat) =>
+  format === 'vc+sd-jwt' || format === 'dc+sd-jwt' ? `application/${format}` : 'application/json';
+
+/** /vc-verification's VCVerificationStatusDto → outcome. */
+export function mapVcVerification(raw: { verificationStatus?: string }): VerifierResult {
+  const outcome = OUTCOMES[raw.verificationStatus ?? ''] ?? 'ERROR';
+  return {
+    outcome,
+    perCredential: [{ index: 0, outcome }],
+    verifierRaw: raw,
+    ...(outcome !== 'VALID' ? { reason: `verificationStatus ${raw.verificationStatus ?? 'missing'}` } : {}),
+  };
+}
+
 export class InjiVerifyServiceAdapter implements VerifierAdapter {
+  readonly component = 'verify';
   constructor(
     readonly descriptor: ImplementationDescriptor,
     private readonly apiUrl: string,
@@ -215,5 +235,20 @@ export class InjiVerifyServiceAdapter implements VerifierAdapter {
       if (!mapped) throw e;
       return mapped;
     }
+  }
+
+  async verifyCredential(
+    ctx: RunContext,
+    credential: string,
+    format: CredentialFormat,
+  ): Promise<VerifierResult> {
+    const res = await upstream(ProtocolStep.VC_DIRECT_VERIFY, `${this.apiUrl}/v1/verify/vc-verification`, {
+      method: 'POST',
+      runId: ctx.runId,
+      signal: ctx.signal,
+      headers: { 'content-type': vcVerificationContentType(format) },
+      body: credential,
+    });
+    return mapVcVerification(res.json());
   }
 }

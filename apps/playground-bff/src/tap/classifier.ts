@@ -47,6 +47,38 @@ const RULES: Rule[] = [
     step: ProtocolStep.VCI_CREDENTIAL,
   },
 
+  // ── OpenID4VP / mock verifier (apps/mock-verifier, under /mock-verifier) ─
+  {
+    methods: ['GET'],
+    pattern: /\/mock-verifier\/api\/requests\/[^/]+\/status$/,
+    step: ProtocolStep.VERIFY_STATUS,
+  },
+  {
+    methods: ['POST'],
+    pattern: /\/mock-verifier\/api\/requests$/,
+    step: ProtocolStep.VERIFY_CREATE_REQUEST,
+  },
+  {
+    methods: ['GET'],
+    pattern: /\/mock-verifier\/api\/results\/[^/]+$/,
+    step: ProtocolStep.VERIFY_RESULT,
+  },
+  {
+    methods: ['POST'],
+    pattern: /\/mock-verifier\/api\/verify-credential$/,
+    step: ProtocolStep.VC_DIRECT_VERIFY,
+  },
+  {
+    methods: ['GET', 'POST'],
+    pattern: /\/mock-verifier\/oid4vp\/request\/[^/]+$/,
+    step: ProtocolStep.VP_REQUEST_OBJECT,
+  },
+  {
+    methods: ['POST'],
+    pattern: /\/mock-verifier\/oid4vp\/response\/[^/]+$/,
+    step: ProtocolStep.VP_RESPONSE,
+  },
+
   // ── OpenID4VP / Inji Verify ─────────────────────────────────────────────
   { methods: ['GET'], pattern: /\/vp-request\/[^/]+\/status$/, step: ProtocolStep.VERIFY_STATUS },
   { methods: ['GET'], pattern: /\/vp-request\/[^/]+$/, step: ProtocolStep.VP_REQUEST_OBJECT },

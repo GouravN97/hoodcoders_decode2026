@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   authorizationRequestUri,
+  mapVcVerification,
   mapVpResult,
   mapVpResultError,
   presentationDefinitionFor,
   transactionIdFor,
+  vcVerificationContentType,
 } from './inji-verify.ts';
 import { qr, qrVersionFor } from './wallets.ts';
 
@@ -29,6 +31,18 @@ describe('Inji Verify adapter', () => {
       outcome: 'INVALID',
       reason: 'vpResultStatus FAILED',
     });
+  });
+
+  it('sends /vc-verification the content type that selects the format', () => {
+    expect(vcVerificationContentType('vc+sd-jwt')).toBe('application/vc+sd-jwt');
+    expect(vcVerificationContentType('dc+sd-jwt')).toBe('application/dc+sd-jwt');
+    expect(vcVerificationContentType('ldp_vc')).toBe('application/json');
+    expect(mapVcVerification({ verificationStatus: 'SUCCESS' }).outcome).toBe('VALID');
+    expect(mapVcVerification({ verificationStatus: 'EXPIRED' })).toMatchObject({
+      outcome: 'EXPIRED',
+      reason: 'verificationStatus EXPIRED',
+    });
+    expect(mapVcVerification({}).outcome).toBe('ERROR');
   });
 
   it('maps error bodies: wallet errors are rejections, bad tokens are invalid', () => {

@@ -8,6 +8,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   CatalogFileSchema,
+  interpolateEnv,
   type CatalogEntry,
   type HealthStatus,
   type ImplementationDescriptor,
@@ -15,6 +16,7 @@ import {
 import { parse } from 'yaml';
 import { InjiCertifyIssuerAdapter } from '../adapters/inji-certify.ts';
 import { InjiVerifyServiceAdapter } from '../adapters/inji-verify.ts';
+import { MockVerifierAdapter } from '../adapters/mock-verifier.ts';
 import {
   AnimoPlaygroundIssuerAdapter,
   HoviPlaygroundIssuerAdapter,
@@ -35,6 +37,7 @@ export interface AdapterSettings {
   certifyApiUrl: string;
   verifyApiUrl: string;
   verifyClientId: string;
+  mockVerifierApiUrl?: string;
   hoviSupabaseUrl?: string;
   hoviSupabaseAnonKey?: string;
 }
@@ -51,6 +54,8 @@ const FACTORIES: Record<string, Factory> = {
       s.verifyApiUrl || d.internalUrl || d.publicUrl,
       s.verifyClientId,
     ),
+  MockVerifierAdapter: (d, s) =>
+    new MockVerifierAdapter(d, s.mockVerifierApiUrl || d.internalUrl || d.publicUrl),
   HoviPlaygroundIssuerAdapter: (d, s) =>
     new HoviPlaygroundIssuerAdapter(d, {
       supabaseUrl: s.hoviSupabaseUrl,
@@ -61,13 +66,6 @@ const FACTORIES: Record<string, Factory> = {
   InjiWebWalletAdapter: (d) => new InjiWebWalletAdapter(d),
   MockWalletAdapter: (d) => new MockWalletAdapter(d),
 };
-
-export function interpolateEnv(text: string, env: NodeJS.ProcessEnv = process.env): string {
-  return text.replace(
-    /\$\{(\w+)(?::-([^}]*))?\}/g,
-    (_, name: string, fallback?: string) => env[name] || fallback || '',
-  );
-}
 
 interface Slot {
   descriptor: ImplementationDescriptor;
@@ -87,7 +85,7 @@ export class ImplementationRegistry extends EventEmitter {
       .filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'))
       .sort()) {
       const parsed = CatalogFileSchema.safeParse(
-        parse(interpolateEnv(readFileSync(join(dir, file), 'utf8'))),
+        parse(interpolateEnv(readFileSync(join(dir, file), 'utf8'), process.env)),
       );
       if (!parsed.success) {
         console.error(

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { BFF_URL, USE_MOCKS } from '../config';
 import { useRecentRuns } from '../store/recentRuns';
-import { ClockIcon, GridIcon, HomeIcon, MenuIcon, XIcon } from './icons';
+import { ActivityIcon, ClockIcon, GridIcon, HomeIcon, MenuIcon, XIcon } from './icons';
 import { ThemeSwitch } from './ThemeSwitch';
 import { cx } from './ui';
 
@@ -87,6 +87,10 @@ function SidebarContent() {
           <NavLink to="/" end className={navItemClass}>
             <GridIcon width={16} height={16} />
             New run
+          </NavLink>
+          <NavLink to="/history" className={navItemClass}>
+            <ActivityIcon width={16} height={16} />
+            History
           </NavLink>
         </div>
         <RecentRuns />

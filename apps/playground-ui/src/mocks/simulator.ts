@@ -2,9 +2,12 @@
 // RunEventMap events the real RunEventsGateway sends. Human-in-the-loop wallets wait for the
 // "I can see the credential" confirmation, exactly like the real ManualEvidenceService.
 import {
+  credentialFromVpToken,
   formatLabel,
   ProtocolStep,
   runUsesPhase,
+  secondOpinionComparable,
+  secondOpinionFinding,
   tamperDiffText,
   type ArtifactKind,
   type CatalogEntry,
@@ -15,18 +18,28 @@ import {
   type EvidenceKind,
   type ExchangeWithDecoded,
   type InteropVerdict,
+  type MockVerifierResult,
   type RunEvent,
   type RunPhase,
   type RunState,
   type RunStep,
+  type SecondOpinion,
   type StepError,
   type StepStatus,
   type VerificationOutcome,
+  type VerificationStage,
 } from '@playground/shared';
 import { simulatedEvents } from '../realtime';
 import { mockCatalog } from './catalog';
 import { db, type MockRunRecord } from './db';
-import { buildFixtures, ISSUER_URL, VERIFIER_URL, type RunFixtures, type Scenario } from './fixtures';
+import {
+  buildFixtures,
+  ISSUER_URL,
+  simulatedMockVerifierResult,
+  verifierEndpoints,
+  type RunFixtures,
+  type Scenario,
+} from './fixtures';
 
 class Cancelled extends Error {}
 
@@ -553,10 +566,10 @@ class RunSimulation {
     this.step('request_created', 'active');
     await this.sleep(400);
     const vpReqId = this.exchange({
-      component: 'verify',
+      component: fx.verifier.component,
       from: 'bff',
       method: 'POST',
-      url: `${VERIFIER_URL}/v1/verify/vp-request`,
+      url: fx.verifier.create,
       status: 201,
       step: ProtocolStep.VERIFY_CREATE_REQUEST,
       reqContentType: 'application/json',
@@ -566,7 +579,7 @@ class RunSimulation {
       artifactKinds: ['presentation_definition'],
     });
     const authReqId = this.exchange({
-      component: 'verify',
+      component: fx.verifier.component,
       from: 'bff',
       method: 'OOB',
       url: fx.authorizationRequestUri,
@@ -607,10 +620,10 @@ class RunSimulation {
     }
 
     const fetchId = this.exchange({
-      component: 'verify',
+      component: fx.verifier.component,
       from,
       method: 'GET',
-      url: `${VERIFIER_URL}/v1/verify/vp-request/${fx.requestId}`,
+      url: fx.verifier.requestObject(fx.requestId),
       status: 200,
       step: ProtocolStep.VP_REQUEST_OBJECT,
       resBody: this.json(fx.requestObject),
@@ -626,10 +639,10 @@ class RunSimulation {
     const evidence = fx.tamperEvidence;
     const applied = this.run.tamper;
     const respId = this.exchange({
-      component: 'verify',
+      component: fx.verifier.component,
       from,
       method: 'POST',
-      url: `${VERIFIER_URL}/v1/verify/vp-submission/direct-post`,
+      url: fx.verifier.response(fx.requestId),
       status: 200,
       step: ProtocolStep.VP_RESPONSE,
       reqContentType: 'application/x-www-form-urlencoded',
@@ -671,12 +684,24 @@ class RunSimulation {
     await this.sleep(500);
     this.statusPoll('VP_SUBMITTED');
     await this.sleep(400);
-    const resultBody = this.json(fx.vpResult);
+    const mock = fx.verifier.component === 'mock-verifier';
+    const mockResult: MockVerifierResult | undefined = mock
+      ? {
+          transactionId: fx.transactionId,
+          ...simulatedMockVerifierResult(fx.problem, format, false),
+          format,
+          credentialType: run.config.credentialConfigurationId,
+          issuer: ISSUER_URL,
+          verifiedAt: new Date().toISOString(),
+        }
+      : undefined;
+    const verifierRaw = mockResult ?? fx.vpResult;
+    const resultBody = this.json(verifierRaw);
     const resultId = this.exchange({
-      component: 'verify',
+      component: fx.verifier.component,
       from: 'bff',
       method: 'GET',
-      url: `${VERIFIER_URL}/v1/verify/vp-result/${fx.transactionId}`,
+      url: fx.verifier.result(fx.transactionId),
       status: 200,
       step: ProtocolStep.VERIFY_RESULT,
       resBody: resultBody,
@@ -686,24 +711,83 @@ class RunSimulation {
     this.artifact('verification_result', resultBody, resultId);
     const vcStatus = (fx.vpResult as { vcResults: Array<{ verificationStatus: string }> }).vcResults[0]!
       .verificationStatus;
-    const outcome = OUTCOME_FROM_INJI[vcStatus] ?? 'ERROR';
+    const outcome = mockResult?.outcome ?? OUTCOME_FROM_INJI[vcStatus] ?? 'ERROR';
+    const stages = mockResult?.stages;
     this.run.observedOutcome = outcome;
+    const secondOpinion = await this.secondOpinion(outcome, stages);
     this.run.result = {
       outcome,
       perCredential: [{ index: 0, outcome }],
-      verifierRaw: fx.vpResult,
+      verifierRaw,
+      ...(stages ? { stages } : {}),
+      ...(secondOpinion ? { secondOpinion } : {}),
     };
-    this.publish({ type: 'run.result', runId: run.id, outcome, verifierRaw: fx.vpResult });
+    this.publish({
+      type: 'run.result',
+      runId: run.id,
+      outcome,
+      verifierRaw,
+      ...(stages ? { stages } : {}),
+      ...(secondOpinion ? { secondOpinion } : {}),
+    });
     this.step(ProtocolStep.VERIFY_RESULT, 'done', { evidenceKind: 'adapter', exchangeId: resultId });
     return true;
   }
 
+  /** VER-002, as the BFF does it: the other verifier checks the presented credential on its own. */
+  private async secondOpinion(outcome: VerificationOutcome, stages: VerificationStage[] | undefined): Promise<SecondOpinion | undefined> {
+    const { fx, run } = this;
+    const other = mockCatalog.find(
+      (c) => c.role === 'verifier' && c.id !== run.config.verifierId && c.health === 'up' && c.capabilities.formats.includes(run.config.format),
+    );
+    const credential = credentialFromVpToken(fx.vpToken);
+    if (!other || !credential || outcome === 'ERROR') return undefined;
+    await this.sleep(300);
+    const endpoints = verifierEndpoints(other.id);
+    const mock = other.id === 'mock-verifier';
+    const answer = simulatedMockVerifierResult(fx.problem, run.config.format, true);
+    const body = mock
+      ? { ...answer, format: run.config.format, issuer: ISSUER_URL, verifiedAt: new Date().toISOString() }
+      : { verificationStatus: { VALID: 'SUCCESS', INVALID: 'INVALID', EXPIRED: 'EXPIRED' }[answer.outcome as string] ?? 'INVALID' };
+    const exchangeId = this.exchange({
+      component: endpoints.component,
+      from: 'bff',
+      method: 'POST',
+      url: endpoints.verifyCredential,
+      status: 200,
+      step: ProtocolStep.VC_DIRECT_VERIFY,
+      reqContentType: mock ? 'application/json' : run.config.format === 'ldp_vc' ? 'application/json' : `application/${run.config.format}`,
+      reqBody: mock ? this.json({ credential, format: run.config.format }) : credential,
+      resBody: this.json(body),
+    });
+    const failed = mock ? answer.stages.find((s) => s.status === 'fail') : undefined;
+    const opinion: SecondOpinion = {
+      verifierId: other.id,
+      displayName: other.displayName,
+      outcome: answer.outcome,
+      ...(mock ? { stages: answer.stages } : {}),
+      ...(failed ? { reason: `${failed.label}: ${failed.message}` } : {}),
+      comparable: secondOpinionComparable({ outcome, ...(stages ? { stages } : {}) }, run.tamper?.id),
+      agrees: answer.outcome === outcome,
+      exchangeId,
+    };
+    const primaryName = mockCatalog.find((c) => c.id === run.config.verifierId)?.displayName ?? run.config.verifierId;
+    this.finding({
+      checkId: 'VER-002',
+      stage: 'verification',
+      ...secondOpinionFinding(opinion, { name: primaryName, outcome }),
+      specRef: 'Playground differential verification (plan §12)',
+      exchangeId,
+    });
+    return opinion;
+  }
+
   private statusPoll(status: string) {
     this.exchange({
-      component: 'verify',
+      component: this.fx.verifier.component,
       from: 'bff',
       method: 'GET',
-      url: `${VERIFIER_URL}/v1/verify/vp-request/${this.fx.requestId}/status`,
+      url: this.fx.verifier.status(this.fx.requestId),
       status: 200,
       step: ProtocolStep.VERIFY_STATUS,
       resBody: this.json({ status }),
@@ -786,6 +870,7 @@ export async function startSimulation(record: MockRunRecord, wallet: CatalogEntr
     format: config.format,
     credentialConfigurationId: config.credentialConfigurationId,
     scenario,
+    verifierId: config.verifierId,
     ...(plan?.def.mechanism === 'wallet-hook' ? { tamper: plan.def.id } : {}),
     ...(plan?.replay ? { replay: plan.replay } : {}),
   });

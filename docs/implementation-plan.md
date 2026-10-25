@@ -803,6 +803,8 @@ A deliberately configurable OID4VCI issuer: standards-compliant by default, with
 
 ### 8.4 `apps/mock-verifier` (Fastify, TypeScript)
 
+> **Implemented (25 October 2026), smaller than designed below.** Plain `node:http` like the mock wallet, one profile only: OpenID4VP draft 23 with Presentation Exchange, `direct_post`, an EdDSA-signed request object by reference and a `did:web` client ID. Published as `/mock-verifier/…` on the Verify host behind the Protocol Tap (third tap listener, `:3004`), not on its own host. SD-JWT VC (`vc+sd-jwt`, `dc+sd-jwt`) only. The pipeline stages are `response-shape`, `state`, `submission`, `requested-credential`, `format`, `issuer-signature`, `issuer-trust`, `disclosures`, `holder-binding`, `validity`; SD-JWT verification, DID resolution and PE matching live in `packages/protocol-core`. `POST api/verify-credential` gives the BFF its second opinion for `VER-002` (INFO when the verifiers agree, WARN when they disagree; not compared when the run is judged on presentation checks). Not built: draft 21 and 1.0 / DCQL profiles, `direct_post.jwt`, status lists. See [`apps/mock-verifier/README.md`](../apps/mock-verifier/README.md).
+
 | Class | Responsibility |
 |---|---|
 | `MockVerifierServer` | Bootstraps routes, keys and profile selection |
@@ -866,7 +868,7 @@ A headless wallet that exercises **Inji's own wallet-side libraries** (`inji-vci
 | `/` Playground | Three-column role selector, run configuration, live run canvas |
 | `/runs/:id` | Run detail: timeline, sequence diagram, inspector, checks, report downloads, replay/tamper buttons |
 | `/matrix` | Compatibility matrix (predicted vs observed), filterable by format and profile |
-| `/history` | Run history and trends, filters by module version, format, outcome and date |
+| `/history` | Run history and trends, filters by module version, format, outcome and date (**implemented**, with the matrix as a tab; trend charts not built) |
 | `/verify` | Direct verification: paste JSON, upload a file, or scan a PixelPass QR with the SDK's `QRCodeVerification` |
 | `/gaps` | Clustered failures with drafted GitHub issues |
 | `/settings` | Endpoint health, tunnel status, pinned module versions, reveal-secrets toggle (local only) |
@@ -1192,7 +1194,7 @@ Raw exchanges can get large; a retention job keeps full bodies for 30 days and t
 | GET | `/api/catalog/:id/credential-configurations` | Credential configurations from issuer metadata |
 | POST | `/api/compatibility/predict` | `RunConfig` → prediction with reasons |
 | POST | `/api/runs` | Create and start a run |
-| GET | `/api/runs` | History with filters: issuer, wallet, verifier, format, verdict, moduleVersion, from, to |
+| GET | `/api/runs` | History with filters: issuer, wallet, verifier, format, verdict, moduleVersion, from, to (**implemented** as run summaries; filters `RunsQuerySchema` in `packages/shared/src/history.ts`: per-role versions, mode, outcome, tamper, from, to, limit) |
 | GET | `/api/runs/:id` | Run with steps, verdict and prediction |
 | GET | `/api/runs/:id/exchanges?decode=true` | Captured exchanges, optionally decoded |
 | GET | `/api/runs/:id/sequence` | Mermaid source for the sequence diagram (`?view=openid4vp\|full`, implemented) |
@@ -1201,8 +1203,8 @@ Raw exchanges can get large; a retention job keeps full bodies for 30 days and t
 | POST | `/api/runs/:id/cancel` | Cancel |
 | POST | `/api/runs/:id/replay` | Re-run with the same config, optionally with a tamper |
 | GET | `/api/runs/:id/report?format=md\|json\|junit` | Report |
-| GET | `/api/matrix` | Aggregated matrix (latest per combination) |
-| GET | `/api/matrix.md` | Markdown matrix |
+| GET | `/api/matrix` | Aggregated matrix (latest per combination; **implemented**, versions in the key, negative tests left out unless `?includeNegative=true`) |
+| GET | `/api/matrix.md` | Markdown matrix (**implemented**) |
 | POST | `/api/direct-verify` | Pasted/uploaded/scanned VC → chosen verifier + differential verification |
 | GET | `/api/gaps` | Gap clusters with issue drafts |
 | GET | `/api/health` | Aggregate health |
@@ -1248,7 +1250,7 @@ Spec references are descriptive rather than section numbers, because section num
 | VP-RESP-002 | presentation | Holder binding: VP proof challenge = `nonce` and domain = `client_id`; for SD-JWT, KB-JWT `aud`, `nonce` and `sd_hash` correct | OpenID4VP / SD-JWT | FAIL |
 | VP-RESP-003 | presentation | `state` echoed when sent | OpenID4VP | WARN |
 | VER-001 | verification | Verifier result is one of the documented statuses and equals `expectedOutcome` | Inji Verify API | FAIL |
-| VER-002 | verification | Differential: our independent verdict equals the verifier's verdict | Playground rule | FAIL |
+| VER-002 | verification | Differential: the other verifier's verdict on the presented credential alone equals the run verifier's (implemented: INFO when they agree, WARN when they disagree, INFO "not compared" when the verdict rests on presentation checks) | Playground rule | WARN |
 | QR-001 | transport | PixelPass QR round-trips to an identical credential | PixelPass | FAIL |
 | XPORT-001 | transport | No unexpected 4xx/5xx on any correlated exchange; latency recorded per step | HTTP | WARN |
 

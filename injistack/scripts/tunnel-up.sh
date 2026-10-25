@@ -93,6 +93,7 @@ set_env_var VERIFY_PUBLIC_URL   "https://${VERIFY_HOST}:8443"
 # No port in either DID: the tunnel also serves :443, and the did:web resolvers in Inji Wallet
 # (OpenID4VP) and Inji Verify do not percent-decode "%3A8443" ("Invalid URL host: <host>%3A8443").
 set_env_var VERIFY_DID          "did:web:${VERIFY_HOST}:v1:verify"
+set_env_var MOCK_VERIFIER_DID   "did:web:${VERIFY_HOST}:mock-verifier"
 info ".env updated."
 
 # ── recreate containers ──────────────────────────────────────────────────────

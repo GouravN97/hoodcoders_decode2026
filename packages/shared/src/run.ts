@@ -148,9 +148,12 @@ export const ArtifactSchema = z.object({
 });
 export type Artifact = z.infer<typeof ArtifactSchema>;
 
+/** A module's version as the catalog reported it when the run was created. */
 export const ModuleVersionSchema = z.object({
   implementationId: z.string(),
   version: z.string(),
+  role: z.enum(['issuer', 'wallet', 'verifier']).optional(),
+  displayName: z.string().optional(),
   imageRef: z.string().optional(),
   gitSha: z.string().optional(),
 });

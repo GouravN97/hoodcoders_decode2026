@@ -20,6 +20,7 @@ describe('selector rules', () => {
       'inji-verify',
       'inji-wallet-mobile',
       'inji-web',
+      'mock-verifier',
       'mock-wallet',
     ]);
   });

@@ -1,0 +1,26 @@
+# Mock verifier (apps/mock-verifier): the playground's own OpenID4VP draft-23 verifier, not Inji.
+# Published as /mock-verifier/… on the Verify host, with client_id did:web:<verify-host>:mock-verifier.
+id: mock-verifier
+role: verifier
+displayName: Mock verifier
+description: "A standards-based OpenID4VP verifier that is not Inji. Reports every check it makes, one by one."
+vendor: mock
+adapter: MockVerifierAdapter
+publicUrl: ${VERIFY_PUBLIC_URL:-https://verify.localhost:8443}/mock-verifier
+internalUrl: ${MOCK_VERIFIER_INTERNAL_URL:-http://localhost:7004}
+versionProbe:
+  kind: static
+  value: 0.1.0
+capabilities:
+  # SD-JWT VC only: a JSON-LD presentation is answered "not checked by this verifier".
+  formats: [vc+sd-jwt, dc+sd-jwt]
+  proofSuites: [ES256, EdDSA]
+  vpProfiles: [oid4vp-draft23]
+  queryLanguages: [presentation_exchange]
+  responseModes: [direct_post]
+  clientIdSchemes: [did]
+  presentationFlows: [cross-device-qr, same-device-deeplink]
+  deliveryChannels: [qr, deeplink]
+  automation: headless
+  supportsTamper: false
+notes: Signed request object (EdDSA JAR) by reference. Trusts the issuers in TRUSTED_ISSUERS; any other issuer is accepted with a warning.

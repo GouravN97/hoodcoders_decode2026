@@ -152,16 +152,24 @@ presentation on purpose; the run reports whether Inji Verify caught it (see
 With **Inji Wallet (mobile)** the run shows QR codes for a phone instead (see
 [Phones and tunnels](#phones-and-tunnels)).
 
+Pick **Mock verifier** instead of Inji Verify for a verifier that is not Inji
+([`apps/mock-verifier`](../apps/mock-verifier/README.md), SD-JWT only). It is
+published at `https://verify.localhost:8443/mock-verifier/…`, its `did:web`
+client ID resolves at `/mock-verifier/did.json` on the same host, and its result
+lists every check it made. After either verifier answers, the other one gives a
+**second opinion** on the presented credential (finding `VER-002`). The service
+itself is also on <http://localhost:8105/mock-verifier/health>.
+
 How the pieces connect:
 
 ```
 wallet / phone / Mimoto ─► certify-nginx (https://certify.localhost:8443, https://verify.localhost:8443)
                                   │
                                   ▼
-                 playground-bff: Protocol Tap :3002 (Certify), :3003 (Verify)  ──records──► inspector
+     playground-bff: Protocol Tap :3002 (Certify), :3003 (Verify), :3004 (mock verifier)  ──records──► inspector
                                   │
                                   ▼
-                          certify:8090, verify-service:8080
+                 certify:8090, verify-service:8080, mock-verifier:7004
 ```
 
 - `certify-nginx` is the public gateway for both services. It routes by host
@@ -196,7 +204,7 @@ curl -s -X POST http://localhost:8101/api/runs -H 'content-type: application/jso
 Rebuild after changing the UI, BFF or wallet code:
 
 ```sh
-docker compose up -d --build playground-ui playground-bff mock-wallet
+docker compose up -d --build playground-ui playground-bff mock-wallet mock-verifier
 ```
 
 `PLAYGROUND_UI_MOCKS=true` in `.env` builds the UI in mock mode instead (the
@@ -215,6 +223,7 @@ same URLs, through the Protocol Tap:
 | `VERIFY_PUBLIC_HOST` | `verify.localhost` | gateway host name, HTTPS certificate, Docker network alias |
 | `VERIFY_PUBLIC_URL` | `https://verify.localhost:8443` | `request_uri` and `response_uri` (`INJI_VP_SUBMISSION_BASE_URL`) |
 | `VERIFY_DID` | `did:web:verify.localhost%3A8443:v1:verify` | client id of presentation requests; resolves to `${VERIFY_PUBLIC_URL}/v1/verify/did.json` |
+| `MOCK_VERIFIER_DID` | derived from `VERIFY_PUBLIC_URL` (`did:web:verify.localhost%3A8443:mock-verifier`) | the mock verifier's client id; resolves to `${VERIFY_PUBLIC_URL}/mock-verifier/did.json`. `tunnel-up.sh` sets a portless one |
 
 Inji Verify's default request (used by the Verify UI and by Certify's
 presentation-during-issuance config, `config/verify-config.json` and
