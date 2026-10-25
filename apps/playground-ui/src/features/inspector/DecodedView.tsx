@@ -1,4 +1,6 @@
-// Format-specific decoded views: JWT, SD-JWT (disclosures + digest check), JSON-LD VC, form, URI.
+// Format-specific decoded views: JWT, SD-JWT (disclosures + digest check), mDoc (elements + digest
+// check), JSON-LD VC, form, URI.
+import { checkDigests, mdocObservations, printable, sha256, type ParsedMdoc } from '@playground/protocol-core';
 import { useEffect, useState, type ReactNode } from 'react';
 import { CodeBlock, JsonTree } from '../../components/JsonTree';
 import { Badge, cx } from '../../components/ui';
@@ -112,6 +114,114 @@ function SdJwtView({ decoded }: { decoded: Extract<Decoded, { kind: 'sd-jwt' }> 
   );
 }
 
+const hex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+const COSE_ALGS: Record<number, string> = { [-7]: 'ES256', [-35]: 'ES384', [-36]: 'ES512', [-8]: 'EdDSA' };
+
+function MdocDocument({ doc }: { doc: ParsedMdoc }) {
+  const [digests, setDigests] = useState<boolean[] | null>(null);
+  const [fingerprint, setFingerprint] = useState<string>();
+  useEffect(() => {
+    let live = true;
+    checkDigests(doc).then(
+      (r) => live && setDigests(r.map((e) => e.digestOk)),
+      () => live && setDigests([]),
+    );
+    const leaf = doc.issuerAuth.x5chain[0];
+    if (leaf) void sha256(leaf).then((d) => live && setFingerprint(hex(d)));
+    return () => {
+      live = false;
+    };
+  }, [doc]);
+  const observations = mdocObservations(doc);
+  const { validityInfo: v } = doc.mso;
+  const iso = (d?: Date) => d?.toISOString() ?? '—';
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="flex flex-wrap items-center gap-2 text-xs">
+        <Badge tone="accent">mso_mdoc</Badge>
+        <span className="font-mono">{doc.docType}</span>
+        <span className="text-muted">
+          {doc.shape === 'Document' ? 'DeviceResponse document' : doc.shape === 'wrapped' ? '{docType, issuerSigned}' : 'IssuerSigned'}
+        </span>
+      </p>
+      {observations.length > 0 && (
+        <ul className="list-disc pl-5 text-xs text-warn" data-testid="mdoc-observations">
+          {observations.map((o) => (
+            <li key={o}>{o}</li>
+          ))}
+        </ul>
+      )}
+      <Part title={`Issuer-signed elements (${doc.elements.length})`}>
+        <table className="w-full text-left text-xs" data-testid="mdoc-elements">
+          <thead className="text-muted">
+            <tr>
+              <th className="py-1 pr-3 font-medium">Namespace</th>
+              <th className="py-1 pr-3 font-medium">Element</th>
+              <th className="py-1 pr-3 font-medium">Value</th>
+              <th className="py-1 font-medium">Digest in MSO</th>
+            </tr>
+          </thead>
+          <tbody>
+            {doc.elements.map((e, i) => {
+              const ok = digests?.[i];
+              const value = printable(e.elementValue);
+              return (
+                <tr key={`${e.namespace}/${e.digestID}`} className="border-t border-border align-top">
+                  <td className="py-1 pr-3 font-mono text-muted">{e.namespace}</td>
+                  <td className="py-1 pr-3 font-mono">{e.elementIdentifier}</td>
+                  <td className="py-1 pr-3 break-all">{typeof value === 'string' ? value : JSON.stringify(value)}</td>
+                  <td className="py-1">
+                    {ok === undefined ? (
+                      <span className="text-muted">…</span>
+                    ) : ok ? (
+                      <Badge tone="ok">✓ #{e.digestID} matches</Badge>
+                    ) : (
+                      <Badge tone="bad">✗ #{e.digestID} not in MSO</Badge>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </Part>
+      <Part title="Mobile security object (MSO)">
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-0.5 text-xs">
+          <dt className="text-muted">Digest algorithm</dt>
+          <dd className="font-mono">{doc.mso.digestAlgorithm ?? '—'}</dd>
+          <dt className="text-muted">Signed</dt>
+          <dd className="font-mono">{iso(v.signed)}</dd>
+          <dt className="text-muted">Valid from</dt>
+          <dd className="font-mono">{iso(v.validFrom)}</dd>
+          <dt className="text-muted">Valid until</dt>
+          <dd className="font-mono">{iso(v.validUntil)}</dd>
+          <dt className="text-muted">Device key</dt>
+          <dd>{doc.mso.deviceKey ? 'COSE_Key (holder binding)' : <span className="text-bad">none</span>}</dd>
+        </dl>
+      </Part>
+      <Part title="Issuer auth (COSE_Sign1)" aside={<span className="text-[11px] text-muted">signature not verified here</span>}>
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-0.5 text-xs">
+          <dt className="text-muted">Algorithm</dt>
+          <dd className="font-mono">{doc.issuerAuth.alg !== undefined ? (COSE_ALGS[doc.issuerAuth.alg] ?? doc.issuerAuth.alg) : '—'}</dd>
+          <dt className="text-muted">x5chain</dt>
+          <dd>
+            {doc.issuerAuth.x5chain.length} certificate{doc.issuerAuth.x5chain.length === 1 ? '' : 's'}
+            {fingerprint && <span className="font-mono text-muted"> · leaf SHA-256 {fingerprint.slice(0, 16)}…</span>}
+          </dd>
+        </dl>
+      </Part>
+      {doc.deviceSigned && (
+        <Part title="Device signed">
+          <p className="text-xs">
+            {doc.deviceSigned.deviceSignature ? 'deviceSignature (COSE_Sign1, detached) over the session transcript' : 'No deviceSignature'}
+          </p>
+        </Part>
+      )}
+    </div>
+  );
+}
+
 function EmbeddedList({ embedded }: { embedded: Embedded[] }) {
   if (embedded.length === 0) return null;
   return (
@@ -211,6 +321,14 @@ export function DecodedView({ decoded }: { decoded: Decoded }) {
             <ParamsTable params={decoded.params} />
           </Part>
           <EmbeddedList embedded={decoded.embedded} />
+        </div>
+      );
+    case 'mdoc':
+      return (
+        <div className="flex flex-col gap-3">
+          {decoded.documents.map((doc, i) => (
+            <MdocDocument key={i} doc={doc} />
+          ))}
         </div>
       );
   }

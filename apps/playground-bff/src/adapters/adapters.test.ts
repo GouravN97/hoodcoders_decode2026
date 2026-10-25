@@ -4,6 +4,7 @@ import {
   mapVcVerification,
   mapVpResult,
   mapVpResultError,
+  mdocNamespace,
   presentationDefinitionFor,
   transactionIdFor,
   vcVerificationContentType,
@@ -31,6 +32,16 @@ describe('Inji Verify adapter', () => {
       outcome: 'INVALID',
       reason: 'vpResultStatus FAILED',
     });
+  });
+
+  it('asks for an mDoc by docType, with ISO 18013-5 namespace paths', () => {
+    expect(mdocNamespace('org.iso.18013.5.1.mDL')).toBe('org.iso.18013.5.1');
+    expect(mdocNamespace('eu.europa.ec.eudi.pid.1')).toBe('eu.europa.ec.eudi.pid.1');
+    const pd = presentationDefinitionFor({ id: 'MockMDL', format: 'mso_mdoc', credentialType: 'org.iso.18013.5.1.mDL', purpose: 'p' }) as {
+      input_descriptors: Array<{ id: string; format: object; constraints: { fields: Array<{ path: string[] }> } }>;
+    };
+    expect(pd.input_descriptors[0]).toMatchObject({ id: 'org.iso.18013.5.1.mDL', format: { mso_mdoc: { alg: ['ES256'] } } });
+    expect(pd.input_descriptors[0]!.constraints.fields[0]!.path).toEqual(["$['org.iso.18013.5.1']['family_name']"]);
   });
 
   it('sends /vc-verification the content type that selects the format', () => {

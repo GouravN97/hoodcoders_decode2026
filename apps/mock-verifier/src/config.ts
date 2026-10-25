@@ -9,6 +9,8 @@ export interface VerifierConfig {
   /** did:web that resolves to `${publicUrl}/did.json`. */
   clientId: string;
   trustedIssuers: string[];
+  /** PEM files with mDoc issuer certificates to trust; read at each verification, missing files skipped. */
+  trustedMdocCertFiles: string[];
   requestTtlMs: number;
 }
 
@@ -29,6 +31,7 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): VerifierCon
     publicUrl,
     clientId: env.CLIENT_ID || didWebFor(publicUrl),
     trustedIssuers: (env.TRUSTED_ISSUERS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+    trustedMdocCertFiles: (env.TRUSTED_MDOC_CERTS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     requestTtlMs: Number(env.REQUEST_TTL_MS ?? 300_000),
   };
 }

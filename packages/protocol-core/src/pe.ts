@@ -32,12 +32,11 @@ export interface PresentationSubmission {
   descriptor_map: DescriptorMapEntry[];
 }
 
-/** Minimal JSONPath: `$.a.b` and `$['a']['b']`. */
+/** Minimal JSONPath: `$.a.b`, `$['a']['b']` (keys may contain dots, as mDoc namespaces do) and `[0]`. */
 export function readPath(obj: unknown, path: string): unknown {
-  const keys = path
-    .replace(/^\$/, '')
-    .split(/\.|\[['"]?|['"]?\]/)
-    .filter(Boolean);
+  const keys = [...path.replace(/^\$/, '').matchAll(/\[['"]([^'"]+)['"]\]|\[(\d+)\]|\.?([^.[\]]+)/g)].map(
+    (m) => m[1] ?? m[2] ?? m[3]!,
+  );
   return keys.reduce<unknown>(
     (o, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined),
     obj,

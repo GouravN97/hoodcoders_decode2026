@@ -6,7 +6,7 @@ A headless wallet (plan §8.5) that runs without a phone, so runs can be repeate
 | --- | --- |
 | OpenID4VCI | Draft 13, pre-authorized code (optional `tx_code`), offers by value or by reference, `jwt` proof (ES256) with a `did:jwk` key id |
 | OpenID4VP | Presentation Exchange, `request_uri` (signed request object) or by-value requests, `direct_post` |
-| Formats | `vc+sd-jwt` / `dc+sd-jwt` (key-binding JWT over the verifier's nonce and client id, selective disclosure for `limit_disclosure: required`), `ldp_vc` (VP with a JsonWebSignature2020 ES256 holder proof, as Inji Verify's vc-verifier 1.8 checks it) |
+| Formats | `vc+sd-jwt` / `dc+sd-jwt` (key-binding JWT over the verifier's nonce and client id, selective disclosure for `limit_disclosure: required`), `ldp_vc` (VP with a JsonWebSignature2020 ES256 holder proof, as Inji Verify's vc-verifier 1.8 checks it), `mso_mdoc` (issued with the proof key in a `jwk` header, as `cose_key` binding needs; presented as a DeviceResponse with only the requested elements and a device signature over the ISO 18013-7 Annex B session transcript) |
 | Request objects | Signed `did:web` request objects are verified against the verifier's DID document; problems become warnings, which the BFF reports as findings |
 
 One P-256 key per process serves as both the proof-of-possession key during issuance and the holder key when presenting. Credentials are kept in memory.
@@ -31,6 +31,8 @@ Errors are `{ message, statusCode, step, upstreamStatus?, upstreamBody? }`, wher
 | `T-CLAIM-EDIT` | replaces a disclosure with a new one for the same claim | edits a `credentialSubject` claim |
 | `T-WRONG-TYPE` | presents the held credential although it does not match the input descriptor | same |
 | `T-NONCE-REPLAY` | with `replay: { variant: "resubmit-vp", vpToken }` posts an earlier `vp_token` unchanged; with `replay: { variant: "stale-nonce", nonce }` signs the key-binding JWT over that nonce | same, with the VP proof `challenge` |
+
+For `mso_mdoc`, `T-SIG-FLIP` flips a byte of the issuer's COSE signature and `T-CLAIM-EDIT` edits a disclosed element after issuance (its digest no longer matches the MSO).
 
 A tampered presentation that the verifier refuses at `direct_post` with a 4xx is returned as an answer (`status` 4xx), not as an error. A run whose expected result is Invalid and that names no tamper uses `T-SIG-FLIP`.
 

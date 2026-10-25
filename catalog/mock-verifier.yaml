@@ -12,8 +12,9 @@ versionProbe:
   kind: static
   value: 0.1.0
 capabilities:
-  # SD-JWT VC only: a JSON-LD presentation is answered "not checked by this verifier".
-  formats: [vc+sd-jwt, dc+sd-jwt]
+  # SD-JWT VC and ISO mDoc (DeviceResponse, ISO 18013-7 Annex B session transcript); a JSON-LD
+  # presentation is answered "not checked by this verifier".
+  formats: [vc+sd-jwt, dc+sd-jwt, mso_mdoc]
   proofSuites: [ES256, EdDSA]
   vpProfiles: [oid4vp-draft23]
   queryLanguages: [presentation_exchange]

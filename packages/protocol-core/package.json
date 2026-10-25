@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "cbor-x": "1.6.6",
     "jose": "6.2.12"
   }
 }

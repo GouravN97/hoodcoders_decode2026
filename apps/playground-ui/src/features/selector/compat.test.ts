@@ -3,7 +3,6 @@ import { mockCatalog } from '../../mocks/catalog';
 import {
   buildRunConfig,
   commonFormats,
-  constrainingRoles,
   disabledReason,
   selectableFormats,
   supportedFlows,
@@ -17,6 +16,7 @@ describe('selector rules', () => {
       'animo-playground',
       'hovi-playground',
       'inji-certify',
+      'inji-certify-mdoc',
       'inji-verify',
       'inji-wallet-mobile',
       'inji-web',
@@ -29,11 +29,7 @@ describe('selector rules', () => {
     expect(
       commonFormats([get('inji-certify'), get('inji-wallet-mobile'), get('inji-verify')]),
     ).toEqual(['ldp_vc', 'vc+sd-jwt']);
-    expect(commonFormats([get('inji-certify'), undefined, undefined])).toEqual([
-      'ldp_vc',
-      'vc+sd-jwt',
-      'mso_mdoc',
-    ]);
+    expect(commonFormats([get('inji-certify-mdoc'), undefined, undefined])).toEqual(['mso_mdoc']);
   });
 
   it('only disables cards that are offline, leaving mismatches available for testing', () => {
@@ -141,20 +137,13 @@ describe('selector rules', () => {
     expect(buildRunConfig({ ...sel, mode: 'issue-only' }, ...roles, cc)).not.toHaveProperty('tamper');
   });
 
-  it('ignores the verifier when working out formats for an issue-only run', () => {
+  it('lets the issuer and wallet decide the formats; a verifier mismatch is explained, not hidden', () => {
     const ldpOnlyVerifier = {
       ...get('inji-verify'),
       capabilities: { ...get('inji-verify').capabilities, formats: ['ldp_vc' as const] },
     };
-    expect(
-      commonFormats(
-        constrainingRoles('issue-only', get('inji-certify'), get('mock-wallet'), ldpOnlyVerifier),
-      ),
-    ).toEqual(['ldp_vc', 'vc+sd-jwt']);
-    expect(
-      commonFormats(
-        constrainingRoles('full', get('inji-certify'), get('mock-wallet'), ldpOnlyVerifier),
-      ),
-    ).toEqual(['ldp_vc']);
+    expect(selectableFormats('full', get('inji-certify'), get('mock-wallet'), ldpOnlyVerifier)).toEqual(['ldp_vc', 'vc+sd-jwt']);
+    // Certify's mock mDoc to Inji Verify 0.18.2: mso_mdoc stays selectable and the prediction says why it fails.
+    expect(selectableFormats('full', get('inji-certify-mdoc'), get('mock-wallet'), get('inji-verify'))).toEqual(['mso_mdoc']);
   });
 });

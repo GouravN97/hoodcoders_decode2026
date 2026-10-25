@@ -11,3 +11,5 @@ saveExact: true
 allowBuilds:
   esbuild: true
   msw: true
+  # cbor-x's optional native decoder; the pure-JS one is enough here.
+  cbor-extract: false

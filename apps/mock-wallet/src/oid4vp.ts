@@ -12,9 +12,13 @@ import {
   type TamperEvidence,
 } from '@playground/shared';
 import {
+  buildDeviceResponse,
   didWebUrl,
   ed25519MultibaseToJwk,
   formatAllowed,
+  mdocClaims,
+  requestedElements,
+  tamperMdoc,
   unmetFields,
   type InputDescriptor,
   type PresentationDefinition,
@@ -140,13 +144,17 @@ export async function resolveAuthorizationRequest(
 // ---------- matching ----------
 
 export function claimsOf(c: HeldCredential): Record<string, unknown> {
+  if (c.format === 'mso_mdoc') return mdocClaims(c.raw);
   return SD_JWT_FORMATS.includes(c.format)
     ? sdJwtClaims(c.raw)
     : (JSON.parse(c.raw) as Record<string, unknown>);
 }
 
 export function matches(c: HeldCredential, d: InputDescriptor): boolean {
-  return formatAllowed(d, c.format) && unmetFields(claimsOf(c), d).length === 0;
+  const claims = claimsOf(c);
+  // ISO 18013-7: an mso_mdoc input descriptor's id is the docType it asks for.
+  if (c.format === 'mso_mdoc' && claims.docType !== d.id) return false;
+  return formatAllowed(d, c.format) && unmetFields(claims, d).length === 0;
 }
 
 /** Claim names a `limit_disclosure: required` descriptor asks for (top-level SD-JWT claims). */
@@ -171,7 +179,8 @@ const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 /** The tampers that rewrite the credential itself. */
 export type CredentialTamper = 'T-SIG-FLIP' | 'T-CLAIM-EDIT';
 
-export function tamperCredential(c: HeldCredential, tamper: CredentialTamper): string {
+export function tamperCredential(c: HeldCredential, tamper: CredentialTamper, disclosed?: Record<string, string[]>): string {
+  if (c.format === 'mso_mdoc') return tamperMdoc(c.raw, tamper === 'T-SIG-FLIP' ? 'signature' : 'claim', disclosed).raw;
   if (SD_JWT_FORMATS.includes(c.format)) {
     const { issuerJwt, disclosures } = splitSdJwt(c.raw);
     if (tamper === 'T-SIG-FLIP') {
@@ -312,17 +321,25 @@ export async function respond(
     );
   }
 
+  // mDoc elements the presentation discloses (all when the request does not limit disclosure).
+  const mdocDisclosed =
+    credential.format === 'mso_mdoc' && descriptor.constraints?.limit_disclosure === 'required'
+      ? requestedElements(descriptor.constraints.fields ?? [])
+      : undefined;
   let raw = credential.raw;
   let tamperEvidence: TamperEvidence | undefined;
   if (req.tamper === 'T-SIG-FLIP' || req.tamper === 'T-CLAIM-EDIT') {
-    raw = tamperCredential(credential, req.tamper);
+    raw = tamperCredential(credential, req.tamper, mdocDisclosed);
     tamperEvidence = {
       target: 'credential',
       summary:
         req.tamper === 'T-SIG-FLIP'
           ? "Changed one character of the issuer's signature"
           : 'Changed one claim value after issuance',
-      changes: describeTamper(credential.raw, raw, credential.format),
+      changes:
+        credential.format === 'mso_mdoc'
+          ? [mdocTamperChange(credential.raw, req.tamper, mdocDisclosed)]
+          : describeTamper(credential.raw, raw, credential.format),
       before: credential.raw,
       after: raw,
     };
@@ -350,9 +367,17 @@ export async function respond(
   }
 
   const isSdJwt = SD_JWT_FORMATS.includes(credential.format);
+  const isMdoc = credential.format === 'mso_mdoc';
   let vpToken: string;
   try {
-    vpToken = isSdJwt
+    vpToken = isMdoc
+      ? await buildDeviceResponse({
+          credential: raw,
+          deviceKey: holder.privateKey,
+          handover: { clientId: request.client_id, responseUri: request.response_uri, nonce },
+          ...(mdocDisclosed ? { disclose: mdocDisclosed } : {}),
+        })
+      : isSdJwt
       ? await presentSdJwt({
           raw,
           holder,
@@ -376,7 +401,7 @@ export async function respond(
     id: randomUUID(),
     definition_id: request.presentation_definition.id,
     descriptor_map: [
-      isSdJwt
+      isSdJwt || isMdoc
         ? { id: descriptor.id, format: credential.format, path: '$' }
         : {
             id: descriptor.id,
@@ -402,8 +427,15 @@ export async function respond(
   };
 }
 
-/** The type an input descriptor filters on (`$.vct` or `$.type`), as written in the request. */
+/** What an mDoc tamper changed, for the inspector. */
+function mdocTamperChange(raw: string, tamper: CredentialTamper, disclosed?: Record<string, string[]>) {
+  const t = tamperMdoc(raw, tamper === 'T-SIG-FLIP' ? 'signature' : 'claim', disclosed);
+  return { path: t.path, ...(t.before ? { before: t.before } : {}), ...(t.after ? { after: t.after } : {}) };
+}
+
+/** The type an input descriptor filters on (`$.vct` or `$.type`, or an mDoc docType as its id). */
 export function requestedType(d: InputDescriptor): string | undefined {
+  if (d.format && 'mso_mdoc' in d.format) return d.id;
   for (const f of d.constraints?.fields ?? []) {
     if (!f.path.some((p) => /\.(vct|type)\b/.test(p))) continue;
     const v = f.filter?.const ?? f.filter?.contains?.const ?? f.filter?.pattern;
@@ -415,6 +447,7 @@ export function requestedType(d: InputDescriptor): string | undefined {
 /** `vct` of an SD-JWT, or the most specific `type` of a JSON-LD credential. */
 export function presentedType(c: HeldCredential): string | undefined {
   const claims = claimsOf(c);
+  if (typeof claims.docType === 'string') return claims.docType;
   if (typeof claims.vct === 'string') return claims.vct;
   const types = Array.isArray(claims.type) ? claims.type : [claims.type];
   return types.filter((t): t is string => typeof t === 'string' && t !== 'VerifiableCredential').at(-1);

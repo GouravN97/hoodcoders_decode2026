@@ -29,9 +29,22 @@ export const MOCK_FARMER_CLAIMS = {
   farmerID: 'FRM-2026-004217',
 };
 
+/** Mock mDL data for mso_mdoc offers, by ISO 18013-5 element identifier. */
+export const MOCK_MDL_CLAIMS: Record<string, string> = {
+  family_name: 'Kumar',
+  given_name: 'Ramesh',
+  birth_date: '1984-03-12',
+  issuing_country: 'IN',
+  document_number: 'DL-2026-004217',
+  driving_privileges: 'B',
+};
+
 interface CertifyConfiguration {
   format: CredentialFormat;
   vct?: string;
+  doctype?: string;
+  /** mso_mdoc: namespace → element → display. */
+  claims?: Record<string, Record<string, unknown>>;
   credential_definition?: { type?: string[] };
   credential_signing_alg_values_supported?: string[];
   display?: Array<{ name?: string; locale?: string }>;
@@ -48,6 +61,8 @@ function proofSuitesOf(c: CertifyConfiguration): ProofSuite[] {
 
 export class InjiCertifyIssuerAdapter implements IssuerAdapter {
   private configurations?: { at: number; value: CredentialConfigurationSummary[] };
+  /** mso_mdoc configurations' claims by namespace, from the last metadata read. */
+  private namespaces: Record<string, Record<string, Record<string, unknown>>> = {};
 
   constructor(
     readonly descriptor: ImplementationDescriptor,
@@ -83,12 +98,38 @@ export class InjiCertifyIssuerAdapter implements IssuerAdapter {
         displayName:
           c.display?.find((d) => d.locale?.startsWith('en'))?.name ?? c.display?.[0]?.name ?? id,
         credentialType:
-          c.vct ?? c.credential_definition?.type?.find((t) => t !== 'VerifiableCredential'),
+          c.vct ??
+          c.doctype ??
+          c.credential_definition?.type?.find((t) => t !== 'VerifiableCredential'),
         proofSuites: proofSuitesOf(c),
       }),
     );
     this.configurations = { at: Date.now(), value };
+    this.namespaces = Object.fromEntries(
+      Object.entries(metadata.credential_configurations_supported ?? {})
+        .filter(([, c]) => c.format === 'mso_mdoc' && c.claims)
+        .map(([id, c]) => [id, c.claims!]),
+    );
     return value;
+  }
+
+  /**
+   * The offer's claims: the Farmer claims, or for an mso_mdoc configuration the mock mDL elements
+   * it lists, grouped by namespace as Certify validates them.
+   */
+  private async offerClaims(configurationId: string): Promise<Record<string, unknown>> {
+    const config = (await this.listCredentialConfigurations()).find((c) => c.id === configurationId);
+    if (config?.format !== 'mso_mdoc') return MOCK_FARMER_CLAIMS;
+    return Object.fromEntries(
+      Object.entries(this.namespaces[configurationId] ?? {}).map(([ns, elements]) => [
+        ns,
+        Object.fromEntries(
+          Object.keys(elements)
+            .filter((e) => e in MOCK_MDL_CLAIMS)
+            .map((e) => [e, MOCK_MDL_CLAIMS[e]]),
+        ),
+      ]),
+    );
   }
 
   async prepareIssuance(ctx: RunContext): Promise<IssuanceHandle> {
@@ -98,7 +139,7 @@ export class InjiCertifyIssuerAdapter implements IssuerAdapter {
       signal: ctx.signal,
       body: JSON.stringify({
         credential_configuration_id: ctx.config.credentialConfigurationId,
-        claims: MOCK_FARMER_CLAIMS,
+        claims: await this.offerClaims(ctx.config.credentialConfigurationId),
       }),
     });
     const offerUri = res.json<{ credential_offer_uri?: string }>().credential_offer_uri;

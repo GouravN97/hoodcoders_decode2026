@@ -34,28 +34,26 @@ import {
 } from '../adapters/wallets.ts';
 
 export interface AdapterSettings {
-  certifyApiUrl: string;
-  verifyApiUrl: string;
+  /**
+   * Where the BFF calls each implementation, by catalog id: its Protocol Tap listener, so the calls
+   * appear in the inspector. Without one, adapters call the implementation's internal URL directly.
+   */
+  apiUrls: Record<string, string | undefined>;
   verifyClientId: string;
-  mockVerifierApiUrl?: string;
   hoviSupabaseUrl?: string;
   hoviSupabaseAnonKey?: string;
 }
 
 type Factory = (d: ImplementationDescriptor, s: AdapterSettings) => AnyAdapter;
 
+const apiUrl = (d: ImplementationDescriptor, s: AdapterSettings) =>
+  s.apiUrls[d.id] || d.internalUrl || d.publicUrl;
+
 const FACTORIES: Record<string, Factory> = {
-  // Without a tap (empty API URL) adapters call the implementation's internal URL directly.
-  InjiCertifyIssuerAdapter: (d, s) =>
-    new InjiCertifyIssuerAdapter(d, s.certifyApiUrl || d.internalUrl || d.publicUrl),
+  InjiCertifyIssuerAdapter: (d, s) => new InjiCertifyIssuerAdapter(d, apiUrl(d, s)),
   InjiVerifyServiceAdapter: (d, s) =>
-    new InjiVerifyServiceAdapter(
-      d,
-      s.verifyApiUrl || d.internalUrl || d.publicUrl,
-      s.verifyClientId,
-    ),
-  MockVerifierAdapter: (d, s) =>
-    new MockVerifierAdapter(d, s.mockVerifierApiUrl || d.internalUrl || d.publicUrl),
+    new InjiVerifyServiceAdapter(d, apiUrl(d, s), s.verifyClientId),
+  MockVerifierAdapter: (d, s) => new MockVerifierAdapter(d, apiUrl(d, s)),
   HoviPlaygroundIssuerAdapter: (d, s) =>
     new HoviPlaygroundIssuerAdapter(d, {
       supabaseUrl: s.hoviSupabaseUrl,

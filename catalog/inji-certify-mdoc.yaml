@@ -1,0 +1,24 @@
+# Inji Certify with its own mock mDoc issuance (MDocMockVCIssuancePlugin, plugin-mode=VCIssuance):
+# a second Certify container from the same pinned image (injistack profile `mdoc`), published as
+# /mdoc/… on the Certify host. Issues an ISO mDL (org.iso.18013.5.1.mDL) as mso_mdoc.
+id: inji-certify-mdoc
+role: issuer
+displayName: Inji Certify (mock mDoc)
+description: "Certify's built-in mock mDoc issuer: a mobile driving licence (ISO 18013-5 mDL) as mso_mdoc, by pre-authorized offer."
+vendor: inji
+adapter: InjiCertifyIssuerAdapter
+publicUrl: ${CERTIFY_PUBLIC_URL:-https://certify.localhost:8443}/mdoc
+internalUrl: ${CERTIFY_MDOC_INTERNAL_URL:-http://localhost:8092}
+# Same pinned image as the Farmer Certify.
+versionProbe:
+  kind: static
+  value: ${CERTIFY_VERSION:-0.14.0}
+capabilities:
+  formats: [mso_mdoc]
+  proofSuites: [ES256]
+  grantTypes: [pre-authorized_code]
+  vciProfiles: [oid4vci-draft13]
+  deliveryChannels: [api]
+  automation: headless
+  supportsTamper: false
+notes: The mock plugin issues fixed mock mDL data (it ignores the offer's claims) and binds the holder key with cose_key; a proof kid of did:jwk…#0 is refused.

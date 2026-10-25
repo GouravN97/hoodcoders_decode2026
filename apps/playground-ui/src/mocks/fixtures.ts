@@ -13,7 +13,15 @@ import {
   type TamperEvidence,
   type TamperId,
 } from '@playground/shared';
-import { base64url, exportJWK, generateKeyPair, SignJWT, type JWK } from 'jose';
+import {
+  buildDeviceResponse,
+  createMdoc,
+  pemToDer,
+  tamperMdoc,
+  TEST_MDOC_ISSUER_CERT_PEM,
+  TEST_MDOC_ISSUER_KEY_PEM,
+} from '@playground/protocol-core';
+import { base64url, exportJWK, generateKeyPair, importPKCS8, SignJWT, type CryptoKey, type JWK } from 'jose';
 import { disclosureDigest } from '../lib/decode/sdjwt';
 
 export type Scenario = 'valid' | 'invalid-signature' | 'expired' | 'fail-at-token' | 'timeout';
@@ -127,6 +135,26 @@ export const CREDENTIAL_CONFIGURATIONS: CredentialConfigFixture[] = [
   },
 ];
 
+/** Certify's own mock mDoc (the second Certify, catalog inji-certify-mdoc), published under /mdoc. */
+const CERTIFY_MDOC_CONFIGURATIONS: CredentialConfigFixture[] = [
+  {
+    id: 'MockMDL',
+    format: 'mso_mdoc',
+    displayName: 'Mobile driving licence (Certify mock mDoc)',
+    credentialType: 'org.iso.18013.5.1.mDL',
+    proofSuite: 'ES256',
+  },
+];
+
+/** Mock mDL / PID elements (ISO 18013-5 identifiers), mock data only. */
+const MDOC_ELEMENTS = {
+  family_name: 'Kumar',
+  given_name: 'Ramesh',
+  birth_date: '1984-03-12',
+  issuing_country: 'IN',
+  document_number: 'DL-2026-004217',
+};
+
 /** The type a T-WRONG-TYPE run asks for (the BFF's WRONG_CREDENTIAL_TYPE). */
 export const WRONG_CREDENTIAL_TYPE = 'PlaygroundWrongTypeCredential';
 
@@ -166,6 +194,7 @@ const ANIMO_CREDENTIAL_CONFIGURATIONS: CredentialConfigFixture[] = [
 
 const ALL_CREDENTIAL_CONFIGURATIONS = [
   ...CREDENTIAL_CONFIGURATIONS,
+  ...CERTIFY_MDOC_CONFIGURATIONS,
   ...HOVI_CREDENTIAL_CONFIGURATIONS,
   ...ANIMO_CREDENTIAL_CONFIGURATIONS,
 ];
@@ -173,6 +202,7 @@ const ALL_CREDENTIAL_CONFIGURATIONS = [
 export function credentialConfigurationsForIssuer(issuerId: string) {
   if (issuerId === 'hovi-playground') return HOVI_CREDENTIAL_CONFIGURATIONS;
   if (issuerId === 'animo-playground') return ANIMO_CREDENTIAL_CONFIGURATIONS;
+  if (issuerId === 'inji-certify-mdoc') return CERTIFY_MDOC_CONFIGURATIONS;
   return CREDENTIAL_CONFIGURATIONS;
 }
 
@@ -221,10 +251,11 @@ export function simulatedMockVerifierResult(
     status,
     message,
   });
+  // mDocs are verified for real in the simulator (verifyMdoc); JSON-LD is not checked by the mock verifier.
   if (format === 'ldp_vc' || format === 'mso_mdoc') {
     return {
       outcome: 'ERROR',
-      stages: [st('format', 'Credential format', 'fail', `${format} presentations are not checked by this mock verifier (SD-JWT VC only)`)],
+      stages: [st('format', 'Credential format', 'fail', 'JSON-LD presentations are not checked by this mock verifier (SD-JWT VC and mDoc only)')],
     };
   }
   const p = credentialOnly && (problem === 'type' || problem === 'nonce') ? 'none' : problem;
@@ -290,6 +321,8 @@ export interface RunFixtures {
   createVpRequestResponse: object;
   requestId: string;
   transactionId: string;
+  /** The presentation request's nonce. */
+  nonce: string;
   authorizationRequestUri: string;
   requestObject: object;
   presentationDefinition: object;
@@ -297,6 +330,9 @@ export interface RunFixtures {
   presentationSubmission: object;
   vpSubmissionBody: string;
   vpResult: object;
+  /** The issuer's public base and Protocol Tap component (Certify's mock mDoc lives under /mdoc). */
+  issuerUrl: string;
+  issuerComponent: string;
   /** What a verifier should find wrong (drives the simulated mock verifier and second opinion). */
   problem: SimulatedProblem;
   verifier: VerifierEndpoints;
@@ -320,8 +356,11 @@ export async function buildFixtures(opts: {
   const config =
     ALL_CREDENTIAL_CONFIGURATIONS.find((c) => c.id === opts.credentialConfigurationId) ??
     ALL_CREDENTIAL_CONFIGURATIONS.find((c) => c.format === format)!;
-  const isSdJwt = format !== 'ldp_vc';
+  const isMdoc = format === 'mso_mdoc';
+  const isSdJwt = format !== 'ldp_vc' && !isMdoc;
   const now = new Date();
+  const certifyMdoc = CERTIFY_MDOC_CONFIGURATIONS.some((c) => c.id === config.id);
+  const issuerUrl = certifyMdoc ? `${ISSUER_URL}/mdoc` : ISSUER_URL;
 
   const issuerKeys = await generateKeyPair('ES256', { extractable: true });
   const holderKeys = await generateKeyPair('ES256', { extractable: true });
@@ -332,7 +371,7 @@ export async function buildFixtures(opts: {
   const preAuthorizedCode = randomToken(18);
   const offerId = crypto.randomUUID();
   const offer = {
-    credential_issuer: ISSUER_URL,
+    credential_issuer: issuerUrl,
     credential_configuration_ids: [config.id],
     grants: {
       'urn:ietf:params:oauth:grant-type:pre-authorized_code': {
@@ -341,18 +380,26 @@ export async function buildFixtures(opts: {
     },
   };
   const offerUri = `openid-credential-offer://?credential_offer_uri=${encodeURIComponent(
-    `${ISSUER_URL}/v1/certify/credential-offer-data/${offerId}`,
+    `${issuerUrl}/v1/certify/credential-offer-data/${offerId}`,
   )}`;
 
   const issuerMetadata = {
-    credential_issuer: ISSUER_URL,
-    authorization_servers: [ISSUER_URL],
-    credential_endpoint: `${ISSUER_URL}/v1/certify/issuance/credential`,
-    display: [{ name: 'Inji Certify (playground)', locale: 'en' }],
+    credential_issuer: issuerUrl,
+    authorization_servers: [issuerUrl],
+    credential_endpoint: `${issuerUrl}/v1/certify/issuance/credential`,
+    display: [{ name: certifyMdoc ? 'Playground mock mDoc issuer (Inji Certify)' : 'Inji Certify (playground)', locale: 'en' }],
     credential_configurations_supported: Object.fromEntries(
-      CREDENTIAL_CONFIGURATIONS.map((c) => [
+      (certifyMdoc ? CERTIFY_MDOC_CONFIGURATIONS : CREDENTIAL_CONFIGURATIONS).map((c) => [
         c.id,
-        c.format === 'ldp_vc'
+        c.format === 'mso_mdoc'
+          ? {
+              format: 'mso_mdoc',
+              doctype: c.credentialType,
+              cryptographic_binding_methods_supported: ['cose_key'],
+              proof_types_supported: { jwt: { proof_signing_alg_values_supported: ['ES256'] } },
+              display: [{ name: c.displayName, locale: 'en' }],
+            }
+          : c.format === 'ldp_vc'
           ? {
               format: 'ldp_vc',
               proof_types_supported: { jwt: { proof_signing_alg_values_supported: ['ES256'] } },
@@ -405,7 +452,9 @@ export async function buildFixtures(opts: {
     .setIssuedAt()
     .sign(holderKeys.privateKey);
 
-  const credentialRequest = isSdJwt
+  const credentialRequest = isMdoc
+    ? { format: 'mso_mdoc', doctype: config.credentialType, proof: { proof_type: 'jwt', jwt: proofJwt } }
+    : isSdJwt
     ? {
         format: 'vc+sd-jwt',
         vct: config.credentialType,
@@ -433,12 +482,39 @@ export async function buildFixtures(opts: {
   let vpToken: string;
   let proofType: string;
   const nonce = randomToken(16);
+  const requestId = `req_${randomToken(9)}`;
 
   // The wallet signs over the request's nonce, or an earlier run's (T-NONCE-REPLAY, stale nonce).
   const boundNonce = replay?.variant === 'stale-nonce' ? replay.nonce : nonce;
   let presentedRaw: string;
 
-  if (isSdJwt) {
+  if (isMdoc) {
+    const docType = config.credentialType;
+    const namespace = docType.endsWith('.mDL') ? docType.slice(0, -'.mDL'.length) : docType;
+    credentialRaw = await createMdoc({
+      docType,
+      nameSpaces: { [namespace]: MDOC_ELEMENTS },
+      issuerKey: (await importPKCS8(TEST_MDOC_ISSUER_KEY_PEM, 'ES256')) as CryptoKey,
+      issuerCertificate: pemToDer(TEST_MDOC_ISSUER_CERT_PEM)[0]!,
+      deviceJwk: holderJwk,
+      validFrom,
+      validUntil,
+      // Certify 0.14.0's mock plugin returns {docType, issuerSigned}, as observed live.
+      wrapped: certifyMdoc,
+    });
+    if (scenario === 'invalid-signature' && !tamper) credentialRaw = tamperMdoc(credentialRaw, 'signature').raw;
+    credentialValue = credentialRaw;
+    proofType = 'ES256 (COSE)';
+    presentedRaw =
+      tamper === 'T-SIG-FLIP' || tamper === 'T-CLAIM-EDIT'
+        ? tamperMdoc(credentialRaw, tamper === 'T-SIG-FLIP' ? 'signature' : 'claim').raw
+        : credentialRaw;
+    vpToken = await buildDeviceResponse({
+      credential: presentedRaw,
+      deviceKey: holderKeys.privateKey as CryptoKey,
+      handover: { clientId: verifier.clientId, responseUri: verifier.response(requestId), nonce: boundNonce },
+    });
+  } else if (isSdJwt) {
     const disclosures = Object.entries(FARMER).map(([name, value]) =>
       base64url.encode(JSON.stringify([randomToken(12), name, value])),
     );
@@ -535,7 +611,11 @@ export async function buildFixtures(opts: {
         tamper === 'T-SIG-FLIP'
           ? "Changed one character of the issuer's signature"
           : 'Changed one claim value after issuance',
-      changes: describeTamper(credentialRaw, presentedRaw, format),
+      changes: isMdoc
+        ? [(({ path, before, after }) => ({ path, ...(before ? { before } : {}), ...(after ? { after } : {}) }))(
+            tamperMdoc(credentialRaw, tamper === 'T-SIG-FLIP' ? 'signature' : 'claim'),
+          )]
+        : describeTamper(credentialRaw, presentedRaw, format),
       before: credentialRaw,
       after: presentedRaw,
     };
@@ -569,10 +649,23 @@ export async function buildFixtures(opts: {
   const credentialResponse = { credential: credentialValue };
 
   // ---------- presentation ----------
-  const requestId = `req_${randomToken(9)}`;
   const transactionId = `txn_${opts.runId.slice(0, 8)}`;
   const requestedType = tamper === 'T-WRONG-TYPE' ? WRONG_CREDENTIAL_TYPE : config.credentialType;
-  const inputDescriptor = isSdJwt
+  const mdocNamespace = config.credentialType.endsWith('.mDL') ? config.credentialType.slice(0, -'.mDL'.length) : config.credentialType;
+  const inputDescriptor = isMdoc
+    ? {
+        // ISO 18013-7: the input descriptor's id is the docType asked for.
+        id: requestedType,
+        format: { mso_mdoc: { alg: ['ES256'] } },
+        constraints: {
+          limit_disclosure: 'required',
+          fields: ['family_name', 'given_name', 'birth_date'].map((e) => ({
+            path: [`$['${mdocNamespace}']['${e}']`],
+            intent_to_retain: false,
+          })),
+        },
+      }
+    : isSdJwt
     ? {
         id: 'farmer-sd-jwt',
         format: { 'vc+sd-jwt': { 'sd-jwt_alg_values': ['ES256'], 'kb-jwt_alg_values': ['ES256'] } },
@@ -613,7 +706,9 @@ export async function buildFixtures(opts: {
     presentation_definition: presentationDefinition,
     client_metadata: {
       client_name: verifier.clientName,
-      vp_formats: isSdJwt
+      vp_formats: isMdoc
+        ? { mso_mdoc: { alg: ['ES256'] } }
+        : isSdJwt
         ? { 'vc+sd-jwt': { 'sd-jwt_alg_values': ['ES256'] } }
         : { ldp_vp: { proof_type: ['Ed25519Signature2020'] } },
     },
@@ -651,7 +746,7 @@ export async function buildFixtures(opts: {
     id: crypto.randomUUID(),
     definition_id: presentationDefinition.id,
     descriptor_map: [
-      { id: inputDescriptor.id, format: isSdJwt ? 'vc+sd-jwt' : 'ldp_vp', path: '$' },
+      { id: inputDescriptor.id, format: isMdoc ? 'mso_mdoc' : isSdJwt ? 'vc+sd-jwt' : 'ldp_vp', path: '$' },
     ],
   };
   const vpSubmissionBody = new URLSearchParams({
@@ -709,6 +804,7 @@ export async function buildFixtures(opts: {
     createVpRequestResponse,
     requestId,
     transactionId,
+    nonce,
     authorizationRequestUri,
     requestObject,
     presentationDefinition,
@@ -716,6 +812,8 @@ export async function buildFixtures(opts: {
     presentationSubmission,
     vpSubmissionBody,
     vpResult,
+    issuerUrl,
+    issuerComponent: certifyMdoc ? 'certify-mdoc' : 'certify',
     problem: tamper === 'T-SIG-FLIP' || (!tamper && !replay && scenario === 'invalid-signature')
       ? 'signature'
       : tamper === 'T-CLAIM-EDIT'

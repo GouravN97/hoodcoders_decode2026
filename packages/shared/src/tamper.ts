@@ -58,7 +58,7 @@ export interface TamperDefinition {
   formats: readonly CredentialFormat[];
 }
 
-const WALLET_HOOK_FORMATS: readonly CredentialFormat[] = ['ldp_vc', 'vc+sd-jwt', 'dc+sd-jwt'];
+const WALLET_HOOK_FORMATS: readonly CredentialFormat[] = ['ldp_vc', 'vc+sd-jwt', 'dc+sd-jwt', 'mso_mdoc'];
 
 export const TAMPER_CATALOGUE: readonly TamperDefinition[] = [
   {

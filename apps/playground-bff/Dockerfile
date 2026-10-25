@@ -14,7 +14,7 @@ WORKDIR /repo/apps/playground-bff
 # A new named volume mounted here inherits this ownership, so the BFF can save runs as `node`.
 RUN mkdir -p /data && chown node:node /data
 ENV NODE_ENV=production PORT=3001 CATALOG_DIR=/repo/catalog
-# 3001 REST + socket.io, 3002 Certify tap, 3003 Verify tap, 3004 mock verifier tap
-EXPOSE 3001 3002 3003 3004
+# 3001 REST + socket.io, taps: 3002 Certify, 3003 Verify, 3004 mock verifier, 3005 Certify mock mDoc
+EXPOSE 3001 3002 3003 3004 3005
 USER node
 CMD ["node_modules/.bin/tsx", "src/main.ts"]

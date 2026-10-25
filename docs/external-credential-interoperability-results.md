@@ -113,3 +113,33 @@ What this shows:
 4. `ldp_vc` gets no second opinion: the mock verifier checks SD-JWT VC only.
 
 Not run yet: Certify → Inji Wallet (emulator) → mock verifier. It needs the Cloudflare tunnels (the phone cannot reach `*.localhost`), and the mock verifier's `did:web` client ID must be portless (`MOCK_VERIFIER_DID`, which `tunnel-up.sh` now sets).
+
+## mDoc: Certify mock mDoc
+
+Date: 25 October 2026  
+Branch: `feat/mdoc`  
+Stack: `injistack` Docker Compose with `--profile mdoc`: a second Inji Certify `0.14.0` (`injistack/inji-certify-with-plugins:0.14.0`, which bundles `mock-certify-plugin` 0.6.0) with `plugin-mode=VCIssuance` and `MDocMockVCIssuancePlugin`, published at `https://<certify-host>:8443/mdoc`; the playground mock wallet; the mock verifier; Inji Verify `0.18.2`.
+
+**Gate.** Before any other mDoc code, one mDoc was issued from the pinned image by pre-authorized offer (offer → token → credential, HTTP 200). The gate passed, so no fallback to Certify's DataProvider mDoc path was needed.
+
+| Run (`mso_mdoc`, `MockMDL`) | Result |
+| --- | --- |
+| Certify mock mDoc → mock wallet → mock verifier | **VALID**: COSE issuer signature, trusted certificate, 3 element digests, device signature over the session transcript, validity |
+| `T-SIG-FLIP` | INVALID (issuer signature) |
+| `T-CLAIM-EDIT` | INVALID (digests: the edited `birth_date` is not committed to by the MSO) |
+| `T-WRONG-TYPE` | INVALID (requested credential: docType is `org.iso.18013.5.1.mDL`, the request asked for another) |
+| `T-NONCE-REPLAY` | INVALID (holder binding: the device signature does not verify over this request's session transcript) |
+| Certify mock mDoc → mock wallet → **Inji Verify 0.18.2** | Refused at `direct_post`: HTTP 400 `{"errorCode":"INVALID_VP_TOKEN","errorMessage":"Verifiable presentation failed due to invalid VP token"}`. This matches the source at `v0.18.2`, where every string `vp_token` is read as SD-JWT |
+
+Observed in the credential Certify returns (not inferred from source):
+
+1. **Wrapped structure.** The credential is CBOR `{docType, issuerSigned}`. OpenID4VCI's `mso_mdoc` and ISO 18013-5 expect the `IssuerSigned` structure itself. The mock wallet unwraps it when presenting.
+2. **The offer's claims are ignored.** Whatever the pre-authorized offer says, the mDL carries the plugin's fixed mock data (family name "Agatha", given name "Joseph", birth date 1994-11-06). `document_number` holds the access token's `sub`, which for a pre-authorized token is the offer's claims serialised as JSON.
+3. **`driving_privileges` is a text string** (a Java `Map.toString()`, e.g. `{issue_date=…, vehicle_category_code=A, …}`). ISO 18013-5 defines an array of maps.
+4. **Holder key binding is `cose_key` only.** A proof whose `kid` is `did:jwk:…#0` fails with `vci_exchange_failed` (the plugin base64-decodes the DID including the fragment: `Illegal base64 character 23`). A `jwk` header or a bare `did:jwk` works. Inji Wallet sends `did:jwk:…#0` kids for other formats; whether it does so for `mso_mdoc` has not been tested (the emulator lane needs the tunnels).
+5. **Padded base64url.** The credential string sometimes ends in `=`.
+6. The concern from reading the DataProvider path's source (untagged `validityInfo` dates, no `signed` date) does **not** apply to this plugin: its `validityInfo` dates are tagged and `signed` is present.
+
+The issuer signature and every element digest of a Certify-issued mDL also verify in `packages/protocol-core` unit tests, against a saved credential (`src/fixtures/certify-0.14.0-mock-mdl.mdoc`).
+
+Not run: Certify mock mDoc → **Inji Wallet** issue-only on the emulator (needs the Cloudflare tunnels).
