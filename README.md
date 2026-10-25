@@ -28,6 +28,18 @@ Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji V
 | Animo Playground → Inji Wallet                                      | Selectable in the playground for Issue-only EUDI PID tests in `dc+sd-jwt` and `mso_mdoc`; live offer creation verified, wallet acceptance still needs a phone scan                                                                                                                                                                                                      |
 | Inji Web                                                            | Mimoto, Inji Web and the eSignet login work once the keystore and `wallet-demo` client are set up ([`register-wallet-client.sh`](injistack/scripts/register-wallet-client.sh)); the download still fails because eSignet rejects the client assertion with `invalid_client` ([details and what was ruled out](injistack/README.md#current-local-web-wallet-limitation)) |
 | Valid-but-expired                                                   | `FarmerCredentialExpired` (ldp_vc) and `FarmerCredentialSdJwtExpired` (vc+sd-jwt) are signed with validity in the past; Inji Verify reports **EXPIRED**                                                                                                                                                                                                                 |
+| Lane | State |
+| --- | --- |
+| Certify → mock wallet → Inji Verify, SD-JWT (`vc+sd-jwt`) | Valid and tampered (Invalid) runs pass, in the browser and over the API |
+| Certify → mock wallet → Inji Verify, JSON-LD (`ldp_vc`) | Built; needs internet access for the JSON-LD contexts, not yet run against the real stack |
+| Certify → Inji Wallet (Android app, `v1.0.0-alpha.1`) → Inji Verify | SD-JWT (`vc+sd-jwt`) verifies **VALID** on an emulator through Cloudflare quick tunnels. JSON-LD issuance and VP submission reach Verify, but the pinned Wallet/OpenID4VP dependency emits `did:jwk:...#0#0`, so Verify rejects the presentation. |
+| Inji Web | Mimoto, Inji Web and the eSignet login work once the keystore and `wallet-demo` client are set up ([`register-wallet-client.sh`](injistack/scripts/register-wallet-client.sh)); the download still fails because eSignet rejects the client assertion with `invalid_client` ([details and what was ruled out](injistack/README.md#current-local-web-wallet-limitation)) |
+| Valid-but-expired | `FarmerCredentialExpired` (ldp_vc) and `FarmerCredentialSdJwtExpired` (vc+sd-jwt) are signed with validity in the past; Inji Verify reports **EXPIRED** |
+
+The reproducible passing demonstrations are SD-JWT with the mock wallet
+(including tampered/Invalid runs) and SD-JWT with the mobile Wallet. The mobile
+JSON-LD result is a documented compatibility limitation of the pinned Wallet
+release, not a Certify or Docker-stack failure.
 
 The UI also still runs entirely against in-browser mocks with `pnpm dev`.
 

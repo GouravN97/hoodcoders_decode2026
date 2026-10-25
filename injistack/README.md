@@ -481,10 +481,12 @@ Certify.
 
 ## Test with Inji Wallet on an Android emulator
 
-This is how the real Inji Wallet app was run against this stack. Both formats
-(`vc+sd-jwt` and `ldp_vc`) reach **VALID** at Inji Verify, and the expired
-credential configurations reach **EXPIRED**. The commands assume Ubuntu; the
-same steps work on macOS with the matching installers.
+This is how the real Inji Wallet app was run against this stack. SD-JWT
+(`vc+sd-jwt`) reaches **VALID** at Inji Verify, and the expired credential
+configurations reach **EXPIRED**. JSON-LD (`ldp_vc`) issuance and sharing reach
+Verify, but the pinned `v1.0.0-alpha.1` Wallet/native OpenID4VP dependency
+currently emits a malformed holder identifier ending in `#0#0`; Verify
+therefore rejects the presentation. Do not report that lane as passing.
 
 ### What you need
 
@@ -532,16 +534,16 @@ emulator -avd Medium_Phone_API_37.0 &
 adb devices                              # wait for "emulator-5554  device"
 npm start -- --reset-cache &             # Metro, leave it running
 npm run android:mosip                    # builds and installs; first build is slow
+adb reverse tcp:8081 tcp:8081            # required for a debug build
 ```
 
 - **Use `npm ci`, not `npm install`.** `npm install` re-resolves the dependencies,
   pulls in a newer axios, and the app then crashes at startup.
-- **Emulator-only patch.** `1.0.0-alpha.1` expects a hardware-backed keystore. On
-  an emulator, which only has a software keystore, the app hangs on first launch
-  unless the key-storage check in `cryptoUtil.ts` accepts the software keystore.
-  We patched that locally and also turned off the React Native dev error overlay
-  in `index.js`, so it doesn't cover the screen. Neither patch is committed, and
-  neither is needed on a real phone.
+- **Emulator-only patch.** `1.0.0-alpha.1` expects a hardware-backed keystore.
+  On an emulator, which only has a software keystore, the app may hang or fail
+  during onboarding. Any workaround for that must remain in a separate local
+  Wallet checkout; it is not part of this repository and must not be committed
+  as a teammate-stack change.
 - **Leave Inji Wallet's own `.env` as it is.** The credential-offer flow talks to
   Certify directly; it doesn't use the wallet's `MIMOTO_HOST`.
 
@@ -550,8 +552,20 @@ When the app opens, set a passcode and finish onboarding. **+** should then show
 
 ### 3. Start the stack and the tunnels (every session)
 
-The emulator cannot reach `localhost` or `*.localhost`. It needs public hostnames,
-which `scripts/tunnel-up.sh` provides:
+The emulator cannot reach `localhost` or `*.localhost`. It needs public
+hostnames. On Windows, run the tunnel script from **Git Bash**, not WSL:
+Cloudflare quick tunnels started in WSL target WSL's `localhost` rather than
+Docker Desktop on Windows.
+
+```bash
+# Git Bash, from the repository root
+cd /d/Sricharan/COLLEGE/Hackathons/MOSIP/hoodcoders_decode2026/injistack
+docker compose --profile wallet up -d
+bash ./scripts/tunnel-up.sh
+```
+
+On Linux or macOS, run the equivalent from the repository's `injistack`
+directory:
 
 ```sh
 cd injistack
@@ -570,7 +584,11 @@ The script:
 It is ready when it prints `Certify reachable through the tunnel`. Quick-tunnel
 hostnames change every time cloudflared restarts, so rerun the script after a
 restart. Credentials issued under the old hostname then stop verifying, so issue
-new ones. Stop the tunnels with `./scripts/tunnel-up.sh stop`.
+new ones. Stop the tunnels with:
+
+```bash
+bash ./scripts/tunnel-up.sh stop
+```
 
 Both DIDs are portless in tunnel mode (`did:web:<host>` and
 `did:web:<host>:v1:verify`). The did:web resolvers in Inji Wallet and Inji Verify
@@ -582,8 +600,8 @@ Start the emulator and Metro if they are not running, then unlock the app.
 
 1. Open the playground at <http://localhost:8100> and choose:
    - **Inji Certify**, **Inji Wallet (mobile)** and **Inji Verify**
-   - **Credential format:** `vc+sd-jwt` or `ldp_vc`
-   - **Credential:** `FarmerCredentialSdJwt` or `FarmerCredential`
+   - **Credential format:** `vc+sd-jwt` for the verified mobile path
+   - **Credential:** `FarmerCredentialSdJwt`
    - **Expected result:** **Valid**
 
    Then start the run.
@@ -611,7 +629,7 @@ Start the emulator and Metro if they are not running, then unlock the app.
 
 | Expected result | How |
 | --- | --- |
-| **Valid** | Steps above, with `FarmerCredential` (ldp_vc) or `FarmerCredentialSdJwt` (vc+sd-jwt) |
+| **Valid** | Steps above with `FarmerCredentialSdJwt` (`vc+sd-jwt`). `FarmerCredential` (`ldp_vc`) can demonstrate issuance and submission, but the pinned mobile Wallet currently fails Verify proof validation with `did:jwk:...#0#0`. |
 | **Valid but Expired** | Choose **Credential** `FarmerCredentialExpired` (ldp_vc) or `FarmerCredentialSdJwtExpired` (vc+sd-jwt) and **Expected result** **Expired**. These are genuinely signed copies whose validity ended on 2025-01-01. The app stores an expired `ldp_vc` and shows it as "Valid"; Inji Verify reports **EXPIRED**. |
 | **Invalid** | Inji Wallet cannot tamper with a credential, so use the **mock wallet** with a tamper switch (see [Playground, Protocol Tap and mock wallet](#playground-protocol-tap-and-mock-wallet)) |
 
@@ -624,7 +642,7 @@ Start the emulator and Metro if they are not running, then unlock the app.
 | Containers still use the old hostname | `docker compose restart` does not re-read `.env`. Use `docker compose up -d` (the script does). |
 | `database "mosip_certify" does not exist` | Certify's database is `inji_certify`. |
 | Wallet: `Invalid URL host: "<host>%3A8443"` | A DID with a port. Rerun `tunnel-up.sh`, which writes portless DIDs. |
-| ldp_vc: Verify reports `Illegal character in fragment` on `…#0#0` | Old `ldp_vc` template. Fixed in `db/certify_init.sql`, which only runs on a new volume. Recreate it with `docker compose --profile wallet down -v` (this deletes local data and the local CA). |
+| ldp_vc mobile: Verify reports `Illegal character in fragment` on `…#0#0` | Known incompatibility in the pinned `v1.0.0-alpha.1` Wallet/native OpenID4VP dependency. Certify issuance and VP submission succeed; Verify rejects the malformed holder DID. Use SD-JWT for the passing mobile demonstration, or use the mock wallet for JSON-LD verification. Do not repeatedly rebuild the APK or reset the stack for this error. |
 | The app asks for a selfie before sharing | The card has an empty `face` claim (old template, or an old card). Delete the card and issue a new one. |
 | App crashes at startup | Dependencies were re-resolved. Restore `package-lock.json` (`git checkout package-lock.json`) and run `npm ci`. |
 | App hangs on first launch on the emulator | The hardware-keystore check; see the emulator-only patch in step 2. |
