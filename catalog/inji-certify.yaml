@@ -21,4 +21,8 @@ capabilities:
   deliveryChannels: [api]
   automation: headless
   supportsTamper: false
+  # Copies signed with validity in the past (injistack/db/certify_init.sql), for the T-EXPIRED tamper.
+  expiredVariants:
+    FarmerCredential: FarmerCredentialExpired
+    FarmerCredentialSdJwt: FarmerCredentialSdJwtExpired
 notes: SD-JWT is issued as vc+sd-jwt only.

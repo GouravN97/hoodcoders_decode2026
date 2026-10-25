@@ -6,3 +6,6 @@ export * from './report';
 export * from './labels';
 export * from './api';
 export * from './mockWallet';
+export * from './tamper';
+export * from './compatibility';
+export * from './tamperPlan';

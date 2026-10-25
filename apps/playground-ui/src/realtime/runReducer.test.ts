@@ -1,4 +1,10 @@
-import { RUN_STEP_TEMPLATE, type RunConfig, type RunDetail, type RunEvent } from '@playground/shared';
+import {
+  planTamper,
+  RUN_STEP_TEMPLATE,
+  type RunConfig,
+  type RunDetail,
+  type RunEvent,
+} from '@playground/shared';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { mockCatalog } from '../mocks/catalog';
 import { db } from '../mocks/db';
@@ -33,12 +39,15 @@ function newRun(config: RunConfig): RunDetail {
 }
 
 /** Plays a scenario on the simulator and folds its events from the initial run record. */
-async function play(config: RunConfig) {
-  const initial = newRun(config);
+async function play(requested: RunConfig) {
+  // Plans the tamper the way the mock POST /runs handler does.
+  const planned = planTamper(requested, mockCatalog, db.list());
+  const initial = { ...newRun(planned.config), ...(planned.tamper ? { tamper: planned.tamper.applied } : {}) };
   const record = db.create(structuredClone(initial));
+  if (planned.tamper) record.tamperPlan = planned.tamper;
   const events: RunEvent[] = [];
   const off = simulatedEvents.subscribe(initial.id, (e) => events.push(e));
-  await startSimulation(record, mockCatalog.find((c) => c.id === config.walletId)!);
+  await startSimulation(record, mockCatalog.find((c) => c.id === requested.walletId)!);
   off();
   return { folded: events.reduce(applyRunEvent, initial), server: record, events };
 }
@@ -81,6 +90,41 @@ describe('applyRunEvent over simulated runs', () => {
     const { folded } = await play({ ...baseConfig, labels: { scenario: 'timeout' } });
     expect(folded.steps.find((s) => s.step === 'request_delivered')?.status).toBe('inconclusive');
     expect(folded.verdict).toBe('INCONCLUSIVE');
+  });
+
+  it('tampers with the presented copy and shows the change on the vp_token message', async () => {
+    const { folded, server } = await play({
+      ...baseConfig,
+      format: 'vc+sd-jwt',
+      credentialConfigurationId: 'FarmerCredentialSdJwt',
+      tamper: { id: 'T-CLAIM-EDIT' },
+      expectedOutcome: 'INVALID',
+    });
+    expect(folded.observedOutcome).toBe('INVALID');
+    expect(folded.verdict).toBe('PASS');
+    const posted = server.exchanges.find((e) => e.step === 'oid4vp.response')!;
+    expect(posted.tampered).toMatchObject({ ruleId: 'T-CLAIM-EDIT', target: 'credential' });
+    expect(posted.tampered?.diff).toContain('disclosure fullName: Ramesh Kumar → Ramesh Kumar (edited)');
+    // The issued credential itself is untouched; only the presented copy changed.
+    const issued = server.run.artifacts.find((a) => a.kind === 'credential')!.raw;
+    expect(posted.tampered?.before).toBe(issued);
+    expect(server.run.tamper).toMatchObject({ id: 'T-CLAIM-EDIT', exchangeId: posted.id });
+    expect(server.findings.find((f) => f.checkId === 'TAMPER-001')?.severity).toBe('PASS');
+  });
+
+  it('replays the vp_token of an earlier run', async () => {
+    const earlier = await play(baseConfig);
+    const { server } = await play({ ...baseConfig, tamper: { id: 'T-NONCE-REPLAY' }, expectedOutcome: 'INVALID' });
+    expect(server.run.tamper?.sourceRunId).toBe(earlier.server.run.id);
+    const replayed = server.run.artifacts.find((a) => a.kind === 'vp_token')!.raw;
+    expect(replayed).toBe(earlier.server.run.artifacts.find((a) => a.kind === 'vp_token')!.raw);
+  });
+
+  it('issues the expired copy for T-EXPIRED', async () => {
+    const { folded, server } = await play({ ...baseConfig, tamper: { id: 'T-EXPIRED' }, expectedOutcome: 'EXPIRED' });
+    expect(server.run.config.credentialConfigurationId).toBe('FarmerCredentialExpired');
+    expect(folded.observedOutcome).toBe('EXPIRED');
+    expect(folded.verdict).toBe('PASS');
   });
 
   it('ignores events for other runs', () => {

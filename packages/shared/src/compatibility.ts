@@ -1,13 +1,20 @@
 // CompatibilityResolver (plan §8.2): intersects capability descriptors to predict whether a
-// combination should work, with reasons. Same rules as the UI's mock resolver.
-import {
-  runUsesRole,
-  type CatalogEntry,
-  type Prediction,
-  type RunConfig,
-} from '@playground/shared';
+// combination should work, with reasons. Pure, so the BFF and the UI's mocks give the same answer.
+import type { CatalogEntry, Prediction } from './catalog';
+import type { RunConfig } from './domain';
+import { runUsesRole } from './run';
+import { expiredVariantFor, tamperDefinition } from './tamper';
 
-export function predict(config: RunConfig, catalog: CatalogEntry[]): Prediction {
+export interface PredictContext {
+  /** T-NONCE-REPLAY: whether an earlier run has a vp_token to replay; undefined if unknown. */
+  replayAvailable?: boolean;
+}
+
+export function predict(
+  config: RunConfig,
+  catalog: CatalogEntry[],
+  context: PredictContext = {},
+): Prediction {
   const issuer = catalog.find((c) => c.id === config.issuerId && c.role === 'issuer');
   const wallet = catalog.find((c) => c.id === config.walletId && c.role === 'wallet');
   const verifier = catalog.find((c) => c.id === config.verifierId && c.role === 'verifier');
@@ -75,14 +82,28 @@ export function predict(config: RunConfig, catalog: CatalogEntry[]): Prediction 
       message: `${wallet.displayName} does not support ${config.presentationFlow}`,
     });
   }
-  if (presenting && config.expectedOutcome === 'INVALID' && !wallet.capabilities.supportsTamper) {
+  const tamper = config.tamper ? tamperDefinition(config.tamper.id) : undefined;
+  if (config.tamper) reasons.push(...tamperReasons(config, issuer, wallet, context));
+  if (
+    presenting &&
+    !config.tamper &&
+    config.expectedOutcome === 'INVALID' &&
+    !wallet.capabilities.supportsTamper
+  ) {
     reasons.push({
       role: 'wallet',
       severity: 'warn',
       message: `${wallet.displayName} cannot tamper with a credential, so an Invalid result needs a broken credential from elsewhere`,
     });
   }
-  if (presenting && config.expectedOutcome === 'EXPIRED') {
+  const alreadyExpired =
+    expiredVariantFor(issuer, config.credentialConfigurationId) === config.credentialConfigurationId;
+  if (
+    presenting &&
+    config.expectedOutcome === 'EXPIRED' &&
+    tamper?.id !== 'T-EXPIRED' &&
+    !alreadyExpired
+  ) {
     reasons.push({
       role: 'issuer',
       severity: 'warn',
@@ -116,4 +137,57 @@ export function predict(config: RunConfig, catalog: CatalogEntry[]): Prediction 
     status: reasons.some((r) => r.severity === 'error') ? 'unsupported' : 'supported',
     reasons,
   };
+}
+
+/** Why a run's tamper can or cannot be applied with this selection. */
+function tamperReasons(
+  config: RunConfig,
+  issuer: CatalogEntry,
+  wallet: CatalogEntry,
+  context: PredictContext,
+): Prediction['reasons'] {
+  const def = tamperDefinition(config.tamper?.id);
+  if (!def) return [{ severity: 'error', message: `Unknown tamper ${config.tamper?.id}` }];
+  if (!runUsesRole(config.mode, 'verifier'))
+    return [{ severity: 'error', message: `${def.id} only applies to runs that present the credential` }];
+  const reasons: Prediction['reasons'] = [];
+  if (!def.formats.includes(config.format))
+    reasons.push({ severity: 'error', message: `${def.id} does not apply to ${config.format} credentials` });
+  if (def.mechanism === 'wallet-hook' && !wallet.capabilities.supportsTamper) {
+    reasons.push({
+      role: 'wallet',
+      severity: 'error',
+      message: `${wallet.displayName} cannot apply ${def.id}; only a wallet with tamper hooks (the mock wallet) can`,
+    });
+  }
+  if (def.id === 'T-EXPIRED') {
+    const variant = expiredVariantFor(issuer, config.credentialConfigurationId);
+    reasons.push(
+      variant
+        ? {
+            role: 'issuer',
+            severity: 'info',
+            message: `${issuer.displayName} issues ${variant}, a copy signed with validity in the past`,
+          }
+        : {
+            role: 'issuer',
+            severity: 'error',
+            message: `${issuer.displayName} has no expired copy of ${config.credentialConfigurationId}`,
+          },
+    );
+  }
+  if (def.id === 'T-NONCE-REPLAY' && context.replayAvailable === false) {
+    reasons.push({
+      severity: 'error',
+      message: `No earlier untampered ${config.format} run passed this verifier, so there is no vp_token to replay. Run a normal full run first.`,
+    });
+  }
+  if (def.id === 'T-WRONG-TYPE') {
+    reasons.push({
+      severity: 'info',
+      message:
+        'A verifier may refuse a wrong-type presentation as Invalid or Rejected; answering Valid would be a finding',
+    });
+  }
+  return reasons;
 }

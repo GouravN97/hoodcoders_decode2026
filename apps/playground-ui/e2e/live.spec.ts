@@ -7,7 +7,7 @@ test.describe.configure({ mode: 'serial', timeout: 120_000 });
 
 async function liveRun(
   page: import('@playwright/test').Page,
-  opts: { format: 'ldp_vc' | 'vc+sd-jwt'; expected?: 'Valid' | 'Invalid' },
+  opts: { format: 'ldp_vc' | 'vc+sd-jwt'; expected?: 'Valid' | 'Invalid'; tamper?: string },
 ) {
   await page.goto('/');
   await pickImplementation(page, 'Issuer', 'Inji Certify');
@@ -17,6 +17,7 @@ async function liveRun(
     .getByRole('radiogroup', { name: 'Credential format' })
     .getByText(opts.format, { exact: true })
     .click();
+  if (opts.tamper) await page.getByLabel('Tamper').selectOption({ label: opts.tamper });
   if (opts.expected)
     await page
       .getByRole('radiogroup', { name: 'Expected result' })
@@ -56,7 +57,9 @@ test('SD-JWT: Certify → mock wallet → Inji Verify ends Valid, with every mes
   await openSection(page, 'Report');
   const report = page.getByRole('region', { name: 'Run report' });
   await expect(report.getByTestId('report-verdict')).toContainText('Pass');
-  await expect(report.getByRole('definition').nth(4)).toHaveText('ES256');
+  await expect(
+    report.locator('div', { has: page.locator('dt', { hasText: /^Proof type$/ }) }).locator('dd'),
+  ).toHaveText('ES256');
 });
 
 test('SD-JWT with a tampered signature ends Invalid, which the run expected', async ({ page }) => {
@@ -68,4 +71,15 @@ test('SD-JWT with a tampered signature ends Invalid, which the run expected', as
   await expect(
     page.getByRole('region', { name: 'Run report' }).getByTestId('report-verdict'),
   ).toContainText('Pass');
+});
+
+test('SD-JWT with an edited claim: the inspector shows the change and Inji Verify rejects it', async ({ page }) => {
+  await liveRun(page, { format: 'vc+sd-jwt', tamper: 'Edited claim (T-CLAIM-EDIT)' });
+  const banner = page.getByTestId('verification-result');
+  await expect(banner).toHaveAttribute('data-outcome', 'INVALID', { timeout: 90_000 });
+  await expect(banner.getByTestId('tamper-verdict')).toContainText('rejected it as expected');
+  await openSection(page, 'Protocol inspector');
+  const inspector = page.getByRole('region', { name: 'Protocol inspector' });
+  await inspector.getByText('Tampered · T-CLAIM-EDIT').click();
+  await expect(inspector.getByRole('table', { name: 'Tampered fields' })).toContainText('(edited)');
 });

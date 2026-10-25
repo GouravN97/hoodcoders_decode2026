@@ -57,6 +57,17 @@ export function backfillRunId(runId: string, keys: string[]): void {
   }
 }
 
+/**
+ * Records that an exchange carried a tampered payload (plan §13) and announces the change
+ * ('exchange-updated'), so the inspector shows the before/after view.
+ */
+export function markTampered(id: string, tampered: NonNullable<Exchange['tampered']>): void {
+  const ex = byId.get(id);
+  if (!ex) return;
+  ex.tampered = tampered;
+  exchangeEvents.emit('exchange-updated', ex);
+}
+
 /** Moves one unassigned exchange into a run (adjacency correlation in the tap). */
 export function assignExchange(id: string, runId: string): void {
   const i = unassigned.findIndex((ex) => ex.id === id);

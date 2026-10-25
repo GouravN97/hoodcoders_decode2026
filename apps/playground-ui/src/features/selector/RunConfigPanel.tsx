@@ -1,19 +1,25 @@
 import {
+  applicableTampers,
+  canReplayFrom,
+  expiredVariantFor,
   flowLabel,
   formatLabel,
   modeLabel,
   outcomeLabel,
+  ReplayParamsSchema,
   runUsesRole,
   SUPPORTED_RUN_MODES,
+  tamperDefinition,
   type CatalogEntry,
   type CredentialConfigurationSummary,
   type CredentialFormat,
   type PresentationFlow,
+  type ReplayVariant,
   type RunMode,
   type VerificationOutcome,
 } from '@playground/shared';
 import { useEffect, useMemo, type ReactNode } from 'react';
-import { useHeldCredentials } from '../../api/queries';
+import { useHeldCredentials, useRuns } from '../../api/queries';
 import { Card, cx, Field, SectionTitle, selectClass } from '../../components/ui';
 import { useSelection } from '../../store/selection';
 
@@ -133,6 +139,143 @@ function HeldCredentialField({
   );
 }
 
+const REPLAY_VARIANTS: Array<{ value: ReplayVariant; label: string }> = [
+  { value: 'resubmit-vp', label: 'Resubmit the earlier vp_token unchanged' },
+  { value: 'stale-nonce', label: "Sign a new presentation over the earlier run's nonce" },
+];
+
+/** T-NONCE-REPLAY: how to replay, and which earlier run to take the vp_token or nonce from. */
+function ReplayFields({ verifier }: { verifier: CatalogEntry | undefined }) {
+  const { format, tamper, update } = useSelection();
+  const params = ReplayParamsSchema.safeParse(tamper?.params ?? {});
+  const { variant, sourceRunId } = params.success ? params.data : { variant: 'resubmit-vp' as const, sourceRunId: undefined };
+  const runs = useRuns({ verifier: verifier?.id, format }, Boolean(verifier && format));
+  const sources = useMemo(
+    () => (verifier && format ? (runs.data ?? []).filter((r) => canReplayFrom(r, { verifierId: verifier.id, format })) : []),
+    [runs.data, verifier, format],
+  );
+  const set = (next: { variant: ReplayVariant; sourceRunId?: string | undefined }) =>
+    update({
+      tamper: {
+        id: 'T-NONCE-REPLAY',
+        mechanism: 'wallet-hook',
+        params: { variant: next.variant, ...(next.sourceRunId ? { sourceRunId: next.sourceRunId } : {}) },
+      },
+    });
+
+  return (
+    <>
+      <Field label="Replay" htmlFor="replay-variant">
+        <select
+          id="replay-variant"
+          className={selectClass}
+          value={variant}
+          onChange={(e) => set({ variant: e.target.value as ReplayVariant, sourceRunId })}
+        >
+          {REPLAY_VARIANTS.map((v) => (
+            <option key={v.value} value={v.value}>
+              {v.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field
+        label="Replay from"
+        htmlFor="replay-source"
+        hint={
+          runs.isSuccess && sources.length === 0
+            ? `No earlier ${format ? formatLabel(format) : ''} untampered run passed ${verifier?.displayName ?? 'this verifier'}. Run a normal full run first.`
+            : undefined
+        }
+      >
+        <select
+          id="replay-source"
+          className={selectClass}
+          value={sourceRunId ?? ''}
+          disabled={sources.length === 0}
+          onChange={(e) => set({ variant, sourceRunId: e.target.value || undefined })}
+        >
+          <option value="">{sources.length > 0 ? 'Newest earlier run' : 'None available'}</option>
+          {sources.map((r) => (
+            <option key={r.id} value={r.id}>
+              {new Date(r.createdAt).toLocaleString()} · {r.id.slice(0, 8)}
+              {r.tamper ? ` · ${r.tamper.id}` : ''}
+            </option>
+          ))}
+        </select>
+      </Field>
+    </>
+  );
+}
+
+/**
+ * A deliberate negative test (plan §13). Only offered for wallets with tamper hooks; picking one
+ * sets the expected result to what a verifier should answer, clearing it goes back to Valid.
+ */
+function TamperField({
+  issuer,
+  wallet,
+  verifier,
+}: {
+  issuer: CatalogEntry | undefined;
+  wallet: CatalogEntry | undefined;
+  verifier: CatalogEntry | undefined;
+}) {
+  const { format, credentialConfigurationId, tamper, update } = useSelection();
+  const options = useMemo(
+    () => applicableTampers({ format, wallet, issuer, credentialConfigurationId }),
+    [format, wallet, issuer, credentialConfigurationId],
+  );
+
+  // Drop a tamper the new selection cannot apply, and with it the expectation it set.
+  useEffect(() => {
+    if (tamper && !options.some((o) => o.id === tamper.id)) update({ tamper: undefined, expectedOutcome: 'VALID' });
+  }, [tamper, options, update]);
+
+  if (options.length === 0) return null;
+  const picked = tamperDefinition(tamper?.id);
+  const pick = (id: string) => {
+    const def = tamperDefinition(id);
+    update(
+      def
+        ? {
+            tamper: {
+              id: def.id,
+              mechanism: def.mechanism,
+              ...(def.id === 'T-NONCE-REPLAY' ? { params: { variant: 'resubmit-vp' } } : {}),
+            },
+            expectedOutcome: def.expectedOutcome,
+          }
+        : { tamper: undefined, expectedOutcome: 'VALID' },
+    );
+  };
+  const expiredCopy = picked?.id === 'T-EXPIRED' ? expiredVariantFor(issuer, credentialConfigurationId) : undefined;
+
+  return (
+    <>
+      <Field
+        label="Tamper"
+        htmlFor="tamper"
+        hint={
+          picked
+            ? `${picked.description}${expiredCopy && expiredCopy !== credentialConfigurationId ? ` The issuer issues ${expiredCopy}.` : ''} Expected result: ${outcomeLabel(picked.expectedOutcome)}.`
+            : `${wallet?.displayName ?? 'This wallet'} can break the presentation on purpose, to check that the verifier rejects it.`
+        }
+      >
+        <select id="tamper" className={selectClass} value={picked?.id ?? ''} onChange={(e) => pick(e.target.value)}>
+          <option value="">None — present the credential as issued</option>
+          {options.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label} ({t.id})
+            </option>
+          ))}
+        </select>
+      </Field>
+      {picked?.id === 'T-NONCE-REPLAY' && <ReplayFields verifier={verifier} />}
+    </>
+  );
+}
+
 export function RunConfigPanel({
   formats,
   flows,
@@ -140,6 +283,7 @@ export function RunConfigPanel({
   configsLoading,
   issuer,
   wallet,
+  verifier,
 }: {
   formats: CredentialFormat[];
   flows: PresentationFlow[];
@@ -147,6 +291,7 @@ export function RunConfigPanel({
   configsLoading: boolean;
   issuer: CatalogEntry | undefined;
   wallet: CatalogEntry | undefined;
+  verifier: CatalogEntry | undefined;
 }) {
   const { mode, format, credentialConfigurationId, presentationFlow, expectedOutcome, update } = useSelection();
   const presenting = runUsesRole(mode, 'verifier');
@@ -161,9 +306,11 @@ export function RunConfigPanel({
   }, [formats, format, update]);
   useEffect(() => {
     if (configsForFormat.length > 0 && !configsForFormat.some((c) => c.id === credentialConfigurationId)) {
-      update({ credentialConfigurationId: configsForFormat[0]!.id });
+      // Default to a normal credential; expired copies are for deliberate Valid-but-expired runs.
+      const normal = configsForFormat.find((c) => expiredVariantFor(issuer, c.id) !== c.id);
+      update({ credentialConfigurationId: (normal ?? configsForFormat[0]!).id });
     }
-  }, [configsForFormat, credentialConfigurationId, update]);
+  }, [configsForFormat, credentialConfigurationId, issuer, update]);
   useEffect(() => {
     if (flows.length > 0 && !flows.includes(presentationFlow)) update({ presentationFlow: flows[0]! });
   }, [flows, presentationFlow, update]);
@@ -247,6 +394,8 @@ export function RunConfigPanel({
             </select>
           </Field>
         )}
+
+        {presenting && <TamperField issuer={issuer} wallet={wallet} verifier={verifier} />}
 
         {presenting && (
           <Field label="Expected result" hint={expectedHint}>

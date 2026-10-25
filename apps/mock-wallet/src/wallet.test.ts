@@ -1,5 +1,7 @@
 import { createHash, createPublicKey, verify } from 'node:crypto';
-import type { HeldCredential } from '@playground/shared';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { nonceOfVpToken, type HeldCredential } from '@playground/shared';
 import {
   base64url,
   decodeJwt,
@@ -10,10 +12,17 @@ import {
   SignJWT,
 } from 'jose';
 import jsonld from 'jsonld';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createHolderKey, type HolderKey } from './keys.ts';
 import { signPresentation } from './ldp.ts';
-import { didWebUrl, matches, readPath, tamperCredential } from './oid4vp.ts';
+import {
+  didWebUrl,
+  matches,
+  readPath,
+  requestedType,
+  respond,
+  tamperCredential,
+} from './oid4vp.ts';
 import { presentSdJwt, sdHash, sdJwtClaims, splitSdJwt } from './sdjwt.ts';
 
 let holder: HolderKey;
@@ -243,5 +252,117 @@ describe('throwaway issuer keys are not the holder key', () => {
   it('exports different public keys', async () => {
     const other = await exportJWK((await generateKeyPair('ES256')).publicKey);
     expect(other.x).not.toBe(holder.publicJwk.x);
+  });
+});
+
+describe('respond with a tamper', () => {
+  // A by-value request to a local stand-in verifier that records what the wallet posts.
+  const posted: URLSearchParams[] = [];
+  let server: Server;
+  let responseUri = '';
+  beforeAll(async () => {
+    server = createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on('data', (c: Buffer) => chunks.push(c));
+      req.on('end', () => {
+        posted.push(new URLSearchParams(Buffer.concat(chunks).toString('utf8')));
+        res.writeHead(200, { 'content-type': 'application/json' }).end('{}');
+      });
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    responseUri = `http://127.0.0.1:${(server.address() as AddressInfo).port}/post`;
+  });
+  afterAll(() => new Promise<void>((r) => server.close(() => r())));
+
+  const request = (vct: string, nonce = 'fresh-nonce') =>
+    `openid4vp://authorize?${new URLSearchParams({
+      client_id: 'did:web:verify.test',
+      response_mode: 'direct_post',
+      response_uri: responseUri,
+      nonce,
+      state: 'st-1',
+      presentation_definition: JSON.stringify({
+        id: 'pd',
+        input_descriptors: [
+          {
+            id: 'farmer',
+            format: { 'vc+sd-jwt': {} },
+            constraints: { fields: [{ path: ['$.vct'], filter: { type: 'string', const: vct } }] },
+          },
+        ],
+      }),
+    })}`;
+
+  it('reports what T-CLAIM-EDIT changed', async () => {
+    const raw = await issueSdJwt({ fullName: 'A' });
+    const res = await respond(
+      { authorizationRequestUri: request('FarmerCredentialSdJwt'), tamper: 'T-CLAIM-EDIT' },
+      holder,
+      [held('vc+sd-jwt', raw)],
+    );
+    expect(res.tamperEvidence).toMatchObject({
+      target: 'credential',
+      changes: [{ path: 'disclosure fullName', before: 'A', after: 'A (edited)' }],
+    });
+  });
+
+  it('T-WRONG-TYPE presents a credential the request did not ask for', async () => {
+    const raw = await issueSdJwt({ fullName: 'A' });
+    const res = await respond(
+      { authorizationRequestUri: request('PlaygroundWrongTypeCredential'), tamper: 'T-WRONG-TYPE' },
+      holder,
+      [held('vc+sd-jwt', raw)],
+    );
+    expect(res.status).toBe(200);
+    expect(posted.at(-1)?.get('vp_token')).toContain(raw.split('~')[0]);
+    expect(res.tamperEvidence?.changes[0]).toMatchObject({
+      before: 'PlaygroundWrongTypeCredential (asked for)',
+      after: 'FarmerCredentialSdJwt (presented)',
+    });
+  });
+
+  it('T-NONCE-REPLAY resubmits the earlier vp_token unchanged', async () => {
+    const old = 'h.p.s~d~kb';
+    const res = await respond(
+      {
+        authorizationRequestUri: request('FarmerCredentialSdJwt'),
+        tamper: 'T-NONCE-REPLAY',
+        replay: { variant: 'resubmit-vp', vpToken: old, presentationSubmission: '{"id":"old"}' },
+      },
+      holder,
+      [],
+    );
+    expect(posted.at(-1)?.get('vp_token')).toBe(old);
+    expect(posted.at(-1)?.get('state')).toBe('st-1');
+    expect(res.tamperEvidence?.target).toBe('vp_token');
+  });
+
+  it('T-NONCE-REPLAY with a stale nonce signs a fresh presentation over the old nonce', async () => {
+    const raw = await issueSdJwt({ fullName: 'A' });
+    await respond(
+      {
+        authorizationRequestUri: request('FarmerCredentialSdJwt', 'new-nonce'),
+        tamper: 'T-NONCE-REPLAY',
+        replay: { variant: 'stale-nonce', nonce: 'old-nonce' },
+      },
+      holder,
+      [held('vc+sd-jwt', raw)],
+    );
+    expect(nonceOfVpToken(posted.at(-1)!.get('vp_token')!)).toBe('old-nonce');
+  });
+
+  it('refuses a replay without anything to replay', async () => {
+    await expect(
+      respond({ authorizationRequestUri: request('x'), tamper: 'T-NONCE-REPLAY' }, holder, []),
+    ).rejects.toThrow(/needs an earlier vp_token/);
+  });
+
+  it('reads the requested type from an input descriptor', () => {
+    expect(
+      requestedType({
+        id: 'd',
+        constraints: { fields: [{ path: ['$.type'], filter: { pattern: 'FarmerCredential' } }] },
+      }),
+    ).toBe('FarmerCredential');
   });
 });

@@ -3,11 +3,13 @@
 // post it to response_uri.
 import { randomUUID } from 'node:crypto';
 import {
+  describeTamper,
+  nonceOfVpToken,
   ProtocolStep,
   type HeldCredential,
-  type MockWalletTamper,
   type RespondRequest,
   type RespondResponse,
+  type TamperEvidence,
 } from '@playground/shared';
 import { base64url, decodeJwt, decodeProtectedHeader, importJWK, jwtVerify } from 'jose';
 import { call, form, parseJson, USER_AGENT, WalletError } from './http.ts';
@@ -20,7 +22,7 @@ interface Field {
   filter?: { type?: string; pattern?: string; const?: unknown; contains?: { const?: unknown } };
   optional?: boolean;
 }
-interface InputDescriptor {
+export interface InputDescriptor {
   id: string;
   format?: Record<string, unknown>;
   constraints?: { fields?: Field[]; limit_disclosure?: 'required' | 'preferred' };
@@ -235,7 +237,10 @@ const flipChar = (s: string, alphabet: string) => {
 };
 const B64URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 
-export function tamperCredential(c: HeldCredential, tamper: MockWalletTamper): string {
+/** The tampers that rewrite the credential itself. */
+export type CredentialTamper = 'T-SIG-FLIP' | 'T-CLAIM-EDIT';
+
+export function tamperCredential(c: HeldCredential, tamper: CredentialTamper): string {
   if (SD_JWT_FORMATS.includes(c.format)) {
     const { issuerJwt, disclosures } = splitSdJwt(c.raw);
     if (tamper === 'T-SIG-FLIP') {
@@ -273,6 +278,20 @@ export function tamperCredential(c: HeldCredential, tamper: MockWalletTamper): s
 
 // ---------- respond ----------
 
+/**
+ * direct_post to the verifier. A tampered presentation that the verifier refuses with a 4xx is an
+ * answer, not a wallet failure: it is returned with its status so the run can record the rejection.
+ */
+async function submit(uri: string, fields: Record<string, string>, tampered: boolean) {
+  try {
+    return await call(ProtocolStep.VP_RESPONSE, uri, form(fields));
+  } catch (e) {
+    const status = e instanceof WalletError ? e.upstreamStatus : undefined;
+    if (!tampered || status === undefined || status < 400 || status >= 500) throw e;
+    return { status, contentType: '', text: (e as WalletError).upstreamBody ?? '' };
+  }
+}
+
 export async function respond(
   req: RespondRequest,
   holder: HolderKey,
@@ -301,8 +320,53 @@ export async function respond(
   const candidates = req.credentialId
     ? credentials.filter((c) => c.id === req.credentialId)
     : credentials;
-  const credential = [...candidates].reverse().find((c) => matches(c, descriptor));
+  // T-WRONG-TYPE presents the credential although it does not match what was asked for.
+  const credential =
+    req.tamper === 'T-WRONG-TYPE'
+      ? candidates.at(-1)
+      : [...candidates].reverse().find((c) => matches(c, descriptor));
   const state: Record<string, string> = request.state ? { state: request.state } : {};
+  if (req.tamper === 'T-NONCE-REPLAY' && !req.replay) {
+    throw new WalletError('tamper', 'T-NONCE-REPLAY needs an earlier vp_token or nonce to replay', 400);
+  }
+
+  // T-NONCE-REPLAY resubmit: the earlier vp_token goes to the new request unchanged.
+  if (req.replay?.variant === 'resubmit-vp') {
+    const replayedNonce = nonceOfVpToken(req.replay.vpToken);
+    const tamperEvidence: TamperEvidence = {
+      target: 'vp_token',
+      summary: 'Resubmitted a vp_token captured in an earlier run to this new request',
+      changes: [
+        {
+          path: 'nonce',
+          before: `${request.nonce} (asked for by this request)`,
+          after: `${replayedNonce ?? 'none found'} (inside the replayed vp_token)`,
+        },
+      ],
+      after: req.replay.vpToken,
+    };
+    const res = await submit(
+      request.response_uri,
+      {
+        vp_token: req.replay.vpToken,
+        ...(req.replay.presentationSubmission
+          ? { presentation_submission: req.replay.presentationSubmission }
+          : {}),
+        ...state,
+      },
+      true,
+    );
+    return {
+      credentialId: credential?.id ?? 'replayed-vp-token',
+      responseUri: request.response_uri,
+      status: res.status,
+      ...(res.text ? { body: res.text } : {}),
+      tamper: 'T-NONCE-REPLAY',
+      tamperEvidence,
+      warnings,
+    };
+  }
+
   if (!credential) {
     // Tell the verifier, as a wallet would after the user found nothing to share.
     const res = await call(
@@ -317,7 +381,43 @@ export async function respond(
     );
   }
 
-  const raw = req.tamper ? tamperCredential(credential, req.tamper) : credential.raw;
+  let raw = credential.raw;
+  let tamperEvidence: TamperEvidence | undefined;
+  if (req.tamper === 'T-SIG-FLIP' || req.tamper === 'T-CLAIM-EDIT') {
+    raw = tamperCredential(credential, req.tamper);
+    tamperEvidence = {
+      target: 'credential',
+      summary:
+        req.tamper === 'T-SIG-FLIP'
+          ? "Changed one character of the issuer's signature"
+          : 'Changed one claim value after issuance',
+      changes: describeTamper(credential.raw, raw, credential.format),
+      before: credential.raw,
+      after: raw,
+    };
+  } else if (req.tamper === 'T-WRONG-TYPE') {
+    tamperEvidence = {
+      target: 'presentation',
+      summary: 'Presented a credential that does not satisfy the request',
+      changes: [
+        {
+          path: 'credential type',
+          before: `${requestedType(descriptor) ?? 'see input descriptor'} (asked for)`,
+          after: `${presentedType(credential) ?? credential.credentialConfigurationId} (presented)`,
+        },
+      ],
+    };
+  }
+  // T-NONCE-REPLAY stale nonce: a fresh presentation, signed over an earlier request's nonce.
+  const nonce = req.replay?.variant === 'stale-nonce' ? req.replay.nonce : request.nonce;
+  if (req.replay?.variant === 'stale-nonce') {
+    tamperEvidence = {
+      target: 'vp_token',
+      summary: "Signed a fresh presentation over an earlier run's nonce",
+      changes: [{ path: 'nonce', before: request.nonce, after: req.replay.nonce }],
+    };
+  }
+
   const isSdJwt = SD_JWT_FORMATS.includes(credential.format);
   let vpToken: string;
   try {
@@ -325,7 +425,7 @@ export async function respond(
       ? await presentSdJwt({
           raw,
           holder,
-          nonce: request.nonce,
+          nonce,
           audience: request.client_id,
           disclose: requestedClaims(descriptor),
         })
@@ -333,7 +433,7 @@ export async function respond(
           await signPresentation({
             credential: JSON.parse(raw) as object,
             holder,
-            challenge: request.nonce,
+            challenge: nonce,
             domain: request.client_id,
           }),
         );
@@ -355,10 +455,10 @@ export async function respond(
           },
     ],
   };
-  const res = await call(
-    step,
+  const res = await submit(
     request.response_uri,
-    form({ vp_token: vpToken, presentation_submission: JSON.stringify(submission), ...state }),
+    { vp_token: vpToken, presentation_submission: JSON.stringify(submission), ...state },
+    Boolean(req.tamper),
   );
   return {
     credentialId: credential.id,
@@ -366,6 +466,25 @@ export async function respond(
     status: res.status,
     ...(res.text ? { body: res.text } : {}),
     ...(req.tamper ? { tamper: req.tamper } : {}),
+    ...(tamperEvidence ? { tamperEvidence } : {}),
     warnings,
   };
+}
+
+/** The type an input descriptor filters on (`$.vct` or `$.type`), as written in the request. */
+export function requestedType(d: InputDescriptor): string | undefined {
+  for (const f of d.constraints?.fields ?? []) {
+    if (!f.path.some((p) => /\.(vct|type)\b/.test(p))) continue;
+    const v = f.filter?.const ?? f.filter?.contains?.const ?? f.filter?.pattern;
+    if (v !== undefined) return String(v);
+  }
+  return undefined;
+}
+
+/** `vct` of an SD-JWT, or the most specific `type` of a JSON-LD credential. */
+export function presentedType(c: HeldCredential): string | undefined {
+  const claims = claimsOf(c);
+  if (typeof claims.vct === 'string') return claims.vct;
+  const types = Array.isArray(claims.type) ? claims.type : [claims.type];
+  return types.filter((t): t is string => typeof t === 'string' && t !== 'VerifiableCredential').at(-1);
 }

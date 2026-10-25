@@ -1,12 +1,16 @@
 // MSW handlers for the BFF REST API (plan §11.2), backed by the mock db and simulator.
 import {
+  canReplayFrom,
   CreateRunRequestSchema,
   ManualEvidenceRequestSchema,
+  planTamper,
   PredictRequestSchema,
   renderReportMarkdown,
   stepTemplateFor,
   SUPPORTED_RUN_MODES,
+  TamperPlanError,
   type HeldCredentialsResponse,
+  type RunConfig,
   type RunDetail,
 } from '@playground/shared';
 import { delay, http, HttpResponse } from 'msw';
@@ -20,6 +24,12 @@ import { confirmManualEvidence, startSimulation } from './simulator';
 const api = (path: string) => `${BFF_URL}/api${path}`;
 const error = (statusCode: number, message: string) =>
   HttpResponse.json({ message, statusCode }, { status: statusCode });
+
+/** What the predictor cannot see in the catalog, as the BFF works it out. */
+const predictContext = (config: RunConfig) =>
+  config.tamper?.id === 'T-NONCE-REPLAY'
+    ? { replayAvailable: db.list().some((r) => canReplayFrom(r, config)) }
+    : {};
 
 export const handlers = [
   http.get(api('/catalog'), async () => {
@@ -59,21 +69,28 @@ export const handlers = [
     const parsed = PredictRequestSchema.safeParse(await request.json());
     if (!parsed.success) return error(400, 'Invalid run config');
     await delay(120);
-    return HttpResponse.json(predict(parsed.data));
+    return HttpResponse.json(predict(parsed.data, predictContext(parsed.data)));
   }),
 
   http.post(api('/runs'), async ({ request }) => {
     const parsed = CreateRunRequestSchema.safeParse(await request.json());
     if (!parsed.success)
       return error(400, `Invalid run config: ${parsed.error.issues[0]?.message}`);
-    const config = parsed.data;
-    const wallet = mockCatalog.find((c) => c.id === config.walletId && c.role === 'wallet');
-    const ids = [config.issuerId, config.walletId, config.verifierId];
+    const wallet = mockCatalog.find((c) => c.id === parsed.data.walletId && c.role === 'wallet');
+    const ids = [parsed.data.issuerId, parsed.data.walletId, parsed.data.verifierId];
     if (!wallet || ids.some((id) => !mockCatalog.some((c) => c.id === id))) {
       return error(400, 'Unknown implementation in run config');
     }
-    if (!SUPPORTED_RUN_MODES.includes(config.mode))
-      return error(400, `Run mode ${config.mode} is not supported yet`);
+    if (!SUPPORTED_RUN_MODES.includes(parsed.data.mode))
+      return error(400, `Run mode ${parsed.data.mode} is not supported yet`);
+    let planned: ReturnType<typeof planTamper>;
+    try {
+      planned = planTamper(parsed.data, mockCatalog, db.list());
+    } catch (e) {
+      if (e instanceof TamperPlanError) return error(400, e.message);
+      throw e;
+    }
+    const config = planned.config;
     const run: RunDetail = {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
@@ -91,12 +108,30 @@ export const handlers = [
         implementationId: id,
         version: mockCatalog.find((c) => c.id === id)?.version ?? 'unknown',
       })),
+      ...(planned.tamper ? { tamper: planned.tamper.applied } : {}),
       artifacts: [],
     };
     const record = db.create(run);
+    if (planned.tamper) record.tamperPlan = planned.tamper;
     await delay(250);
     void startSimulation(record, wallet);
     return HttpResponse.json({ id: run.id }, { status: 201 });
+  }),
+
+  http.get(api('/runs'), ({ request }) => {
+    const q = new URL(request.url).searchParams;
+    return HttpResponse.json(
+      db
+        .list()
+        .filter(
+          (r) =>
+            (!q.get('issuer') || r.config.issuerId === q.get('issuer')) &&
+            (!q.get('wallet') || r.config.walletId === q.get('wallet')) &&
+            (!q.get('verifier') || r.config.verifierId === q.get('verifier')) &&
+            (!q.get('format') || r.config.format === q.get('format')) &&
+            (!q.get('verdict') || r.verdict === q.get('verdict')),
+        ),
+    );
   }),
 
   http.get(api('/runs/:id'), ({ params }) => {

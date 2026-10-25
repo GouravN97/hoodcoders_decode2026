@@ -1270,6 +1270,8 @@ Spec references are descriptive rather than section numbers, because section num
 | T-REVOKED | Credential whose status-list bit is set | mock issuer | REVOKED / INVALID |
 | T-TRANSIT-VP-MUTATE | Flip a byte in the `vp_token` of the `direct_post` body | transit (works with the real Inji Wallet) | INVALID |
 
+**Implemented** (wallet hook in the mock wallet, or issuance profile): T-SIG-FLIP, T-CLAIM-EDIT, T-WRONG-TYPE, T-NONCE-REPLAY (resubmit an earlier accepted `vp_token`, or sign over its nonce) and T-EXPIRED (Certify's `FarmerCredential*Expired` copies, listed as `capabilities.expiredVariants` in the catalog). The catalogue is `TAMPER_CATALOGUE` in `packages/shared/src/tamper.ts`; the run records the applied tamper (`RunDetail.tamper`), marks the carrying exchange (`Exchange.tampered`, shown in the inspector's Tamper tab) and reports whether the verifier caught it (finding `TAMPER-001`). Not implemented yet: the direct-verify and transit mechanisms, T-AUD-MISMATCH, T-SDJWT-DISCLOSURE-EDIT, T-KB-STRIP, T-UNTRUSTED-ISSUER, T-REVOKED, T-TRANSIT-VP-MUTATE. Results against Inji Verify 0.18.2 are in `docs/external-credential-interoperability-results.md`.
+
 "Replay" also means re-running any earlier run from its detail page with the same configuration, which is how regressions are confirmed after a module upgrade.
 
 ---

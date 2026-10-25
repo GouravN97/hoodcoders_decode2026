@@ -19,25 +19,19 @@ and `dc+sd-jwt`) and mDoc (`mso_mdoc`).
 
 Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji Verify, the playground UI, the BFF with its Protocol Tap and a headless mock wallet with Docker Compose. A run issues a real credential from Certify (pre-authorized code), the wallet presents it to Inji Verify over OpenID4VP, every message passes through the tap and shows in the inspector, and the run ends with a pass/fail report.
 
-| Lane                                                                | State                                                                                                                                                                                                                                                                                                                                                                   |
-| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Certify → mock wallet → Inji Verify, SD-JWT (`vc+sd-jwt`)           | Valid and tampered (Invalid) runs pass, in the browser and over the API                                                                                                                                                                                                                                                                                                 |
-| Certify → mock wallet → Inji Verify, JSON-LD (`ldp_vc`)             | Built; needs internet access for the JSON-LD contexts, not yet run against the real stack                                                                                                                                                                                                                                                                               |
-| Certify → Inji Wallet (Android app, `v1.0.0-alpha.1`) → Inji Verify | `vc+sd-jwt` and `ldp_vc` both verify **VALID** on an emulator through Cloudflare quick tunnels ([how to test](injistack/README.md#test-with-inji-wallet-on-an-android-emulator))                                                                                                                                                                                        |
-| Hovi Playground → Inji Wallet                                       | Selectable in the playground for Issue-only PID tests in `dc+sd-jwt` and `mso_mdoc`; live offer creation verified, wallet acceptance still needs a phone scan                                                                                                                                                                                                           |
-| Animo Playground → Inji Wallet                                      | Selectable in the playground for Issue-only EUDI PID tests in `dc+sd-jwt` and `mso_mdoc`; live offer creation verified, wallet acceptance still needs a phone scan                                                                                                                                                                                                      |
-| Inji Web                                                            | Mimoto, Inji Web and the eSignet login work once the keystore and `wallet-demo` client are set up ([`register-wallet-client.sh`](injistack/scripts/register-wallet-client.sh)); the download still fails because eSignet rejects the client assertion with `invalid_client` ([details and what was ruled out](injistack/README.md#current-local-web-wallet-limitation)) |
-| Valid-but-expired                                                   | `FarmerCredentialExpired` (ldp_vc) and `FarmerCredentialSdJwtExpired` (vc+sd-jwt) are signed with validity in the past; Inji Verify reports **EXPIRED**                                                                                                                                                                                                                 |
 | Lane | State |
 | --- | --- |
-| Certify → mock wallet → Inji Verify, SD-JWT (`vc+sd-jwt`) | Valid and tampered (Invalid) runs pass, in the browser and over the API |
-| Certify → mock wallet → Inji Verify, JSON-LD (`ldp_vc`) | Built; needs internet access for the JSON-LD contexts, not yet run against the real stack |
-| Certify → Inji Wallet (Android app, `v1.0.0-alpha.1`) → Inji Verify | SD-JWT (`vc+sd-jwt`) verifies **VALID** on an emulator through Cloudflare quick tunnels. JSON-LD issuance and VP submission reach Verify, but the pinned Wallet/OpenID4VP dependency emits `did:jwk:...#0#0`, so Verify rejects the presentation. |
+| Certify → mock wallet → Inji Verify, SD-JWT (`vc+sd-jwt`) | Valid runs pass, in the browser and over the API |
+| Certify → mock wallet → Inji Verify, JSON-LD (`ldp_vc`) | Valid runs pass against the real stack (checked 25 October 2026; the JSON-LD contexts need internet access) |
+| Certify → Inji Wallet (Android app, `v1.0.0-alpha.1`) → Inji Verify | SD-JWT (`vc+sd-jwt`) verifies **VALID** on an emulator through Cloudflare quick tunnels ([how to test](injistack/README.md#test-with-inji-wallet-on-an-android-emulator)). JSON-LD issuance and VP submission reach Verify, but the pinned Wallet/OpenID4VP dependency emits `did:jwk:...#0#0`, so Verify rejects the presentation. |
+| Hovi Playground → Inji Wallet | Selectable for Issue-only PID tests in `dc+sd-jwt` and `mso_mdoc`; live offer creation verified, wallet acceptance still needs a phone scan |
+| Animo Playground → Inji Wallet | Selectable for Issue-only EUDI PID tests in `dc+sd-jwt` and `mso_mdoc`; live offer creation verified, wallet acceptance still needs a phone scan |
 | Inji Web | Mimoto, Inji Web and the eSignet login work once the keystore and `wallet-demo` client are set up ([`register-wallet-client.sh`](injistack/scripts/register-wallet-client.sh)); the download still fails because eSignet rejects the client assertion with `invalid_client` ([details and what was ruled out](injistack/README.md#current-local-web-wallet-limitation)) |
-| Valid-but-expired | `FarmerCredentialExpired` (ldp_vc) and `FarmerCredentialSdJwtExpired` (vc+sd-jwt) are signed with validity in the past; Inji Verify reports **EXPIRED** |
+| Valid-but-expired | `FarmerCredentialExpired` (ldp_vc) and `FarmerCredentialSdJwtExpired` (vc+sd-jwt) are signed with validity in the past; Inji Verify reports **EXPIRED** (also the T-EXPIRED tamper) |
+| Replay & tamper (mock wallet → Inji Verify 0.18.2) | Run live for both formats. Broken signature and edited claim are rejected (**INVALID**). Inji Verify **accepts** a wrong credential type for both formats, and, for SD-JWT only, a replayed `vp_token` or one bound to an old nonce ([results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182)) |
 
-The reproducible passing demonstrations are SD-JWT with the mock wallet
-(including tampered/Invalid runs) and SD-JWT with the mobile Wallet. The mobile
+The reproducible passing demonstrations are SD-JWT and JSON-LD with the mock
+wallet (including tamper runs) and SD-JWT with the mobile Wallet. The mobile
 JSON-LD result is a documented compatibility limitation of the pinned Wallet
 release, not a Certify or Docker-stack failure.
 
@@ -54,6 +48,20 @@ Issuing and verifying are separate parties, so each half can run on its own. Pic
 | Present & verify only | hold → present → verify, using a credential the wallet already holds | wallet, verifier         |
 
 For present-only runs the mock wallet lists what earlier runs stored in it, so you can pick a credential (it forgets them when its container restarts). With Inji Wallet on a phone or Inji Web, you confirm on the run screen that the credential is already in the wallet. Present-only is the easiest way to test the verifier while the issuer is down, or to present an already-expired credential for **Valid-but-expired**.
+
+### Replay and tamper
+
+With the **Mock wallet**, the run settings offer a **Tamper** picker: a deliberate negative test that checks whether the verifier rejects a broken presentation (plan §13). Picking one sets the expected result; the expected result otherwise defaults to **Valid** and is not remembered between visits.
+
+| Tamper | What is broken | Expected |
+| --- | --- | --- |
+| `T-SIG-FLIP` | One character of the issuer's signature | Invalid |
+| `T-CLAIM-EDIT` | One claim value after issuance (a disclosure for SD-JWT) | Invalid |
+| `T-WRONG-TYPE` | The verifier asks for a type the wallet does not hold; the wallet presents its credential anyway | Invalid |
+| `T-NONCE-REPLAY` | The `vp_token` of an earlier, accepted run is resubmitted, or a new one is signed over that run's nonce | Invalid |
+| `T-EXPIRED` | Certify issues the expired copy of the credential (`FarmerCredential*Expired`) | Valid but expired |
+
+The inspector marks the message that carried the tampered payload and shows a before/after view, and the result card and report say whether the verifier caught the tamper. A tamper refused with another status than expected (for example Rejected at `direct_post` instead of Invalid) passes with a warning; one the verifier accepts fails the run.
 
 ### Test Hovi or Animo issuance in Inji Wallet
 

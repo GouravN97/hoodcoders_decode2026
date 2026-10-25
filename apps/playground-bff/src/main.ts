@@ -5,8 +5,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { dirname, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  canReplayFrom,
   CreateRunRequestSchema,
   ManualEvidenceRequestSchema,
+  predict,
   PredictRequestSchema,
   renderReportMarkdown,
   type HeldCredentialsResponse,
@@ -14,7 +16,6 @@ import {
 } from '@playground/shared';
 import { z } from 'zod';
 import { AdapterError } from './adapters/http.ts';
-import { predict } from './catalog/compatibility.ts';
 import { ImplementationRegistry } from './catalog/registry.ts';
 import { decodeExchange } from './decoder/payload-decoder.ts';
 import { attachGateway, broadcastHealth } from './realtime/gateway.ts';
@@ -142,6 +143,12 @@ async function readJson<S extends z.ZodType>(
   return parsed.data;
 }
 
+/** What the predictor cannot see in the catalog: whether an earlier run can be replayed. */
+const predictContext = (config: RunConfig) =>
+  config.tamper?.id === 'T-NONCE-REPLAY'
+    ? { replayAvailable: runs.list().some((r) => canReplayFrom(r, config)) }
+    : {};
+
 const runOr404 = (id: string) => {
   const record = runs.get(id);
   if (!record) throw new HttpError(404, 'Run not found');
@@ -242,7 +249,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
 
   if (method === 'POST' && path === '/api/compatibility/predict') {
     const config = await readJson(req, PredictRequestSchema, 'run config');
-    return send(res, 200, predict(config, await registry.list(30_000)));
+    return send(res, 200, predict(config, await registry.list(30_000), predictContext(config)));
   }
 
   // ── Runs ──

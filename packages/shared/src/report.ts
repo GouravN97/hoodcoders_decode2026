@@ -19,7 +19,14 @@ import {
   stepLabel,
   verdictLabel,
 } from './labels';
-import { EvidenceKindSchema, RunPhaseSchema, runUsesRole, StepStatusSchema } from './run';
+import {
+  EvidenceKindSchema,
+  RunPhaseSchema,
+  runUsesRole,
+  StepStatusSchema,
+  type RunDetail,
+} from './run';
+import { AppliedTamperSchema } from './tamper';
 
 export const ReportParticipantSchema = z.object({
   role: RoleSchema,
@@ -28,6 +35,24 @@ export const ReportParticipantSchema = z.object({
   version: z.string().optional(),
 });
 export type ReportParticipant = z.infer<typeof ReportParticipantSchema>;
+
+/** The tamper a run applied and whether the verifier caught it. */
+export const ReportTamperSchema = AppliedTamperSchema.extend({
+  observedOutcome: VerificationOutcomeSchema.optional(),
+  /** true: the verifier did not accept it; false: it answered Valid; null: no answer to judge. */
+  detected: z.boolean().nullable(),
+});
+export type ReportTamper = z.infer<typeof ReportTamperSchema>;
+
+/** The report's tamper section for a run, or undefined when the run applied none. */
+export function reportTamper(run: Pick<RunDetail, 'tamper' | 'observedOutcome'>): ReportTamper | undefined {
+  if (!run.tamper) return undefined;
+  return {
+    ...run.tamper,
+    ...(run.observedOutcome ? { observedOutcome: run.observedOutcome } : {}),
+    detected: run.observedOutcome ? run.observedOutcome !== 'VALID' : null,
+  };
+}
 
 export const RunReportSchema = z.object({
   runId: z.string(),
@@ -68,6 +93,7 @@ export const RunReportSchema = z.object({
   ),
   correlation: z.enum(['exact', 'heuristic']),
   findings: z.array(CheckFindingSchema),
+  tamper: ReportTamperSchema.optional(),
   inspectorUrl: z.string(),
 });
 export type RunReport = z.infer<typeof RunReportSchema>;
@@ -95,6 +121,16 @@ function outcomeCell(r: RunReport): string {
   );
 }
 
+/** One line on the tamper and the verifier's reaction to it. */
+export function tamperLine(t: ReportTamper, verifierName: string): string {
+  const what = `${t.id} ${t.label.toLowerCase()} (${t.mechanism}${t.defaulted ? ', applied because the run expected Invalid' : ''})`;
+  if (t.detected === null) return `${what}: no verification result to judge`;
+  if (!t.detected) return `${what}: **not detected** — ${verifierName} returned ${outcomeLabel('VALID')}`;
+  if (t.observedOutcome === t.expectedOutcome)
+    return `${what}: ${verifierName} rejected it as expected (${outcomeLabel(t.expectedOutcome)})`;
+  return `${what}: ${verifierName} rejected it as ${outcomeLabel(t.observedOutcome!)}, not the expected ${outcomeLabel(t.expectedOutcome)}`;
+}
+
 export function formatDuration(ms: number | undefined): string {
   if (ms === undefined) return '—';
   if (ms < 1000) return `${Math.round(ms)} ms`;
@@ -114,6 +150,7 @@ export function renderReportMarkdown(r: RunReport): string {
   lines.push(`| Credential configuration | ${cell(r.credentialConfigurationId)} |`);
   lines.push(`| Proof type | ${cell(r.proofType)} |`);
   lines.push(`| Outcome | ${outcomeCell(r)} |`);
+  if (r.tamper) lines.push(`| Tamper | ${cell(tamperLine(r.tamper, r.verifier.displayName))} |`);
   lines.push(
     `| Error detail | ${cell(r.error ? `${stepLabel(r.error.step)}: ${r.error.message}${r.error.status ? ` (HTTP ${r.error.status})` : ''}` : undefined)} |`,
   );

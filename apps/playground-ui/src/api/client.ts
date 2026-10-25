@@ -10,6 +10,7 @@ import {
   PredictResponseSchema,
   RunReportSchema,
   RunResponseSchema,
+  RunsResponseSchema,
   type ManualEvidenceRequest,
   type RunConfig,
 } from '@playground/shared';
@@ -63,6 +64,13 @@ export const api = {
     getJson('/api/compatibility/predict', PredictResponseSchema, post(config)),
   createRun: (config: RunConfig) => getJson('/api/runs', CreateRunResponseSchema, post(config)),
   run: (id: string) => getJson(`/api/runs/${encodeURIComponent(id)}`, RunResponseSchema),
+  /** Saved runs, newest first, filtered by the BFF's query parameters (plan §11.2). */
+  runs: (query: Record<string, string | undefined> = {}) => {
+    const params = new URLSearchParams(
+      Object.entries(query).filter((e): e is [string, string] => Boolean(e[1])),
+    );
+    return getJson(`/api/runs${params.size ? `?${params}` : ''}`, RunsResponseSchema);
+  },
   exchanges: (id: string) =>
     getJson(`/api/runs/${encodeURIComponent(id)}/exchanges?decode=true`, ExchangesResponseSchema),
   manualEvidence: async (id: string, body: ManualEvidenceRequest) => {

@@ -10,12 +10,18 @@ import {
   type RunConfig,
   type RunDetail,
   type RunEvent,
+  type VerificationOutcome,
 } from '@playground/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { IssuerAdapter, VerifierAdapter, WalletAdapter } from '../adapters/types.ts';
 import type { ImplementationRegistry } from '../catalog/registry.ts';
-import { addExchange, clearStore, nextSeq } from '../store/exchange-store.ts';
-import { credentialTypeOf, pickHeldCredential, RunOrchestrator } from './orchestrator.ts';
+import { addExchange, clearStore, getExchangesByRun, nextSeq } from '../store/exchange-store.ts';
+import {
+  credentialTypeOf,
+  pickHeldCredential,
+  RunOrchestrator,
+  WRONG_CREDENTIAL_TYPE,
+} from './orchestrator.ts';
 import { RunStore, runEvents } from './store.ts';
 
 function exchange(
@@ -79,11 +85,17 @@ interface Scenario {
   human?: boolean;
   /** Issuer is outside the Tap; successful storage is confirmed from the run screen. */
   externalManual?: boolean;
-  outcome?: 'VALID' | 'INVALID';
+  outcome?: VerificationOutcome;
   issuerDown?: boolean;
   verifierDown?: boolean;
   /** What the headless wallet already holds (present-only). */
   held?: HeldCredential[];
+  /** The wallet cannot tamper (like Inji Wallet). */
+  noTamper?: boolean;
+  /** HTTP status the verifier answers the wallet's direct_post with. */
+  respondStatus?: number;
+  /** The vp_token the wallet posts. */
+  vpToken?: string;
 }
 
 const heldCredential = (over: Partial<HeldCredential> = {}): HeldCredential => ({
@@ -104,9 +116,15 @@ function setup(s: Scenario) {
     createPresentationRequest: 0,
     respondedWith: undefined as string | undefined,
     requestedType: undefined as string | undefined,
+    tamper: undefined as string | undefined,
+    replay: undefined as unknown,
   };
+  const issuerDescriptor = descriptor('issuer', 'issuer');
+  issuerDescriptor.capabilities.expiredVariants = { Farmer: 'FarmerExpired' };
+  const walletDescriptor = descriptor('wallet', 'wallet', s.human ? 'human-in-the-loop' : 'headless');
+  walletDescriptor.capabilities.supportsTamper = !s.noTamper;
   const issuer: IssuerAdapter = {
-    descriptor: descriptor('issuer', 'issuer'),
+    descriptor: issuerDescriptor,
     healthCheck: async () => (s.issuerDown ? 'down' : 'up'),
     version: async () => '1',
     listCredentialConfigurations: async () => [
@@ -130,7 +148,7 @@ function setup(s: Scenario) {
   };
   let respondedAt = 0;
   const wallet: WalletAdapter = {
-    descriptor: descriptor('wallet', 'wallet', s.human ? 'human-in-the-loop' : 'headless'),
+    descriptor: walletDescriptor,
     healthCheck: async () => 'up',
     version: async () => '1',
     issuanceDelivery: () =>
@@ -165,16 +183,36 @@ function setup(s: Scenario) {
           listCredentials: async () => s.held ?? [],
           respond: async (ctx, _handle, opts) => {
             calls.respondedWith = opts.credentialId;
+            calls.tamper = opts.tamper;
+            calls.replay = opts.replay;
             exchange(ctx.runId, ProtocolStep.VP_REQUEST_OBJECT, {
               method: 'GET',
               resBody:
                 'eyJhbGciOiJFZERTQSJ9.eyJwcmVzZW50YXRpb25fZGVmaW5pdGlvbiI6eyJpZCI6InBkIn19.sig',
             });
             exchange(ctx.runId, ProtocolStep.VP_RESPONSE, {
-              reqBody: 'vp_token=TOKEN&presentation_submission=%7B%7D&state=req_1',
+              reqBody: `vp_token=${encodeURIComponent(s.vpToken ?? 'TOKEN')}&presentation_submission=%7B%7D&state=req_1`,
+              status: s.respondStatus ?? 200,
+              resBody: s.respondStatus ? '{"errorCode":"INVALID_NONCE"}' : '{}',
             });
             respondedAt = Date.now();
-            return { credentialId: 'c1', responseUri: 'https://test', status: 200, warnings: [] };
+            return {
+              credentialId: 'c1',
+              responseUri: 'https://test',
+              status: s.respondStatus ?? 200,
+              warnings: [],
+              ...(opts.tamper === 'T-CLAIM-EDIT'
+                ? {
+                    tamperEvidence: {
+                      target: 'credential' as const,
+                      summary: 'Changed one claim value after issuance',
+                      changes: [{ path: 'disclosure fullName', before: 'A', after: 'A (edited)' }],
+                      before: 'h.p.s~',
+                      after: 'h.p.s~edited~',
+                    },
+                  }
+                : {}),
+            };
           },
         }),
   };
@@ -197,11 +235,14 @@ function setup(s: Scenario) {
       await new Promise((r) => setTimeout(r, 20));
       return respondedAt ? 'VP_SUBMITTED' : 'ACTIVE';
     },
-    fetchResult: async () => ({
+    fetchResult: async () => {
+      if (s.respondStatus) throw new Error('no submission for this transaction');
+      return {
       outcome: s.outcome ?? 'VALID',
       perCredential: [],
       verifierRaw: { vpResultStatus: 'SUCCESS' },
-    }),
+      };
+    },
   };
   const entries = [issuer, wallet, verifier].map(
     (a) => ({ ...a.descriptor, health: 'up', version: '1' }) as CatalogEntry,
@@ -218,7 +259,7 @@ function setup(s: Scenario) {
     humanTimeoutMs: 400,
     manualTimeoutMs: 400,
   });
-  return { orchestrator, store, calls };
+  return { orchestrator, store, calls, entries };
 }
 
 const config: RunConfig = {
@@ -501,5 +542,136 @@ describe('credentialTypeOf', () => {
       credentialTypeOf(JSON.stringify({ type: ['VerifiableCredential', 'FarmerCredential'] })),
     ).toBe('FarmerCredential');
     expect(credentialTypeOf('not a credential')).toBeUndefined();
+  });
+});
+
+describe('RunOrchestrator prediction', () => {
+  it('does not call a failed run known-unsupported because of stale cached health', async () => {
+    const { orchestrator, store, entries } = setup({ outcome: 'VALID' });
+    entries.find((e) => e.id === 'wallet')!.health = 'down';
+    const { id, prediction } = await orchestrator.create({ ...config, expectedOutcome: 'INVALID' });
+    expect(prediction?.status).toBe('unsupported');
+    const run = await finished(store, id);
+    expect(run.prediction?.status).toBe('supported');
+    expect(run.verdict).toBe('FAIL');
+  });
+});
+
+describe('RunOrchestrator tampers', () => {
+  const findings = (store: RunStore, id: string) => store.get(id)!.findings;
+
+  it('records the default signature flip of an Invalid run', async () => {
+    const { orchestrator, store, calls } = setup({ outcome: 'INVALID' });
+    const { id } = await orchestrator.create({ ...config, expectedOutcome: 'INVALID' });
+    const run = await finished(store, id);
+    expect(calls.tamper).toBe('T-SIG-FLIP');
+    expect(run.tamper).toMatchObject({ id: 'T-SIG-FLIP', defaulted: true, expectedOutcome: 'INVALID' });
+    expect(findings(store, id).find((f) => f.checkId === 'TAMPER-001')?.severity).toBe('PASS');
+    expect(run.verdict).toBe('PASS');
+  });
+
+  it('marks the tampered exchange and fails when the verifier accepts the tamper', async () => {
+    const { orchestrator, store } = setup({ outcome: 'VALID' });
+    const { id } = await orchestrator.create({
+      ...config,
+      tamper: { id: 'T-CLAIM-EDIT' },
+      expectedOutcome: 'INVALID',
+    });
+    const run = await finished(store, id);
+    const posted = getExchangesByRun(id).find((e) => e.step === ProtocolStep.VP_RESPONSE)!;
+    expect(posted.tampered).toMatchObject({
+      ruleId: 'T-CLAIM-EDIT',
+      target: 'credential',
+      before: 'h.p.s~',
+      after: 'h.p.s~edited~',
+    });
+    expect(posted.tampered?.diff).toContain('disclosure fullName: A → A (edited)');
+    expect(run.tamper).toMatchObject({ exchangeId: posted.id, summary: 'Changed one claim value after issuance' });
+    expect(run.artifacts.find((a) => a.kind === 'tampered_credential')?.raw).toBe('h.p.s~edited~');
+    expect(findings(store, id).find((f) => f.checkId === 'TAMPER-001')).toMatchObject({
+      severity: 'FAIL',
+      message: expect.stringContaining('accepted a presentation the playground had tampered with'),
+    });
+    expect(run.verdict).toBe('FAIL');
+  });
+
+  it('asks for a type the credential does not have for T-WRONG-TYPE', async () => {
+    const { orchestrator, store, calls } = setup({ outcome: 'INVALID' });
+    const { id } = await orchestrator.create({
+      ...config,
+      tamper: { id: 'T-WRONG-TYPE' },
+      expectedOutcome: 'INVALID',
+    });
+    await finished(store, id);
+    expect(calls.requestedType).toBe(WRONG_CREDENTIAL_TYPE);
+    expect(calls.tamper).toBe('T-WRONG-TYPE');
+  });
+
+  it('issues the expired copy of the credential for T-EXPIRED, without a wallet hook', async () => {
+    const { orchestrator, store, calls } = setup({ outcome: 'EXPIRED' });
+    const { id } = await orchestrator.create({
+      ...config,
+      tamper: { id: 'T-EXPIRED' },
+      expectedOutcome: 'EXPIRED',
+    });
+    const run = await finished(store, id);
+    expect(run.config.credentialConfigurationId).toBe('FarmerExpired');
+    expect(run.tamper?.summary).toContain('instead of Farmer');
+    expect(calls.tamper).toBeUndefined();
+    expect(run.verdict).toBe('PASS');
+  });
+
+  it('replays the vp_token of the newest earlier run', async () => {
+    const { orchestrator, store, calls } = setup({ vpToken: 'h.p.s~d~kb' });
+    const earlier = await finished(store, (await orchestrator.create(config)).id);
+    const { id } = await orchestrator.create({
+      ...config,
+      tamper: { id: 'T-NONCE-REPLAY' },
+      expectedOutcome: 'INVALID',
+    });
+    const run = await finished(store, id);
+    expect(calls.replay).toEqual({
+      variant: 'resubmit-vp',
+      vpToken: 'h.p.s~d~kb',
+      presentationSubmission: '{}',
+    });
+    expect(run.tamper?.sourceRunId).toBe(earlier.id);
+    expect(run.config.tamper?.params).toEqual({ variant: 'resubmit-vp', sourceRunId: earlier.id });
+  });
+
+  it('refuses a replay with nothing to replay', async () => {
+    const { orchestrator } = setup({});
+    await expect(
+      orchestrator.create({ ...config, tamper: { id: 'T-NONCE-REPLAY' }, expectedOutcome: 'INVALID' }),
+    ).rejects.toThrow(/no vp_token to replay/);
+  });
+
+  it('counts a tampered submission refused at direct_post as caught', async () => {
+    const { orchestrator, store } = setup({ respondStatus: 400 });
+    const { id } = await orchestrator.create({
+      ...config,
+      tamper: { id: 'T-SIG-FLIP' },
+      expectedOutcome: 'INVALID',
+    });
+    const run = await finished(store, id);
+    expect(statusOf(run, ProtocolStep.VP_RESPONSE)?.status).toBe('done');
+    expect(run.observedOutcome).toBe('REJECTED');
+    expect(findings(store, id).map((f) => f.checkId)).toEqual(
+      expect.arrayContaining(['TAMPER-001', 'TAMPER-002']),
+    );
+    expect(run.verdict).toBe('PASS_WITH_WARNINGS');
+  });
+
+  it('rejects tampers the selection cannot apply', async () => {
+    const { orchestrator } = setup({ noTamper: true });
+    await expect(
+      orchestrator.create({ ...config, tamper: { id: 'T-SIG-FLIP' }, expectedOutcome: 'INVALID' }),
+    ).rejects.toThrow(/cannot apply T-SIG-FLIP/);
+    await expect(
+      orchestrator.create({ ...config, mode: 'issue-only', tamper: { id: 'T-EXPIRED' } }),
+    ).rejects.toThrow(/presents the credential/);
+    await expect(
+      orchestrator.create({ ...config, credentialConfigurationId: 'Other', tamper: { id: 'T-EXPIRED' } }),
+    ).rejects.toThrow(/no expired copy/);
   });
 });

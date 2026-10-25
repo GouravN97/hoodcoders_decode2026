@@ -79,6 +79,11 @@ export const CapabilitiesSchema = z.object({
   deliveryChannels: z.array(DeliveryChannelSchema),
   automation: AutomationSchema,
   supportsTamper: z.boolean(),
+  /**
+   * Issuers only: credential configuration → a copy of it signed with validity in the past, used
+   * by the T-EXPIRED tamper for a genuine Valid-but-expired credential.
+   */
+  expiredVariants: z.record(z.string(), z.string()).optional(),
 });
 export type Capabilities = z.infer<typeof CapabilitiesSchema>;
 
@@ -123,9 +128,17 @@ export const InteropVerdictSchema = z.enum([
 ]);
 export type InteropVerdict = z.infer<typeof InteropVerdictSchema>;
 
+export const TamperMechanismSchema = z.enum([
+  'wallet-hook',
+  'issuance-profile',
+  'direct-verify',
+  'transit',
+]);
+export type TamperMechanism = z.infer<typeof TamperMechanismSchema>;
+
 export const TamperSpecSchema = z.object({
   id: z.string(),
-  mechanism: z.enum(['wallet-hook', 'direct-verify', 'transit']).optional(),
+  mechanism: TamperMechanismSchema.optional(),
   params: z.record(z.string(), z.unknown()).optional(),
 });
 export type TamperSpec = z.infer<typeof TamperSpecSchema>;
@@ -233,7 +246,18 @@ export const ExchangeSchema = z.object({
   response: HttpMessageSchema.optional(),
   correlationKeys: z.array(z.string()),
   outOfBand: z.boolean(),
-  tampered: z.object({ ruleId: z.string(), diff: z.string() }).optional(),
+  tampered: z
+    .object({
+      ruleId: z.string(),
+      /** Human-readable summary of what changed, one change per line. */
+      diff: z.string(),
+      /** What was altered: the credential inside the vp_token, the vp_token itself, or neither. */
+      target: z.enum(['credential', 'vp_token', 'presentation']).optional(),
+      /** The payload before and after tampering, for the inspector's side-by-side view. */
+      before: z.string().optional(),
+      after: z.string().optional(),
+    })
+    .optional(),
   /** Artifacts extracted from this exchange (offer, vp_token, ...); set by the BFF's ArtifactExtractor. */
   artifactKinds: z.array(ArtifactKindSchema).optional(),
 });

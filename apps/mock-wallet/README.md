@@ -16,21 +16,23 @@ One P-256 key per process serves as both the proof-of-possession key during issu
 | Method | Path | Body → response |
 | --- | --- | --- |
 | `POST` | `/offers/accept` | `{ offerUri, txCode? }` → the stored credential |
-| `POST` | `/presentations/respond` | `{ authorizationRequestUri, credentialId?, tamper? }` → `{ credentialId, responseUri, status, body, warnings }` |
+| `POST` | `/presentations/respond` | `{ authorizationRequestUri, credentialId?, tamper?, replay? }` → `{ credentialId, responseUri, status, body, tamperEvidence?, warnings }` |
 | `GET` | `/credentials` | held credentials |
 | `DELETE` | `/credentials/:id` | 204 |
 | `GET` | `/health` | `{ status, holderDid, credentials }` |
 
 Errors are `{ message, statusCode, step, upstreamStatus?, upstreamBody? }`, where `step` is the protocol step that failed, so the run screen can show the issuer's or verifier's own error. Schemas: `packages/shared/src/mockWallet.ts`.
 
-`tamper` breaks the credential before it is presented, for repeatable Invalid results:
+`tamper` breaks the presentation on purpose (plan §13; the catalogue is `TAMPER_CATALOGUE` in `packages/shared/src/tamper.ts`). The response's `tamperEvidence` says what changed (before/after), which the BFF shows in the inspector:
 
 | Tamper | SD-JWT | JSON-LD |
 | --- | --- | --- |
 | `T-SIG-FLIP` | changes one character of the issuer signature | changes one character of `proof.proofValue` |
 | `T-CLAIM-EDIT` | replaces a disclosure with a new one for the same claim | edits a `credentialSubject` claim |
+| `T-WRONG-TYPE` | presents the held credential although it does not match the input descriptor | same |
+| `T-NONCE-REPLAY` | with `replay: { variant: "resubmit-vp", vpToken }` posts an earlier `vp_token` unchanged; with `replay: { variant: "stale-nonce", nonce }` signs the key-binding JWT over that nonce | same, with the VP proof `challenge` |
 
-A run whose expected result is Invalid uses `T-SIG-FLIP` unless the run config names another tamper.
+A tampered presentation that the verifier refuses at `direct_post` with a 4xx is returned as an answer (`status` 4xx), not as an error. A run whose expected result is Invalid and that names no tamper uses `T-SIG-FLIP`.
 
 ## Run
 

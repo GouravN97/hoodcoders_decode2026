@@ -14,7 +14,14 @@ export async function pickImplementation(page: Page, role: 'Issuer' | 'Wallet' |
 /** Opens the selector with mock runs sped up, picks roles and settings, and presses Run. */
 export async function startRun(
   page: Page,
-  opts: { wallet: string; format: 'ldp_vc' | 'vc+sd-jwt'; expected?: 'Valid' | 'Invalid' | 'Valid but expired'; scenario?: string },
+  opts: {
+    wallet: string;
+    format: 'ldp_vc' | 'vc+sd-jwt';
+    expected?: 'Valid' | 'Invalid' | 'Valid but expired';
+    scenario?: string;
+    /** Tamper picker option, e.g. 'Edited claim (T-CLAIM-EDIT)'. */
+    tamper?: string;
+  },
 ) {
   const qs = new URLSearchParams({ simSpeed: '4', ...(opts.scenario ? { scenario: opts.scenario } : {}) });
   await page.goto(`/?${qs}`);
@@ -22,6 +29,7 @@ export async function startRun(
   await pickImplementation(page, 'Wallet', opts.wallet);
   await pickImplementation(page, 'Verifier', 'Inji Verify');
   await page.getByRole('radiogroup', { name: 'Credential format' }).getByText(opts.format, { exact: true }).click();
+  if (opts.tamper) await page.getByLabel('Tamper').selectOption({ label: opts.tamper });
   if (opts.expected) {
     await page.getByRole('radiogroup', { name: 'Expected result' }).getByText(opts.expected, { exact: true }).click();
   }

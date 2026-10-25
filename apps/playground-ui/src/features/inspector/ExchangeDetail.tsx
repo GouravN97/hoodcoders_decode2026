@@ -7,14 +7,16 @@ import { decodeBody, decodeUrlQuery, type Decoded } from '../../lib/decode';
 import { redactHeaders, redactText } from '../../lib/redact';
 import { DecodedView } from './DecodedView';
 import { partyLabel } from './messages';
+import { TamperDiff } from './TamperDiff';
 
 type Side = 'request' | 'response';
-type View = 'decoded' | 'raw' | 'headers';
+type View = 'decoded' | 'raw' | 'headers' | 'tamper';
 
 export function ExchangeDetail({ exchange, reveal }: { exchange: ExchangeWithDecoded; reveal: boolean }) {
   const hasResponse = !exchange.outOfBand && exchange.response !== undefined;
   const [side, setSide] = useState<Side>(hasResponse && !exchange.request.body ? 'response' : 'request');
-  const [view, setView] = useState<View>('decoded');
+  // A tampered message opens on what the tamper changed.
+  const [view, setView] = useState<View>(exchange.tampered ? 'tamper' : 'decoded');
   const activeSide: Side = side === 'response' && !hasResponse ? 'request' : side;
 
   const message: HttpMessage | undefined = activeSide === 'request' ? exchange.request : exchange.response;
@@ -77,11 +79,13 @@ export function ExchangeDetail({ exchange, reveal }: { exchange: ExchangeWithDec
             { id: 'decoded', label: 'Decoded' },
             { id: 'raw', label: 'Raw' },
             { id: 'headers', label: 'Headers' },
+            ...(exchange.tampered ? [{ id: 'tamper' as const, label: 'Tamper' }] : []),
           ]}
         />
       </div>
 
-      <div className="min-w-0 p-4" role="tabpanel" aria-label={`${activeSide} ${view}`}>
+      <div className="min-w-0 p-4" role="tabpanel" aria-label={view === 'tamper' ? 'tamper' : `${activeSide} ${view}`}>
+        {view === 'tamper' && exchange.tampered && <TamperDiff tampered={exchange.tampered} reveal={reveal} />}
         {view === 'decoded' && (
           <div className="flex flex-col gap-3">
             {urlQuery && Object.keys(urlQuery.fields).length > 0 && (

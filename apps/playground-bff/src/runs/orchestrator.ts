@@ -11,12 +11,16 @@ import { randomUUID } from 'node:crypto';
 import {
   formatLabel,
   modeLabel,
+  planTamper,
+  predict,
   ProtocolStep,
   runUsesPhase,
   runUsesRole,
   stepLabel,
   stepTemplateFor,
   SUPPORTED_RUN_MODES,
+  TamperPlanError,
+  tamperDiffText,
   type Artifact,
   type ArtifactKind,
   type CatalogEntry,
@@ -36,6 +40,8 @@ import {
   type RunStep,
   type StepError,
   type StepStatus,
+  type TamperEvidence,
+  type TamperPlan,
 } from '@playground/shared';
 import { AdapterError } from '../adapters/http.ts';
 import type {
@@ -46,7 +52,6 @@ import type {
   VerifierAdapter,
   WalletAdapter,
 } from '../adapters/types.ts';
-import { predict } from '../catalog/compatibility.ts';
 import type { ImplementationRegistry } from '../catalog/registry.ts';
 import { decodeBody } from '../decoder/payload-decoder.ts';
 import { arm, disarm, register } from '../tap/correlator.ts';
@@ -54,6 +59,7 @@ import {
   addExchange,
   exchangeEvents,
   getExchangesByRun,
+  markTampered,
   nextSeq,
 } from '../store/exchange-store.ts';
 import { publish, type RunRecord, type RunStore } from './store.ts';
@@ -68,6 +74,11 @@ export interface OrchestratorSettings {
 }
 
 export class RunConfigError extends Error {}
+
+/** The type a T-WRONG-TYPE run asks for: no issuer in the catalog issues it. */
+export const WRONG_CREDENTIAL_TYPE = 'PlaygroundWrongTypeCredential';
+
+
 class Cancelled extends Error {}
 
 /** A step that failed or gave up; `status` is 'failed' or 'inconclusive'. */
@@ -119,6 +130,14 @@ export class RunOrchestrator {
       throw new RunConfigError(`${modeLabel(config.mode)} runs are not supported yet`);
 
     const catalog = await this.registry.list(30_000);
+    let planned: ReturnType<typeof planTamper>;
+    try {
+      planned = planTamper(config, catalog, this.store.list());
+    } catch (e) {
+      if (e instanceof TamperPlanError) throw new RunConfigError(e.message);
+      throw e;
+    }
+    config = planned.config;
     const run: RunDetail = {
       id: randomUUID(),
       createdAt: new Date().toISOString(),
@@ -140,6 +159,7 @@ export class RunOrchestrator {
         implementationId: id,
         version: catalog.find((c) => c.id === id)?.version ?? 'unknown',
       })),
+      ...(planned.tamper ? { tamper: planned.tamper.applied } : {}),
       artifacts: [],
     };
     const record = this.store.create(run);
@@ -150,6 +170,8 @@ export class RunOrchestrator {
       walletEntry,
       this.settings,
       () => this.store.persist(record),
+      planned.tamper,
+      catalog,
     );
     void execution.start();
     return run;
@@ -199,6 +221,8 @@ const fromWallet = (ex: Exchange) => ex.from !== 'bff' && !ex.outOfBand;
 class RunExecution {
   private readonly ctx: RunContext;
   private readonly headless: boolean;
+  /** A tampered submission the verifier refused at direct_post (an answer, not a wallet failure). */
+  private rejectedAtSubmission?: { status: number; body?: string };
 
   constructor(
     private readonly record: RunRecord,
@@ -206,6 +230,9 @@ class RunExecution {
     private readonly walletEntry: CatalogEntry,
     private readonly settings: OrchestratorSettings,
     private readonly persist: () => void,
+    private readonly tamper?: TamperPlan,
+    /** The catalog the prediction was made from; its health may be up to 30 s old. */
+    private readonly catalog: CatalogEntry[] = [],
   ) {
     this.ctx = {
       runId: record.run.id,
@@ -508,7 +535,22 @@ class RunExecution {
     ];
     const down = [];
     for (const [name, health] of required) if ((await health) === 'down') down.push(name);
-    if (down.length === 0) return true;
+    if (down.length === 0) {
+      // The prediction used cached health; the roles just checked are up, so a stale "not
+      // responding" must not later turn a real failure into "known unsupported".
+      const checked = [
+        ...(runUsesRole(mode, 'issuer') ? [issuer.descriptor.id] : []),
+        ...(runUsesRole(mode, 'verifier') ? [verifier.descriptor.id] : []),
+        ...(this.headless ? [wallet.descriptor.id] : []),
+      ];
+      if (this.catalog.length > 0) {
+        this.run.prediction = predict(
+          this.run.config,
+          this.catalog.map((e) => (checked.includes(e.id) ? { ...e, health: 'up' as const } : e)),
+        );
+      }
+      return true;
+    }
 
     this.run.errorSummary = `Not responding: ${down.join(', ')}`;
     for (const s of this.run.steps) this.step(s.step, 'skipped');
@@ -701,7 +743,11 @@ class RunExecution {
 
     this.status('Presenting');
     this.step('request_created', 'active');
-    const credentialType = await this.credentialType(held);
+    // T-WRONG-TYPE asks for a type the held credential does not have.
+    const credentialType =
+      this.tamper?.def.id === 'T-WRONG-TYPE'
+        ? WRONG_CREDENTIAL_TYPE
+        : await this.credentialType(held);
     const request = await this.attempt('request_created', () =>
       verifier.createPresentationRequest(this.ctx, {
         id: config.credentialConfigurationId,
@@ -734,11 +780,15 @@ class RunExecution {
 
     this.step('request_delivered', 'active');
     this.delivery('presentation', wallet.presentationDelivery(this.ctx, request));
-    const tamper = this.tamperFor(config);
+    const hook =
+      this.tamper?.def.mechanism === 'wallet-hook'
+        ? (this.tamper.def.id as MockWalletTamper)
+        : undefined;
     const credentialId = held?.id ?? config.heldCredentialId;
     const responding = wallet.respond?.(this.ctx, request, {
       ...(credentialId ? { credentialId } : {}),
-      ...(tamper ? { tamper } : {}),
+      ...(hook ? { tamper: hook } : {}),
+      ...(this.tamper?.replay ? { replay: this.tamper.replay } : {}),
     });
     responding?.catch(() => {});
     const submitted = this.pollUntilSubmitted(request);
@@ -771,11 +821,21 @@ class RunExecution {
     } else this.done(ProtocolStep.VP_REQUEST_OBJECT, fetched);
 
     this.step(ProtocolStep.VP_RESPONSE, 'active');
-    const posted = await this.waitFor(
-      ProtocolStep.VP_RESPONSE,
-      (ex) => fromWallet(ex) && ex.step === ProtocolStep.VP_RESPONSE,
-      anyProof,
-    );
+    const isResponse = (ex: Exchange) => fromWallet(ex) && ex.step === ProtocolStep.VP_RESPONSE;
+    let posted: Evidence;
+    try {
+      posted = await this.waitFor(ProtocolStep.VP_RESPONSE, isResponse, anyProof);
+    } catch (e) {
+      // A verifier refusing a tampered submission outright has answered the run's question.
+      const status = e instanceof StepOutcome ? (e.error.status ?? 0) : 0;
+      if (!this.tamper || status < 400 || status >= 500) throw e;
+      const exchange = getExchangesByRun(this.run.id).filter(isResponse).at(-1);
+      posted = { kind: 'tap', ...(exchange ? { exchange } : {}) };
+      this.rejectedAtSubmission = {
+        status,
+        ...((e as StepOutcome).error.body ? { body: (e as StepOutcome).error.body } : {}),
+      };
+    }
     if (posted.exchange?.request.body) {
       const form = new URLSearchParams(posted.exchange.request.body);
       const vpToken = form.get('vp_token');
@@ -791,6 +851,13 @@ class RunExecution {
     this.done(ProtocolStep.VP_RESPONSE, posted);
     if (responding) {
       const answer = await this.attempt(ProtocolStep.VP_RESPONSE, () => responding);
+      if (this.tamper && answer.status >= 400 && answer.status < 500) {
+        this.rejectedAtSubmission ??= {
+          status: answer.status,
+          ...(answer.body ? { body: answer.body } : {}),
+        };
+      }
+      if (answer.tamperEvidence) this.recordTamper(answer.tamperEvidence, posted.exchange);
       for (const warning of answer.warnings) {
         this.finding({
           checkId: 'VP-REQ-001',
@@ -801,8 +868,46 @@ class RunExecution {
         });
       }
     }
+    if (this.rejectedAtSubmission) {
+      this.finding({
+        checkId: 'TAMPER-002',
+        stage: 'presentation',
+        severity: 'INFO',
+        message: `The verifier refused the tampered submission at direct_post with HTTP ${this.rejectedAtSubmission.status}`,
+        specRef: 'OpenID4VP — response mode direct_post',
+        ...(posted.exchange ? { exchangeId: posted.exchange.id } : {}),
+      });
+    }
     this.run.delivery = undefined;
     return { request, submitted };
+  }
+
+  /** Marks the exchange that carried the tampered payload and keeps the payload as an artifact. */
+  private recordTamper(evidence: TamperEvidence, exchange: Exchange | undefined) {
+    const applied = this.run.tamper;
+    if (!applied) return;
+    if (exchange) {
+      markTampered(exchange.id, {
+        ruleId: applied.id,
+        diff: tamperDiffText(evidence),
+        target: evidence.target,
+        ...(evidence.before ? { before: evidence.before } : {}),
+        ...(evidence.after ? { after: evidence.after } : {}),
+      });
+    }
+    if (evidence.after) {
+      this.artifact(
+        evidence.target === 'credential' ? 'tampered_credential' : 'tampered_vp',
+        evidence.after,
+        exchange?.id,
+        this.run.config.format,
+      );
+    }
+    this.run.tamper = {
+      ...applied,
+      summary: evidence.summary,
+      ...(exchange ? { exchangeId: exchange.id } : {}),
+    };
   }
 
   // ---------- verifying ----------
@@ -812,10 +917,20 @@ class RunExecution {
     const config = this.run.config;
     this.status('Verifying');
     this.step(ProtocolStep.VERIFY_RESULT, 'active');
-    await submitted.catch(() => undefined);
+    const refused = this.rejectedAtSubmission;
+    // A refused submission never reaches VP_SUBMITTED, so do not wait for it.
+    if (!refused) await submitted.catch(() => undefined);
     const result = await this.attempt(ProtocolStep.VERIFY_RESULT, () =>
       verifier.fetchResult(this.ctx, request),
-    );
+    ).catch((e: unknown) => {
+      if (!refused) throw e;
+      return {
+        outcome: 'REJECTED' as const,
+        perCredential: [],
+        verifierRaw: { directPostStatus: refused.status, directPostBody: refused.body },
+        reason: `direct_post answered HTTP ${refused.status}`,
+      };
+    });
     const resultExchange = getExchangesByRun(this.run.id)
       .filter((e) => e.step === ProtocolStep.VERIFY_RESULT)
       .at(-1);
@@ -880,15 +995,6 @@ class RunExecution {
     }
   }
 
-  /** An Invalid run with a wallet that can tamper breaks the issuer's signature (plan §13 T-SIG-FLIP). */
-  private tamperFor(config: RunConfig): MockWalletTamper | undefined {
-    const requested = config.tamper?.id;
-    if (requested === 'T-SIG-FLIP' || requested === 'T-CLAIM-EDIT') return requested;
-    if (config.expectedOutcome === 'INVALID' && this.walletEntry.capabilities.supportsTamper)
-      return 'T-SIG-FLIP';
-    return undefined;
-  }
-
   private reportUrl = () => `/api/runs/${this.run.id}/report?format=md`;
 
   /** Evaluating → Reported, applying the plan §6 verdict rule. */
@@ -904,10 +1010,15 @@ class RunExecution {
     const failed =
       steps.some((s) => s.status === 'failed') ||
       (verifies && !this.run.observedOutcome && !inconclusive);
+    const observed = this.run.observedOutcome;
+    // A tamper run asks one question: did the verifier refuse it? Refusing with another status
+    // than expected (e.g. Rejected instead of Invalid) still passes, with a warning.
+    const tamperCaught = Boolean(this.run.tamper && observed && observed !== 'VALID');
+    if (this.run.tamper && verifies && observed) this.tamperFinding(observed);
     const matched =
       !failed &&
       (verifies
-        ? this.run.observedOutcome === this.run.config.expectedOutcome
+        ? observed === this.run.config.expectedOutcome || tamperCaught
         : steps.every((s) => s.status === 'done'));
     const warned = this.record.findings.some((f) => f.severity === 'WARN');
     const verdict: InteropVerdict = inconclusive
@@ -932,6 +1043,24 @@ class RunExecution {
     this.status('Reported');
     publish({ type: 'run.completed', runId: this.run.id, verdict, reportUrl: this.reportUrl() });
     this.persist();
+  }
+
+  private tamperFinding(observed: NonNullable<RunDetail['observedOutcome']>) {
+    const tamper = this.run.tamper!;
+    const verifier = this.adapters.verifier.descriptor.displayName;
+    const caught = observed !== 'VALID';
+    this.finding({
+      checkId: 'TAMPER-001',
+      stage: 'verification',
+      severity: !caught ? 'FAIL' : observed === tamper.expectedOutcome ? 'PASS' : 'WARN',
+      message: !caught
+        ? `${verifier} accepted a presentation the playground had tampered with (${tamper.id} ${tamper.label.toLowerCase()})`
+        : observed === tamper.expectedOutcome
+          ? `${verifier} rejected the ${tamper.id} presentation as expected`
+          : `${verifier} rejected the ${tamper.id} presentation as ${observed}, not the expected ${tamper.expectedOutcome}`,
+      specRef: 'Playground tamper catalogue (plan §13)',
+      ...(tamper.exchangeId ? { exchangeId: tamper.exchangeId } : {}),
+    });
   }
 
   private cancel() {

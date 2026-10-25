@@ -8,6 +8,7 @@ import type {
   HeldCredential,
   ImplementationDescriptor,
   MockWalletTamper,
+  RespondRequest,
   RespondResponse,
   RunConfig,
   VerificationOutcome,
@@ -93,7 +94,7 @@ export interface WalletAdapter extends RoleAdapter {
   respond?(
     ctx: RunContext,
     handle: PresentationRequestHandle,
-    opts: { credentialId?: string; tamper?: MockWalletTamper },
+    opts: { credentialId?: string; tamper?: MockWalletTamper; replay?: RespondRequest['replay'] },
   ): Promise<RespondResponse>;
 }
 

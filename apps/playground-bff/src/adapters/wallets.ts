@@ -8,6 +8,7 @@ import {
   type DeliveryInstruction,
   type ImplementationDescriptor,
   type MockWalletTamper,
+  type RespondRequest,
 } from '@playground/shared';
 import { z } from 'zod';
 import { AdapterError, probeHealth, staticVersion } from './http.ts';
@@ -203,7 +204,7 @@ export class MockWalletAdapter implements WalletAdapter {
   async respond(
     ctx: RunContext,
     handle: PresentationRequestHandle,
-    opts: { credentialId?: string; tamper?: MockWalletTamper },
+    opts: { credentialId?: string; tamper?: MockWalletTamper; replay?: RespondRequest['replay'] },
   ) {
     return RespondResponseSchema.parse(
       await this.call(

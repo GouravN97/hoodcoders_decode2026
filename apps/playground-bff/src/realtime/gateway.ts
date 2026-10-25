@@ -24,7 +24,7 @@ export function attachGateway(http: HttpServer, corsOrigins: string[] | '*'): Se
   runEvents.on('event', (event: RunEvent) => io.to(room(event.runId)).emit(event.type, event));
 
   // Exchanges become run.exchange summaries; the UI fetches full bodies on demand.
-  exchangeEvents.on('run-exchange', (ex: Exchange) => {
+  const forward = (ex: Exchange) => {
     if (!ex.runId) return;
     const { request, response, ...summary } = ex;
     publish({
@@ -36,7 +36,9 @@ export function attachGateway(http: HttpServer, corsOrigins: string[] | '*'): Se
         responseBytes: Buffer.byteLength(response?.body ?? ''),
       },
     });
-  });
+  };
+  exchangeEvents.on('run-exchange', forward);
+  exchangeEvents.on('exchange-updated', forward);
 
   return io;
 }
