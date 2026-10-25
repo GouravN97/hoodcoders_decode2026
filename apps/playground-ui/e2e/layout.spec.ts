@@ -31,3 +31,14 @@ test('inspector detail stays inside its card on narrow screens', async ({ page }
   const panel = await inspector.getByRole('tabpanel').boundingBox();
   expect(panel!.x + panel!.width).toBeLessThanOrEqual(card!.x + card!.width + 1);
 });
+
+test('the sequence diagram scrolls inside the inspector instead of widening the page', async ({ page }) => {
+  await startRun(page, { wallet: 'Mock wallet', format: 'vc+sd-jwt' });
+  await expect(page.getByTestId('report-verdict')).toBeVisible({ timeout: 20_000 });
+  await openSection(page, 'Protocol inspector');
+  const inspector = page.getByRole('region', { name: 'Protocol inspector' });
+  await inspector.getByRole('tablist', { name: 'Show messages as' }).getByRole('tab', { name: 'Sequence' }).click();
+  await expect(inspector.locator('.seq-diagram svg text.messageText').first()).toBeVisible();
+  await noHorizontalScroll(page);
+  await page.screenshot({ path: `test-results/sequence-${test.info().project.name}.png`, fullPage: true });
+});

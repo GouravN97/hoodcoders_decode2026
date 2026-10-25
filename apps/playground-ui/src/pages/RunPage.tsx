@@ -165,6 +165,8 @@ export function RunPage() {
                 selectedId={selectedExchangeId}
                 onSelect={selectExchange}
                 loading={exchanges.isPending}
+                run={data}
+                catalog={catalog.data ?? []}
               />
             ),
           },

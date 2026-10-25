@@ -5,12 +5,15 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { dirname, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  buildSequence,
   canReplayFrom,
   CreateRunRequestSchema,
   ManualEvidenceRequestSchema,
   predict,
   PredictRequestSchema,
   renderReportMarkdown,
+  SequenceViewSchema,
+  toMermaid,
   type HeldCredentialsResponse,
   type RunConfig,
 } from '@playground/shared';
@@ -300,6 +303,23 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
         ),
       })),
     );
+  }
+
+  // Mermaid sequence diagram (plan §11.2); ?view=openid4vp|full.
+  if (method === 'GET' && (m = path.match(/^\/api\/runs\/([^/]+)\/sequence$/))) {
+    const { run } = runOr404(decodeURIComponent(m[1]!));
+    const view = SequenceViewSchema.catch('full').parse(url.searchParams.get('view') ?? 'full');
+    const model = buildSequence(
+      {
+        config: run.config,
+        exchanges: getExchangesByRun(run.id),
+        steps: run.steps,
+        catalog: await registry.list(60_000),
+        ...(run.tamper ? { tamper: run.tamper } : {}),
+      },
+      view,
+    );
+    return send(res, 200, { view, source: toMermaid(model), model });
   }
 
   if (method === 'POST' && (m = path.match(/^\/api\/runs\/([^/]+)\/manual-evidence$/))) {

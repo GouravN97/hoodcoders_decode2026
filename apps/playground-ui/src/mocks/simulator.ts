@@ -24,6 +24,7 @@ import {
   type VerificationOutcome,
 } from '@playground/shared';
 import { simulatedEvents } from '../realtime';
+import { mockCatalog } from './catalog';
 import { db, type MockRunRecord } from './db';
 import { buildFixtures, ISSUER_URL, VERIFIER_URL, type RunFixtures, type Scenario } from './fixtures';
 
@@ -260,10 +261,77 @@ class RunSimulation {
   async play(): Promise<void> {
     this.status('Preflight');
     await this.sleep(400);
-    if (this.uses('issuing') && !(await this.issue())) return;
-    if (!(await this.hold())) return;
+    if (this.uses('issuing') && this.externalIssuer) {
+      // Like the BFF: the wallet talks to the external issuer directly, outside the tap.
+      if (!(await this.issueExternal())) return;
+    } else {
+      if (this.uses('issuing') && !(await this.issue())) return;
+      if (!(await this.hold())) return;
+    }
     if (this.uses('presenting') && !(await this.presentAndVerify())) return;
     return this.finish();
+  }
+
+  private get externalIssuer() {
+    return mockCatalog.find((c) => c.id === this.run.config.issuerId)?.vendor === 'external';
+  }
+
+  /**
+   * Hovi / Animo: the offer is the only message the playground sees. Token and credential are
+   * inferred from the holder confirming that the credential is in the wallet, as the BFF does.
+   */
+  private async issueExternal(): Promise<boolean> {
+    const { run } = this;
+    const issuer = mockCatalog.find((c) => c.id === run.config.issuerId)!;
+    this.status('Issuing');
+    this.step('offer_prepared', 'active');
+    await this.sleep(300);
+    const offerUri = `openid-credential-offer://?credential_offer_uri=${encodeURIComponent(
+      `${issuer.publicUrl.replace(/\/$/, '')}/offers/${crypto.randomUUID()}`,
+    )}`;
+    const oob = this.exchange({
+      component: issuer.id,
+      from: 'bff',
+      method: 'OOB',
+      url: offerUri,
+      step: ProtocolStep.VCI_CREDENTIAL_OFFER,
+      reqBody: offerUri,
+      outOfBand: true,
+      artifactKinds: ['offer'],
+    });
+    this.artifact('offer', offerUri, oob);
+    this.step('offer_prepared', 'done', { evidenceKind: 'adapter', exchangeId: oob });
+    this.step('offer_delivered', 'active');
+    this.delivery(
+      'issuance',
+      this.qr(offerUri, `Open the wallet and scan this ${issuer.displayName} credential offer.`),
+    );
+    this.step('offer_delivered', 'done', { evidenceKind: 'adapter' });
+
+    this.status('Holding');
+    this.step('credential_held', 'active');
+    if (!(await this.waitManual('credential_held', 120_000))) {
+      this.step('credential_held', 'inconclusive', {
+        error: { message: 'No confirmation that the credential reached the wallet within 2 minutes' },
+      });
+      await this.finish();
+      return false;
+    }
+    for (const step of [ProtocolStep.VCI_TOKEN, ProtocolStep.VCI_CREDENTIAL]) {
+      this.step(step, 'active');
+      this.step(step, 'done', { evidenceKind: 'manual' });
+    }
+    this.step('credential_held', 'done', { evidenceKind: 'manual' });
+    this.finding({
+      checkId: 'EXTERNAL-ISSUER-MANUAL-EVIDENCE',
+      stage: 'issuance',
+      severity: 'WARN',
+      message:
+        'The wallet contacted the external issuer directly. Token and credential completion are inferred from the holder confirming that the credential is visible in the wallet.',
+      specRef: 'OpenID4VCI 1.0 — credential offer and pre-authorized code flow',
+    });
+    this.run.delivery = undefined;
+    return true;
   }
 
   private async issue(): Promise<boolean> {

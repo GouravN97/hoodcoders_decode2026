@@ -1,13 +1,16 @@
 // RunReportBuilder (plan §8.2, Task 7): the pass/fail report for one run. The Markdown rendering
 // is shared with the UI (renderReportMarkdown in packages/shared).
 import {
+  buildSequence,
   reportTamper,
+  toMermaid,
   type CatalogEntry,
   type ReportParticipant,
   type Role,
   type RunReport,
 } from '@playground/shared';
 import { decodeBody } from '../decoder/payload-decoder.ts';
+import { getExchangesByRun } from '../store/exchange-store.ts';
 import type { RunRecord } from './store.ts';
 
 /** Signature method actually seen on the credential: the JWS alg for SD-JWT, proof.type for JSON-LD. */
@@ -51,6 +54,18 @@ export function buildRunReport(
           : undefined;
   const proofType = proofTypeOf(credential?.raw) ?? run.config.proofSuite;
   const tamper = reportTamper(run);
+  const sequence = toMermaid(
+    buildSequence(
+      {
+        config: run.config,
+        exchanges: getExchangesByRun(run.id),
+        steps: run.steps,
+        catalog,
+        ...(run.tamper ? { tamper: run.tamper } : {}),
+      },
+      'full',
+    ),
+  );
 
   return {
     runId: run.id,
@@ -85,6 +100,7 @@ export function buildRunReport(
     correlation: run.correlation,
     findings: record.findings,
     ...(tamper ? { tamper } : {}),
+    sequence,
     inspectorUrl: `${uiOrigin.replace(/\/$/, '')}/runs/${run.id}?view=inspector`,
   };
 }

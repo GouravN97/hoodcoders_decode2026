@@ -28,6 +28,7 @@ Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji V
 | Animo Playground → Inji Wallet | Selectable for Issue-only EUDI PID tests in `dc+sd-jwt` and `mso_mdoc`; live offer creation verified, wallet acceptance still needs a phone scan |
 | Inji Web | Mimoto, Inji Web and the eSignet login work once the keystore and `wallet-demo` client are set up ([`register-wallet-client.sh`](injistack/scripts/register-wallet-client.sh)); the download still fails because eSignet rejects the client assertion with `invalid_client` ([details and what was ruled out](injistack/README.md#current-local-web-wallet-limitation)) |
 | Valid-but-expired | `FarmerCredentialExpired` (ldp_vc) and `FarmerCredentialSdJwtExpired` (vc+sd-jwt) are signed with validity in the past; Inji Verify reports **EXPIRED** (also the T-EXPIRED tamper) |
+| Sequence diagram | Live in the inspector for every run; checked against the real stack (SD-JWT, mock wallet) and the in-browser mocks, in both themes |
 | Replay & tamper (mock wallet → Inji Verify 0.18.2) | Run live for both formats. Broken signature and edited claim are rejected (**INVALID**). Inji Verify **accepts** a wrong credential type for both formats, and, for SD-JWT only, a replayed `vp_token` or one bound to an old nonce ([results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182)) |
 
 The reproducible passing demonstrations are SD-JWT and JSON-LD with the mock
@@ -62,6 +63,16 @@ With the **Mock wallet**, the run settings offer a **Tamper** picker: a delibera
 | `T-EXPIRED` | Certify issues the expired copy of the credential (`FarmerCredential*Expired`) | Valid but expired |
 
 The inspector marks the message that carried the tampered payload and shows a before/after view, and the result card and report say whether the verifier caught the tamper. A tamper refused with another status than expected (for example Rejected at `direct_post` instead of Invalid) passes with a warning; one the verifier accepts fails the run.
+
+### Sequence diagram
+
+In the protocol inspector, **Sequence** shows the run's messages as an animated Mermaid sequence diagram that grows as the run goes; clicking an arrow opens that message underneath. **OpenID4VP** shows the presentation between the verifier, the wallet and the wallet's OpenID4VP library; **Full run** adds issuance.
+
+- Solid arrows were captured by the Protocol Tap (or handed out by the playground as a QR code or link).
+- Dashed arrows were **not** captured: the wallet's calls into its own library, and the token and credential requests a phone sends straight to an external issuer such as Hovi or Animo, which the run only knows from the holder's confirmation.
+- A tamper shows as a note on the library lane and a red arrow.
+
+The same diagram (full run) is in the Markdown report, and `GET /api/runs/:id/sequence?view=openid4vp|full` returns its Mermaid source.
 
 ### Test Hovi or Animo issuance in Inji Wallet
 
