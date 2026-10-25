@@ -96,6 +96,8 @@ interface Scenario {
   respondStatus?: number;
   /** The vp_token the wallet posts. */
   vpToken?: string;
+  /** A second verifier in the catalog, asked about the presented credential (VER-002). */
+  second?: { outcome?: VerificationOutcome; fails?: boolean; health?: 'up' | 'down' };
 }
 
 const heldCredential = (over: Partial<HeldCredential> = {}): HeldCredential => ({
@@ -118,6 +120,7 @@ function setup(s: Scenario) {
     requestedType: undefined as string | undefined,
     tamper: undefined as string | undefined,
     replay: undefined as unknown,
+    secondOpinionOn: undefined as string | undefined,
   };
   const issuerDescriptor = descriptor('issuer', 'issuer');
   issuerDescriptor.capabilities.expiredVariants = { Farmer: 'FarmerExpired' };
@@ -244,13 +247,29 @@ function setup(s: Scenario) {
       };
     },
   };
-  const entries = [issuer, wallet, verifier].map(
-    (a) => ({ ...a.descriptor, health: 'up', version: '1' }) as CatalogEntry,
+  const second: VerifierAdapter = {
+    ...verifier,
+    descriptor: { ...descriptor('second', 'verifier'), displayName: 'Second verifier' },
+    verifyCredential: async (ctx, credential) => {
+      calls.secondOpinionOn = credential;
+      exchange(ctx.runId, ProtocolStep.VC_DIRECT_VERIFY, { from: 'bff' });
+      if (s.second?.fails) throw new Error('HTTP 502');
+      return { outcome: s.second?.outcome ?? 'VALID', perCredential: [], verifierRaw: {} };
+    },
+  };
+  const entries = [issuer, wallet, verifier, ...(s.second ? [second] : [])].map(
+    (a) =>
+      ({
+        ...a.descriptor,
+        health: a === second ? (s.second?.health ?? 'up') : 'up',
+        version: '1',
+      }) as CatalogEntry,
   );
   const registry = {
     issuer: (id: string) => (id === 'issuer' ? issuer : undefined),
     wallet: (id: string) => (id === 'wallet' ? wallet : undefined),
-    verifier: (id: string) => (id === 'verifier' ? verifier : undefined),
+    verifier: (id: string) =>
+      id === 'verifier' ? verifier : id === 'second' && s.second ? second : undefined,
     list: async () => entries,
   } as unknown as ImplementationRegistry;
   const store = new RunStore();
@@ -689,5 +708,61 @@ describe('RunOrchestrator tampers', () => {
     await expect(
       orchestrator.create({ ...config, credentialConfigurationId: 'Other', tamper: { id: 'T-EXPIRED' } }),
     ).rejects.toThrow(/no expired copy/);
+  });
+});
+
+describe('RunOrchestrator second opinion (VER-002)', () => {
+  const ver002 = (store: RunStore, id: string) =>
+    store.get(id)!.findings.filter((f) => f.checkId === 'VER-002');
+
+  it('asks the other verifier about the presented credential, without the key-binding JWT', async () => {
+    const { orchestrator, store, calls } = setup({ second: {}, vpToken: 'h.p.s~d1~kb.jwt.sig' });
+    const run = await finished(store, (await orchestrator.create(config)).id);
+    expect(calls.secondOpinionOn).toBe('h.p.s~d1~');
+    expect(run.result?.secondOpinion).toMatchObject({
+      verifierId: 'second',
+      outcome: 'VALID',
+      comparable: true,
+      agrees: true,
+      exchangeId: expect.any(String),
+    });
+    expect(ver002(store, run.id)).toMatchObject([{ severity: 'INFO' }]);
+    expect(run.verdict).toBe('PASS');
+  });
+
+  it('warns when the verifiers disagree on the same credential', async () => {
+    const { orchestrator, store } = setup({ second: { outcome: 'INVALID' }, vpToken: 'h.p.s~' });
+    const run = await finished(store, (await orchestrator.create(config)).id);
+    expect(run.result?.secondOpinion).toMatchObject({ comparable: true, agrees: false });
+    expect(ver002(store, run.id)[0]).toMatchObject({
+      severity: 'WARN',
+      message: expect.stringContaining('disagree'),
+    });
+    expect(run.verdict).toBe('PASS_WITH_WARNINGS');
+  });
+
+  it('does not compare a verdict that rests on the presentation (replay, wrong type)', async () => {
+    const { orchestrator, store } = setup({ second: {}, outcome: 'INVALID', vpToken: 'h.p.s~' });
+    const run = await finished(
+      store,
+      (await orchestrator.create({ ...config, expectedOutcome: 'INVALID', tamper: { id: 'T-WRONG-TYPE' } })).id,
+    );
+    expect(run.result?.secondOpinion).toMatchObject({ outcome: 'VALID', comparable: false, agrees: false });
+    expect(ver002(store, run.id)[0]?.severity).toBe('INFO');
+  });
+
+  it('records a second verifier that cannot answer, without failing the run', async () => {
+    const { orchestrator, store } = setup({ second: { fails: true }, vpToken: 'h.p.s~' });
+    const run = await finished(store, (await orchestrator.create(config)).id);
+    expect(run.verdict).toBe('PASS');
+    expect(run.result?.secondOpinion).toBeUndefined();
+    expect(ver002(store, run.id)[0]?.message).toContain('No second opinion');
+  });
+
+  it('skips verifiers that were down at the last health check', async () => {
+    const { orchestrator, store, calls } = setup({ second: { health: 'down' }, vpToken: 'h.p.s~' });
+    const run = await finished(store, (await orchestrator.create(config)).id);
+    expect(calls.secondOpinionOn).toBeUndefined();
+    expect(ver002(store, run.id)).toEqual([]);
   });
 });

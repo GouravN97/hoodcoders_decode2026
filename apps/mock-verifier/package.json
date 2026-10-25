@@ -1,0 +1,21 @@
+{
+  "name": "@playground/mock-verifier",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MPL-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@playground/protocol-core": "workspace:*",
+    "@playground/shared": "workspace:*",
+    "jose": "6.2.12",
+    "tsx": "4.23.15",
+    "zod": "4.6.5"
+  }
+}

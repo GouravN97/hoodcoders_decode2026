@@ -11,3 +11,5 @@ export * from './compatibility';
 export * from './tamperPlan';
 export * from './sequence';
 export * from './history';
+export * from './mockVerifier';
+export * from './secondOpinion';

@@ -87,3 +87,29 @@ curl -s -X POST http://localhost:8101/api/runs -H 'content-type: application/jso
 ```
 
 `T-NONCE-REPLAY` needs an earlier untampered run of the same format that Inji Verify accepted. The inspector's **Tamper** tab on the `vp_token` message shows the nonce the request asked for and the nonce that was sent.
+
+## Mock verifier and second opinion
+
+Date: 25 October 2026  
+Branch: `feat/mock-verifier`  
+Stack: `injistack` Docker Compose: Inji Certify `0.14.0` (pre-authorized code), the playground mock wallet, Inji Verify `0.18.2` and the playground mock verifier `0.1.0` (`/mock-verifier/…` on the Verify host), every message captured by the Protocol Tap.
+
+Each row is one full `vc+sd-jwt` run started through `POST /api/runs`. The **second opinion** column is the other verifier's verdict on the presented credential alone (`VER-002`): Inji Verify's `/v1/verify/vc-verification` (`Content-Type: application/vc+sd-jwt`) for runs that end at the mock verifier, and the mock verifier's `api/verify-credential` for runs that end at Inji Verify. "Not compared" means the run is judged on presentation checks that a credential-only check cannot make.
+
+| Tamper | Mock verifier (failing check) | Inji Verify on the credential alone | Inji Verify (full run) | Mock verifier on the credential alone |
+| --- | --- | --- | --- | --- |
+| None | VALID, all ten checks pass | VALID, agrees | VALID | VALID, agrees |
+| `T-SIG-FLIP` | INVALID (issuer signature) | INVALID, agrees | INVALID | INVALID, agrees |
+| `T-CLAIM-EDIT` | INVALID (disclosures: `gender` not committed to by the issuer) | INVALID, agrees | INVALID | INVALID, agrees |
+| `T-WRONG-TYPE` | INVALID (requested credential: `$.vct` matching `PlaygroundWrongTypeCredential` not met) | VALID, not compared | **VALID** | VALID, not compared |
+| `T-NONCE-REPLAY` | INVALID (holder binding: key-binding nonce is the earlier request's) | VALID, not compared | **VALID** | VALID, not compared |
+| `T-EXPIRED` | EXPIRED (validity: expired at 2025-01-01) | EXPIRED, agrees | EXPIRED | EXPIRED, agrees |
+
+What this shows:
+
+1. The mock verifier interoperates with Inji Certify's SD-JWT: it verifies the issuer signature from the `x5c` header, all 13 disclosures and the mock wallet's key-binding JWT. Certify's `iss` is `mosip.certify.domain.url` (`https://<certify-host>:8443`, with the port, also in tunnel mode); that is the value its trust list needs.
+2. On the credential itself, the two verifiers never disagreed: same verdict for the genuine, broken-signature, edited-claim and expired credentials.
+3. The two Inji Verify gaps found with the tamper runs are presentation checks, not credential checks: the mock verifier catches both, at the requested-credential and holder-binding stages. This confirms the gaps are on Inji Verify's side and not an artefact of the mock wallet's presentations.
+4. `ldp_vc` gets no second opinion: the mock verifier checks SD-JWT VC only.
+
+Not run yet: Certify → Inji Wallet (emulator) → mock verifier. It needs the Cloudflare tunnels (the phone cannot reach `*.localhost`), and the mock verifier's `did:web` client ID must be portless (`MOCK_VERIFIER_DID`, which `tunnel-up.sh` now sets).

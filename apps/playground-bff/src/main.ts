@@ -63,6 +63,13 @@ const TAPS = [
     upstream: env.TAP_UPSTREAM_VERIFY ?? '',
     publicOrigin: env.VERIFY_PUBLIC_URL,
   },
+  // The mock verifier is published as /mock-verifier/… on the Verify host.
+  {
+    component: 'mock-verifier',
+    port: Number(env.TAP_MOCK_VERIFIER_PORT ?? 3004),
+    upstream: env.TAP_UPSTREAM_MOCK_VERIFIER ?? '',
+    publicOrigin: env.VERIFY_PUBLIC_URL,
+  },
 ];
 const tapUrl = (component: string) => {
   const t = TAPS.find((x) => x.component === component && x.upstream);
@@ -74,6 +81,7 @@ const registry = new ImplementationRegistry(CATALOG_DIR, {
   certifyApiUrl: env.CERTIFY_API_URL || tapUrl('certify'),
   verifyApiUrl: env.VERIFY_API_URL || tapUrl('verify'),
   verifyClientId: env.VERIFY_CLIENT_ID ?? 'did:web:verify.localhost%3A8443:v1:verify',
+  mockVerifierApiUrl: env.MOCK_VERIFIER_API_URL || tapUrl('mock-verifier'),
   // Optional stable overrides. Without them the Hovi adapter discovers the public browser-client
   // values from playground.hovi.id, where they are intentionally exposed to every visitor.
   hoviSupabaseUrl: env.HOVI_SUPABASE_URL,
@@ -410,7 +418,7 @@ registry.on('health', (event) => broadcastHealth(io, event));
 for (const tap of TAPS) {
   if (!tap.upstream) {
     console.log(
-      `[tap] TAP_UPSTREAM_${tap.component.toUpperCase()} not set — ${tap.component} tap disabled`,
+      `[tap] TAP_UPSTREAM_${tap.component.toUpperCase().replaceAll('-', '_')} not set — ${tap.component} tap disabled`,
     );
     continue;
   }

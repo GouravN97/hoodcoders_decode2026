@@ -16,6 +16,7 @@ import {
 import { parse } from 'yaml';
 import { InjiCertifyIssuerAdapter } from '../adapters/inji-certify.ts';
 import { InjiVerifyServiceAdapter } from '../adapters/inji-verify.ts';
+import { MockVerifierAdapter } from '../adapters/mock-verifier.ts';
 import {
   AnimoPlaygroundIssuerAdapter,
   HoviPlaygroundIssuerAdapter,
@@ -36,6 +37,7 @@ export interface AdapterSettings {
   certifyApiUrl: string;
   verifyApiUrl: string;
   verifyClientId: string;
+  mockVerifierApiUrl?: string;
   hoviSupabaseUrl?: string;
   hoviSupabaseAnonKey?: string;
 }
@@ -52,6 +54,8 @@ const FACTORIES: Record<string, Factory> = {
       s.verifyApiUrl || d.internalUrl || d.publicUrl,
       s.verifyClientId,
     ),
+  MockVerifierAdapter: (d, s) =>
+    new MockVerifierAdapter(d, s.mockVerifierApiUrl || d.internalUrl || d.publicUrl),
   HoviPlaygroundIssuerAdapter: (d, s) =>
     new HoviPlaygroundIssuerAdapter(d, {
       supabaseUrl: s.hoviSupabaseUrl,
@@ -62,7 +66,6 @@ const FACTORIES: Record<string, Factory> = {
   InjiWebWalletAdapter: (d) => new InjiWebWalletAdapter(d),
   MockWalletAdapter: (d) => new MockWalletAdapter(d),
 };
-
 
 interface Slot {
   descriptor: ImplementationDescriptor;

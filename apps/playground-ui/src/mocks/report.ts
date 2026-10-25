@@ -88,6 +88,7 @@ export function buildRunReport(record: MockRunRecord, catalog: CatalogEntry[]): 
     correlation: run.correlation,
     findings: record.findings,
     ...(tamper ? { tamper } : {}),
+    ...(run.result?.secondOpinion ? { secondOpinion: run.result.secondOpinion } : {}),
     sequence,
     inspectorUrl: `${location.origin}/runs/${run.id}#inspector`,
   };

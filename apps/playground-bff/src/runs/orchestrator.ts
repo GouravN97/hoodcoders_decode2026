@@ -9,6 +9,7 @@
 // headless ones.
 import { randomUUID } from 'node:crypto';
 import {
+  credentialFromVpToken,
   formatLabel,
   modeLabel,
   planTamper,
@@ -16,6 +17,8 @@ import {
   ProtocolStep,
   runUsesPhase,
   runUsesRole,
+  secondOpinionComparable,
+  secondOpinionFinding,
   stepLabel,
   stepTemplateFor,
   SUPPORTED_RUN_MODES,
@@ -38,6 +41,7 @@ import {
   type RunPhase,
   type RunState,
   type RunStep,
+  type SecondOpinion,
   type StepError,
   type StepStatus,
   type TamperEvidence,
@@ -50,6 +54,7 @@ import type {
   PresentationRequestHandle,
   RunContext,
   VerifierAdapter,
+  VerifierResult,
   WalletAdapter,
 } from '../adapters/types.ts';
 import type { ImplementationRegistry } from '../catalog/registry.ts';
@@ -176,9 +181,10 @@ export class RunOrchestrator {
     };
     const record = this.store.create(run);
     const walletEntry = catalog.find((c) => c.id === config.walletId)!;
+    const secondVerifier = this.secondVerifierFor(config, catalog);
     const execution = new RunExecution(
       record,
-      { issuer, wallet, verifier },
+      { issuer, wallet, verifier, ...(secondVerifier ? { secondVerifier } : {}) },
       walletEntry,
       this.settings,
       () => this.store.persist(record),
@@ -187,6 +193,21 @@ export class RunOrchestrator {
     );
     void execution.start();
     return run;
+  }
+
+  /**
+   * The verifier asked for a second opinion (VER-002): another verifier that checks this format,
+   * can verify a credential on its own and was up at the last health check. Inji first.
+   */
+  private secondVerifierFor(config: RunConfig, catalog: CatalogEntry[]): VerifierAdapter | undefined {
+    if (!runUsesPhase(config.mode, 'verifying')) return undefined;
+    for (const entry of catalog) {
+      if (entry.role !== 'verifier' || entry.id === config.verifierId || entry.health !== 'up') continue;
+      if (!entry.capabilities.formats.includes(config.format)) continue;
+      const adapter = this.registry.verifier(entry.id);
+      if (adapter?.verifyCredential) return adapter;
+    }
+    return undefined;
   }
 
   /** Marks a run heuristic when the armed-window strategy bound one of its exchanges. */
@@ -213,6 +234,8 @@ interface Adapters {
   issuer: IssuerAdapter;
   wallet: WalletAdapter;
   verifier: VerifierAdapter;
+  /** Checks the presented credential on its own after the run's verifier has answered. */
+  secondVerifier?: VerifierAdapter;
 }
 
 interface Evidence {
@@ -773,7 +796,7 @@ class RunExecution {
       (e) => e.step === ProtocolStep.VERIFY_CREATE_REQUEST,
     );
     const authOob = this.outOfBand(
-      'verify',
+      verifier.component ?? 'verify',
       ProtocolStep.VP_AUTH_REQUEST,
       request.authorizationRequestUri,
       ['auth_request'],
@@ -932,7 +955,7 @@ class RunExecution {
     const refused = this.rejectedAtSubmission;
     // A refused submission never reaches VP_SUBMITTED, so do not wait for it.
     if (!refused) await submitted.catch(() => undefined);
-    const result = await this.attempt(ProtocolStep.VERIFY_RESULT, () =>
+    const result: VerifierResult = await this.attempt(ProtocolStep.VERIFY_RESULT, () =>
       verifier.fetchResult(this.ctx, request),
     ).catch((e: unknown) => {
       if (!refused) throw e;
@@ -952,16 +975,21 @@ class RunExecution {
       resultExchange?.id,
     );
     this.run.observedOutcome = result.outcome;
+    const secondOpinion = await this.secondOpinion(result);
     this.run.result = {
       outcome: result.outcome,
       perCredential: result.perCredential,
       verifierRaw: result.verifierRaw,
+      ...(result.stages ? { stages: result.stages } : {}),
+      ...(secondOpinion ? { secondOpinion } : {}),
     };
     publish({
       type: 'run.result',
       runId: this.run.id,
       outcome: result.outcome,
       verifierRaw: result.verifierRaw,
+      ...(result.stages ? { stages: result.stages } : {}),
+      ...(secondOpinion ? { secondOpinion } : {}),
     });
     if (result.reason && result.outcome !== config.expectedOutcome)
       this.run.errorSummary = `Verifier: ${result.reason}`;
@@ -969,6 +997,55 @@ class RunExecution {
       evidenceKind: 'adapter',
       ...(resultExchange ? { exchangeId: resultExchange.id } : {}),
     });
+  }
+
+  /**
+   * VER-002: the other verifier checks the credential the wallet presented, on its own. A failure
+   * to get an answer is recorded and never fails the run.
+   */
+  private async secondOpinion(primary: VerifierResult): Promise<SecondOpinion | undefined> {
+    const second = this.adapters.secondVerifier;
+    const vpToken = this.run.artifacts.find((a) => a.kind === 'vp_token')?.raw;
+    const credential = vpToken ? credentialFromVpToken(vpToken) : undefined;
+    if (!second?.verifyCredential || !credential || primary.outcome === 'ERROR') return undefined;
+    const primaryName = this.adapters.verifier.descriptor.displayName;
+    const name = second.descriptor.displayName;
+    let answer: VerifierResult;
+    try {
+      answer = await second.verifyCredential(this.ctx, credential, this.run.config.format);
+    } catch (e) {
+      if (this.ctx.signal.aborted) throw e;
+      this.finding({
+        checkId: 'VER-002',
+        stage: 'verification',
+        severity: 'INFO',
+        message: `No second opinion: ${name} could not check the credential (${(e as Error).message})`,
+        specRef: 'Playground differential verification (plan §12)',
+      });
+      return undefined;
+    }
+    const exchange = getExchangesByRun(this.run.id)
+      .filter((e) => e.step === ProtocolStep.VC_DIRECT_VERIFY)
+      .at(-1);
+    const comparable = secondOpinionComparable(primary, this.run.tamper?.id);
+    const opinion: SecondOpinion = {
+      verifierId: second.descriptor.id,
+      displayName: name,
+      outcome: answer.outcome,
+      ...(answer.stages ? { stages: answer.stages } : {}),
+      ...(answer.reason ? { reason: answer.reason } : {}),
+      comparable,
+      agrees: answer.outcome === primary.outcome,
+      ...(exchange ? { exchangeId: exchange.id } : {}),
+    };
+    this.finding({
+      checkId: 'VER-002',
+      stage: 'verification',
+      ...secondOpinionFinding(opinion, { name: primaryName, outcome: primary.outcome }),
+      specRef: 'Playground differential verification (plan §12)',
+      ...(exchange ? { exchangeId: exchange.id } : {}),
+    });
+    return opinion;
   }
 
   /** Long-polls Inji Verify until the wallet has submitted; rejects if the request expires. */

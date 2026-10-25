@@ -1,0 +1,173 @@
+// VpValidationPipeline (plan §8.4): every check the verifier makes on a direct_post response, in
+// order, each with its own result. The outcome follows from which stage failed:
+//   response shape, state                         → REJECTED (the response is not usable)
+//   submission, requested credential, signature,
+//   disclosures, holder binding                   → INVALID
+//   validity period (expired)                      → EXPIRED
+// SD-JWT VC only (vc+sd-jwt and dc+sd-jwt). A JSON-LD presentation is reported as not checked.
+import {
+  describeField,
+  disclosedClaims,
+  formatAllowed,
+  parseSdJwt,
+  unmetFields,
+  verifySdJwt,
+  type PresentationSubmission,
+  type StageResult,
+} from '@playground/protocol-core';
+import {
+  CredentialFormatSchema,
+  type CredentialFormat,
+  type MockVerifierResult,
+  type VerificationOutcome,
+} from '@playground/shared';
+import type { Transaction } from './transactions.ts';
+
+export interface VerifyContext {
+  clientId: string;
+  trustedIssuers: string[];
+  now?: Date;
+}
+
+const stage = (id: string, label: string, status: StageResult['status'], message: string): StageResult => ({
+  id,
+  label,
+  status,
+  message,
+});
+
+const REJECTING = ['response-shape', 'state'];
+const INVALIDATING = ['submission', 'requested-credential', 'format', 'issuer-signature', 'disclosures', 'holder-binding'];
+
+/** The outcome the stages add up to. */
+export function outcomeOf(stages: StageResult[]): VerificationOutcome {
+  const failed = (ids: string[]) => stages.some((s) => s.status === 'fail' && ids.includes(s.id));
+  if (failed(REJECTING)) return 'REJECTED';
+  if (stages.some((s) => s.id === 'format' && s.status === 'fail' && s.message.includes('not checked'))) return 'ERROR';
+  if (failed(INVALIDATING)) return 'INVALID';
+  const validity = stages.find((s) => s.id === 'validity');
+  if (validity?.status === 'fail') return validity.message.startsWith('Expired') ? 'EXPIRED' : 'INVALID';
+  return 'VALID';
+}
+
+function credentialFacts(token: string): Pick<MockVerifierResult, 'format' | 'credentialType' | 'issuer'> {
+  try {
+    const sd = parseSdJwt(token);
+    const format = CredentialFormatSchema.safeParse(sd.header.typ);
+    return {
+      ...(format.success ? { format: format.data } : {}),
+      ...(typeof sd.payload.vct === 'string' ? { credentialType: sd.payload.vct } : {}),
+      ...(typeof sd.payload.iss === 'string' ? { issuer: sd.payload.iss } : {}),
+    };
+  } catch {
+    return {};
+  }
+}
+
+function result(stages: StageResult[], token: string | undefined, ctx: VerifyContext, transactionId?: string): MockVerifierResult {
+  return {
+    ...(transactionId ? { transactionId } : {}),
+    outcome: outcomeOf(stages),
+    stages,
+    ...(token ? credentialFacts(token) : {}),
+    verifiedAt: (ctx.now ?? new Date()).toISOString(),
+  };
+}
+
+/** Checks a direct_post body against the transaction it answers. */
+export async function verifyResponse(tx: Transaction, fields: URLSearchParams, ctx: VerifyContext): Promise<MockVerifierResult> {
+  const stages: StageResult[] = [];
+  const vpToken = fields.get('vp_token');
+  const done = () => result(stages, vpToken ?? undefined, ctx, tx.transactionId);
+
+  const error = fields.get('error');
+  if (error) {
+    stages.push(stage('response-shape', 'Response shape', 'fail', `The wallet answered with error=${error}${fields.get('error_description') ? ` (${fields.get('error_description')})` : ''}`));
+    return done();
+  }
+  if (!vpToken) {
+    stages.push(stage('response-shape', 'Response shape', 'fail', 'No vp_token in the response'));
+    return done();
+  }
+  let submission: PresentationSubmission | undefined;
+  try {
+    submission = JSON.parse(fields.get('presentation_submission') ?? '') as PresentationSubmission;
+  } catch {
+    stages.push(stage('response-shape', 'Response shape', 'fail', 'presentation_submission is missing or not JSON'));
+    return done();
+  }
+  stages.push(stage('response-shape', 'Response shape', 'pass', 'vp_token and presentation_submission present'));
+
+  const state = fields.get('state');
+  stages.push(
+    state === tx.requestId
+      ? stage('state', 'State', 'pass', 'state matches the request')
+      : stage('state', 'State', 'fail', `state is ${JSON.stringify(state)}, the request sent ${JSON.stringify(tx.requestId)}`),
+  );
+  if (stages.at(-1)!.status === 'fail') return done();
+
+  const pd = tx.presentationDefinition;
+  const entry = submission.descriptor_map?.[0];
+  const descriptor = pd.input_descriptors.find((d) => d.id === entry?.id);
+  const submissionProblems = [
+    submission.definition_id !== pd.id && `definition_id is ${JSON.stringify(submission.definition_id)}, expected ${JSON.stringify(pd.id)}`,
+    !descriptor && `descriptor_map names ${JSON.stringify(entry?.id)}, which is not an input descriptor of the request`,
+    entry && entry.path !== '$' && `descriptor path is ${entry.path}, expected $`,
+  ].filter(Boolean);
+  stages.push(
+    submissionProblems.length > 0
+      ? stage('submission', 'Presentation submission', 'fail', submissionProblems.join('; '))
+      : stage('submission', 'Presentation submission', 'pass', `Maps to input descriptor ${descriptor!.id} as ${entry!.format}`),
+  );
+
+  if (vpToken.trim().startsWith('{')) {
+    stages.push(stage('format', 'Credential format', 'fail', 'JSON-LD presentations are not checked by this mock verifier (SD-JWT VC only)'));
+    return done();
+  }
+
+  // What was presented against what was asked for: format and field constraints (e.g. the vct).
+  if (descriptor) {
+    try {
+      const sd = parseSdJwt(vpToken);
+      const typ = String(sd.header.typ ?? '') as CredentialFormat;
+      const unmet = unmetFields(disclosedClaims(sd), descriptor);
+      const problems = [
+        !formatAllowed(descriptor, typ) && `format ${typ} is not one the request accepts (${Object.keys(descriptor.format ?? {}).join(', ')})`,
+        ...unmet.map((f) => `requested ${describeField(f)}, not met`),
+        entry && entry.format !== typ && `submission says ${entry.format}, the token is ${typ}`,
+      ].filter(Boolean);
+      stages.push(
+        problems.length > 0
+          ? stage('requested-credential', 'Requested credential', 'fail', problems.join('; '))
+          : stage('requested-credential', 'Requested credential', 'pass', `${typ} credential satisfies input descriptor ${descriptor.id}`),
+      );
+    } catch {
+      /* the SD-JWT stages below report the parse error */
+    }
+  }
+
+  stages.push(
+    ...(await verifySdJwt(vpToken, {
+      nonce: tx.nonce,
+      audience: ctx.clientId,
+      trustedIssuers: ctx.trustedIssuers,
+      ...(ctx.now ? { now: ctx.now } : {}),
+    })),
+  );
+  return done();
+}
+
+/** A credential on its own: signature, disclosures, issuer trust and validity, no holder binding. */
+export async function verifyCredentialOnly(credential: string, ctx: VerifyContext): Promise<MockVerifierResult> {
+  // A presentation's key-binding JWT is not part of the credential.
+  const token = credential.trim().replace(/~[^~]+$/, '~');
+  if (token.startsWith('{')) {
+    const stages = [stage('format', 'Credential format', 'fail', 'JSON-LD credentials are not checked by this mock verifier (SD-JWT VC only)')];
+    return result(stages, undefined, ctx);
+  }
+  const stages = await verifySdJwt(token, {
+    trustedIssuers: ctx.trustedIssuers,
+    ...(ctx.now ? { now: ctx.now } : {}),
+  });
+  return result(stages, token, ctx);
+}

@@ -100,6 +100,7 @@ export function buildRunReport(
     correlation: run.correlation,
     findings: record.findings,
     ...(tamper ? { tamper } : {}),
+    ...(run.result?.secondOpinion ? { secondOpinion: run.result.secondOpinion } : {}),
     sequence,
     inspectorUrl: `${uiOrigin.replace(/\/$/, '')}/runs/${run.id}?view=inspector`,
   };

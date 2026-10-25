@@ -30,6 +30,8 @@ Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji V
 | Valid-but-expired | `FarmerCredentialExpired` (ldp_vc) and `FarmerCredentialSdJwtExpired` (vc+sd-jwt) are signed with validity in the past; Inji Verify reports **EXPIRED** (also the T-EXPIRED tamper) |
 | History and matrix | `/history` with filters by module version, format, outcome, mode, tamper and date; matrix exported as Markdown. Checked against the real stack's saved runs and the mocks |
 | Sequence diagram | Live in the inspector for every run; checked against the real stack (SD-JWT, mock wallet) and the in-browser mocks, in both themes |
+| Certify → mock wallet → **Mock verifier** (non-Inji), SD-JWT (`vc+sd-jwt`) | Run live on 25 October 2026: valid runs pass with all ten checks passing on a real Certify 0.14.0 credential, and every tamper is caught at its own check (signature, disclosures, requested type, holder-binding nonce, expiry). `ldp_vc` is not checked by this verifier |
+| Second opinion (`VER-002`) | After each verification the other verifier checks the presented credential on its own. Inji Verify and the mock verifier agreed on every comparable live run (valid, broken signature, edited claim, expired) |
 | Replay & tamper (mock wallet → Inji Verify 0.18.2) | Run live for both formats. Broken signature and edited claim are rejected (**INVALID**). Inji Verify **accepts** a wrong credential type for both formats, and, for SD-JWT only, a replayed `vp_token` or one bound to an old nonce ([results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182)) |
 
 The reproducible passing demonstrations are SD-JWT and JSON-LD with the mock
@@ -64,6 +66,14 @@ With the **Mock wallet**, the run settings offer a **Tamper** picker: a delibera
 | `T-EXPIRED` | Certify issues the expired copy of the credential (`FarmerCredential*Expired`) | Valid but expired |
 
 The inspector marks the message that carried the tampered payload and shows a before/after view, and the result card and report say whether the verifier caught the tamper. A tamper refused with another status than expected (for example Rejected at `direct_post` instead of Invalid) passes with a warning; one the verifier accepts fails the run.
+
+### Mock verifier and second opinion
+
+**Mock verifier** in the Verifier column is the playground's own OpenID4VP draft-23 verifier ([`apps/mock-verifier`](apps/mock-verifier/README.md)), so a run can end at a party that is not Inji. It speaks the same dialect Inji Verify 0.18.x does (Presentation Exchange, `direct_post`, a signed request object by reference, a `did:web` client ID) and is published as `/mock-verifier/…` on the Verify host, behind the Protocol Tap. It checks SD-JWT VC (`vc+sd-jwt` and `dc+sd-jwt`) only.
+
+Its result lists every check it made, in order: response shape, state, presentation submission, requested credential (format and `vct`), SD-JWT format, issuer signature, issuer trust, disclosures, holder binding (key-binding JWT `nonce`, `aud`, `sd_hash`, `cnf`) and validity period. The result card shows them, and the failing one names what went wrong.
+
+**Second opinion (`VER-002`).** After the run's verifier answers, the playground asks the other verifier about the same presented credential, on its own: Inji Verify's `/v1/verify/vc-verification` (with `Content-Type: application/vc+sd-jwt`) or the mock verifier's `api/verify-credential`. The finding is INFO when they agree and WARN when they disagree. A credential-only check cannot see presentation problems (wrong requested type, replayed or stale nonce), so for those runs the two verdicts are shown but not compared. The call goes through the tap; the sequence diagram shows it as a note, because the other verifier has no lane in the run.
 
 ### Sequence diagram
 
@@ -118,6 +128,8 @@ For live runs start the Compose stack ([`injistack/README.md`](injistack/README.
 | [`apps/playground-ui`](apps/playground-ui)   | Vite + React UI ([details](apps/playground-ui/README.md))                                                                                   |
 | [`apps/playground-bff`](apps/playground-bff) | BFF: catalog, run orchestration, reports, live run events (socket.io) and the Protocol Tap ([details](apps/playground-bff/PROTOCOL_TAP.md)) |
 | [`apps/mock-wallet`](apps/mock-wallet)       | Headless wallet (OpenID4VCI + OpenID4VP) for runs without a phone, with tamper switches ([details](apps/mock-wallet/README.md))             |
+| [`apps/mock-verifier`](apps/mock-verifier)   | Non-Inji OpenID4VP draft-23 verifier that reports every check it makes ([details](apps/mock-verifier/README.md))                           |
+| [`packages/protocol-core`](packages/protocol-core) | SD-JWT VC verification, `did:web` / `did:jwk` resolution and Presentation Exchange matching, shared by the mock wallet and mock verifier |
 | [`injistack/`](injistack)                    | Docker Compose sandbox with the Inji stack and the playground ([details](injistack/README.md))                                              |
 | [`packages/shared`](packages/shared)         | Domain types, zod schemas, REST and WebSocket contracts shared with the BFF                                                                 |
 | [`catalog/`](catalog)                        | One YAML file per issuer / wallet / verifier; adding a product = adding a file                                                              |

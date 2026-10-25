@@ -170,3 +170,13 @@ describe('toMermaid', () => {
     expect(source).not.toMatch(/[;#]/);
   });
 });
+
+describe('buildSequence, second opinion', () => {
+  it('draws the other verifier’s second opinion as a note, not as a message to the run’s verifier', () => {
+    const input = fullRun();
+    input.exchanges.push(ex(ProtocolStep.VC_DIRECT_VERIFY, 'bff', 'mock-verifier'));
+    const model = buildSequence(input, 'openid4vp');
+    expect(sequenceMessages(model).some((m) => m.exchangeId === input.exchanges.at(-1)!.id)).toBe(false);
+    expect(model.items.at(-1)).toMatchObject({ type: 'note', over: ['playground'], text: expect.stringContaining('Second opinion') });
+  });
+});

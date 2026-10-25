@@ -803,6 +803,8 @@ A deliberately configurable OID4VCI issuer: standards-compliant by default, with
 
 ### 8.4 `apps/mock-verifier` (Fastify, TypeScript)
 
+> **Implemented (25 October 2026), smaller than designed below.** Plain `node:http` like the mock wallet, one profile only: OpenID4VP draft 23 with Presentation Exchange, `direct_post`, an EdDSA-signed request object by reference and a `did:web` client ID. Published as `/mock-verifier/…` on the Verify host behind the Protocol Tap (third tap listener, `:3004`), not on its own host. SD-JWT VC (`vc+sd-jwt`, `dc+sd-jwt`) only. The pipeline stages are `response-shape`, `state`, `submission`, `requested-credential`, `format`, `issuer-signature`, `issuer-trust`, `disclosures`, `holder-binding`, `validity`; SD-JWT verification, DID resolution and PE matching live in `packages/protocol-core`. `POST api/verify-credential` gives the BFF its second opinion for `VER-002` (INFO when the verifiers agree, WARN when they disagree; not compared when the run is judged on presentation checks). Not built: draft 21 and 1.0 / DCQL profiles, `direct_post.jwt`, status lists. See [`apps/mock-verifier/README.md`](../apps/mock-verifier/README.md).
+
 | Class | Responsibility |
 |---|---|
 | `MockVerifierServer` | Bootstraps routes, keys and profile selection |
@@ -1248,7 +1250,7 @@ Spec references are descriptive rather than section numbers, because section num
 | VP-RESP-002 | presentation | Holder binding: VP proof challenge = `nonce` and domain = `client_id`; for SD-JWT, KB-JWT `aud`, `nonce` and `sd_hash` correct | OpenID4VP / SD-JWT | FAIL |
 | VP-RESP-003 | presentation | `state` echoed when sent | OpenID4VP | WARN |
 | VER-001 | verification | Verifier result is one of the documented statuses and equals `expectedOutcome` | Inji Verify API | FAIL |
-| VER-002 | verification | Differential: our independent verdict equals the verifier's verdict | Playground rule | FAIL |
+| VER-002 | verification | Differential: the other verifier's verdict on the presented credential alone equals the run verifier's (implemented: INFO when they agree, WARN when they disagree, INFO "not compared" when the verdict rests on presentation checks) | Playground rule | WARN |
 | QR-001 | transport | PixelPass QR round-trips to an identical credential | PixelPass | FAIL |
 | XPORT-001 | transport | No unexpected 4xx/5xx on any correlated exchange; latency recorded per step | HTTP | WARN |
 

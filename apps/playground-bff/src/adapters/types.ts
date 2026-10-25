@@ -12,6 +12,7 @@ import type {
   RespondResponse,
   RunConfig,
   VerificationOutcome,
+  VerificationStage,
 } from '@playground/shared';
 
 export interface RunContext {
@@ -71,9 +72,13 @@ export interface VerifierResult {
   perCredential: Array<{ index: number; outcome: VerificationOutcome; reason?: string }>;
   verifierRaw: unknown;
   reason?: string;
+  /** Every check the verifier made, when it reports them. */
+  stages?: VerificationStage[];
 }
 
 export interface VerifierAdapter extends RoleAdapter {
+  /** The Protocol Tap component its traffic is recorded under. */
+  readonly component?: string;
   createPresentationRequest(
     ctx: RunContext,
     spec: PresentationSpec,
@@ -81,6 +86,12 @@ export interface VerifierAdapter extends RoleAdapter {
   /** One long poll of the request status; returns when it changes or the verifier's poll times out. */
   pollStatus(ctx: RunContext, handle: PresentationRequestHandle): Promise<RequestStatus>;
   fetchResult(ctx: RunContext, handle: PresentationRequestHandle): Promise<VerifierResult>;
+  /** A credential on its own, outside any presentation: the second opinion (VER-002). */
+  verifyCredential?(
+    ctx: RunContext,
+    credential: string,
+    format: CredentialFormat,
+  ): Promise<VerifierResult>;
 }
 
 export interface WalletAdapter extends RoleAdapter {

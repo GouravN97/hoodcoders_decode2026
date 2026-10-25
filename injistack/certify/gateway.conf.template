@@ -3,7 +3,7 @@
 # nginx's own $variables are left alone.
 #
 # Every protocol request goes through the playground's Protocol Tap (playground-bff:3002 for
-# Certify, :3003 for Verify), which records it and forwards it unchanged. When the BFF is not
+# Certify, :3003 for Verify, :3004 for the mock verifier), which records it and forwards it unchanged. When the BFF is not
 # running, nginx falls back to the service itself (`backup`), so the stack keeps working.
 
 server_names_hash_bucket_size 128;
@@ -23,6 +23,12 @@ upstream verify_api {
     zone verify_api 64k;
     server playground-bff:3003 max_fails=1 fail_timeout=10s resolve;
     server verify-service:8080 backup resolve;
+}
+
+upstream mock_verifier_api {
+    zone mock_verifier_api 64k;
+    server playground-bff:3004 max_fails=1 fail_timeout=10s resolve;
+    server mock-verifier:7004 backup resolve;
 }
 
 server {
@@ -110,6 +116,13 @@ server {
 
     location /v1/verify/ {
         proxy_pass http://verify_api/v1/verify/;
+        add_header 'Access-Control-Allow-Origin' '*' always;
+    }
+
+    # The playground's mock verifier (apps/mock-verifier), served under its own path on this host so
+    # its did:web (did:web:<verify-host>:mock-verifier) resolves here. The path is passed unchanged.
+    location /mock-verifier/ {
+        proxy_pass http://mock_verifier_api;
         add_header 'Access-Control-Allow-Origin' '*' always;
     }
 

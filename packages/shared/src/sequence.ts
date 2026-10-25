@@ -265,6 +265,15 @@ export function buildSequence(input: SequenceInput, view: SequenceView): Sequenc
       libraryAndTamper();
       libraryDone = true;
     }
+    // The second opinion (VER-002) goes to the other verifier, which has no lane in this run.
+    if (ex.step === ProtocolStep.VC_DIRECT_VERIFY && ex.from === 'bff') {
+      items.push({
+        type: 'note',
+        over: ['playground'],
+        text: `Second opinion from the other verifier · ${ex.status ?? '…'} (outside the protocol)`,
+      });
+      continue;
+    }
     push({
       from: sourceLane(ex),
       to: targetLane(ex),

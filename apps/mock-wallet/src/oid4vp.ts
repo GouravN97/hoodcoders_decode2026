@@ -11,26 +11,19 @@ import {
   type RespondResponse,
   type TamperEvidence,
 } from '@playground/shared';
-import { base64url, decodeJwt, decodeProtectedHeader, importJWK, jwtVerify } from 'jose';
+import {
+  didWebUrl,
+  ed25519MultibaseToJwk,
+  formatAllowed,
+  unmetFields,
+  type InputDescriptor,
+  type PresentationDefinition,
+} from '@playground/protocol-core';
+import { decodeJwt, decodeProtectedHeader, importJWK, jwtVerify } from 'jose';
 import { call, form, parseJson, USER_AGENT, WalletError } from './http.ts';
 import type { HolderKey } from './keys.ts';
 import { signPresentation } from './ldp.ts';
 import { forgeDisclosure, presentSdJwt, sdJwtClaims, splitSdJwt } from './sdjwt.ts';
-
-interface Field {
-  path: string[];
-  filter?: { type?: string; pattern?: string; const?: unknown; contains?: { const?: unknown } };
-  optional?: boolean;
-}
-export interface InputDescriptor {
-  id: string;
-  format?: Record<string, unknown>;
-  constraints?: { fields?: Field[]; limit_disclosure?: 'required' | 'preferred' };
-}
-export interface PresentationDefinition {
-  id: string;
-  input_descriptors: InputDescriptor[];
-}
 
 export interface AuthorizationRequest {
   client_id: string;
@@ -43,39 +36,11 @@ export interface AuthorizationRequest {
 
 const SD_JWT_FORMATS = ['vc+sd-jwt', 'dc+sd-jwt'];
 
+// Shared with the mock verifier (packages/protocol-core); re-exported for this app's tests.
+export { didWebUrl, readPath } from '@playground/protocol-core';
+export type { InputDescriptor, PresentationDefinition };
+
 // ---------- request ----------
-
-/** did:web:host%3Aport:path → https://host:port/path/did.json (or /.well-known/did.json without a path). */
-export function didWebUrl(did: string): string {
-  const [host = '', ...path] = did
-    .replace(/^did:web:/, '')
-    .split(/[#?]/)[0]!
-    .split(':');
-  const origin = `https://${decodeURIComponent(host)}`;
-  return path.length
-    ? `${origin}/${path.map(decodeURIComponent).join('/')}/did.json`
-    : `${origin}/.well-known/did.json`;
-}
-
-const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-function base58Decode(s: string): Uint8Array {
-  let n = 0n;
-  for (const c of s) {
-    const i = B58.indexOf(c);
-    if (i < 0) throw new Error('not base58');
-    n = n * 58n + BigInt(i);
-  }
-  const bytes: number[] = [];
-  while (n > 0n) {
-    bytes.unshift(Number(n & 0xffn));
-    n >>= 8n;
-  }
-  for (const c of s) {
-    if (c !== '1') break;
-    bytes.unshift(0);
-  }
-  return Uint8Array.from(bytes);
-}
 
 /** Checks a request object signed by a did:web verifier (Ed25519, publicKeyMultibase). Problems become warnings. */
 async function checkRequestObject(
@@ -107,13 +72,9 @@ async function checkRequestObject(
     const methods = doc.verificationMethod ?? [];
     const method = methods.find((m) => m.id === kid) ?? methods[0];
     if (!method) throw new Error('DID document has no verification method');
-    let jwk: object | undefined = method.publicKeyJwk;
-    if (!jwk && method.publicKeyMultibase?.startsWith('z')) {
-      const bytes = base58Decode(method.publicKeyMultibase.slice(1));
-      if (bytes[0] !== 0xed || bytes[1] !== 0x01)
-        throw new Error('publicKeyMultibase is not an Ed25519 key');
-      jwk = { kty: 'OKP', crv: 'Ed25519', x: base64url.encode(bytes.slice(2)) };
-    }
+    const jwk: object | undefined =
+      method.publicKeyJwk ??
+      (method.publicKeyMultibase ? ed25519MultibaseToJwk(method.publicKeyMultibase) : undefined);
     if (!jwk) throw new Error('verification method has no usable public key');
     await jwtVerify(jwt, await importJWK(jwk as never, alg ?? 'EdDSA'));
   } catch (e) {
@@ -178,31 +139,6 @@ export async function resolveAuthorizationRequest(
 
 // ---------- matching ----------
 
-/** Minimal JSONPath: `$.a.b` and `$['a']['b']`. */
-export function readPath(obj: unknown, path: string): unknown {
-  const keys = path
-    .replace(/^\$/, '')
-    .split(/\.|\[['"]?|['"]?\]/)
-    .filter(Boolean);
-  return keys.reduce<unknown>(
-    (o, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined),
-    obj,
-  );
-}
-
-function filterMatches(value: unknown, filter: Field['filter']): boolean {
-  if (value === undefined) return false;
-  if (!filter) return true;
-  const values = Array.isArray(value) ? value : [value];
-  if (filter.const !== undefined && !values.includes(filter.const)) return false;
-  if (filter.contains?.const !== undefined && !values.includes(filter.contains.const)) return false;
-  if (filter.pattern !== undefined) {
-    const re = new RegExp(filter.pattern);
-    if (!values.some((v) => re.test(typeof v === 'string' ? v : JSON.stringify(v)))) return false;
-  }
-  return true;
-}
-
 export function claimsOf(c: HeldCredential): Record<string, unknown> {
   return SD_JWT_FORMATS.includes(c.format)
     ? sdJwtClaims(c.raw)
@@ -210,13 +146,7 @@ export function claimsOf(c: HeldCredential): Record<string, unknown> {
 }
 
 export function matches(c: HeldCredential, d: InputDescriptor): boolean {
-  const formats = d.format ? Object.keys(d.format) : undefined;
-  if (formats && !formats.some((f) => f === c.format || (f === 'ldp_vp' && c.format === 'ldp_vc')))
-    return false;
-  const claims = claimsOf(c);
-  return (d.constraints?.fields ?? []).every(
-    (f) => f.optional || f.path.some((p) => filterMatches(readPath(claims, p), f.filter)),
-  );
+  return formatAllowed(d, c.format) && unmetFields(claimsOf(c), d).length === 0;
 }
 
 /** Claim names a `limit_disclosure: required` descriptor asks for (top-level SD-JWT claims). */
@@ -236,6 +166,7 @@ const flipChar = (s: string, alphabet: string) => {
   return `${s.slice(0, i)}${next}${s.slice(i + 1)}`;
 };
 const B64URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
 /** The tampers that rewrite the credential itself. */
 export type CredentialTamper = 'T-SIG-FLIP' | 'T-CLAIM-EDIT';

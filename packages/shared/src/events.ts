@@ -1,7 +1,7 @@
 // Typed WebSocket contract between RunEventsGateway and the UI's useRunEvents (plan §11.3).
 import { z } from 'zod';
 import { CatalogEntrySchema } from './catalog';
-import { InteropVerdictSchema, VerificationOutcomeSchema } from './domain';
+import { InteropVerdictSchema, VerificationOutcomeSchema, VerificationResultSchema } from './domain';
 import {
   ArtifactSchema,
   DeliveryInstructionSchema,
@@ -42,6 +42,8 @@ export const RunEventSchema = z.discriminatedUnion('type', [
     runId,
     outcome: VerificationOutcomeSchema,
     verifierRaw: z.unknown(),
+    stages: VerificationResultSchema.shape.stages,
+    secondOpinion: VerificationResultSchema.shape.secondOpinion,
   }),
   z.object({
     type: z.literal('run.completed'),

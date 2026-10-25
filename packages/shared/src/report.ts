@@ -8,7 +8,9 @@ import {
   PresentationFlowSchema,
   RoleSchema,
   RunModeSchema,
+  SecondOpinionSchema,
   VerificationOutcomeSchema,
+  type SecondOpinion,
 } from './domain';
 import { CheckFindingSchema } from './events';
 import {
@@ -94,6 +96,8 @@ export const RunReportSchema = z.object({
   correlation: z.enum(['exact', 'heuristic']),
   findings: z.array(CheckFindingSchema),
   tamper: ReportTamperSchema.optional(),
+  /** The other verifier's verdict on the same credential (VER-002). */
+  secondOpinion: SecondOpinionSchema.optional(),
   /** Mermaid sequence diagram of the whole run (see sequence.ts); GitHub renders it in Markdown. */
   sequence: z.string().optional(),
   inspectorUrl: z.string(),
@@ -133,6 +137,13 @@ export function tamperLine(t: ReportTamper, verifierName: string): string {
   return `${what}: ${verifierName} rejected it as ${outcomeLabel(t.observedOutcome!)}, not the expected ${outcomeLabel(t.expectedOutcome)}`;
 }
 
+/** The second verifier's verdict, and whether it was compared with the run's. */
+export function secondOpinionLine(o: SecondOpinion): string {
+  const what = `${o.displayName ?? o.verifierId}: ${outcomeLabel(o.outcome)}${o.reason ? ` (${o.reason})` : ''}`;
+  if (!o.comparable) return `${what} — credential alone, not compared (the run is judged on presentation checks)`;
+  return `${what} — ${o.agrees ? 'agrees' : '**disagrees**'}`;
+}
+
 export function formatDuration(ms: number | undefined): string {
   if (ms === undefined) return '—';
   if (ms < 1000) return `${Math.round(ms)} ms`;
@@ -153,6 +164,7 @@ export function renderReportMarkdown(r: RunReport): string {
   lines.push(`| Proof type | ${cell(r.proofType)} |`);
   lines.push(`| Outcome | ${outcomeCell(r)} |`);
   if (r.tamper) lines.push(`| Tamper | ${cell(tamperLine(r.tamper, r.verifier.displayName))} |`);
+  if (r.secondOpinion) lines.push(`| Second opinion | ${cell(secondOpinionLine(r.secondOpinion))} |`);
   lines.push(
     `| Error detail | ${cell(r.error ? `${stepLabel(r.error.step)}: ${r.error.message}${r.error.status ? ` (HTTP ${r.error.status})` : ''}` : undefined)} |`,
   );

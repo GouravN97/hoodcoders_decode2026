@@ -1,12 +1,14 @@
-# Headless mock wallet. Build context: the repository root (needs packages/shared).
+# Headless mock wallet. Build context: the repository root (needs packages/shared and packages/protocol-core).
 FROM node:22-alpine
 WORKDIR /repo
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/protocol-core/package.json packages/protocol-core/
 COPY apps/mock-wallet/package.json apps/mock-wallet/
 RUN pnpm install --frozen-lockfile --prod --filter @playground/mock-wallet...
 COPY packages/shared packages/shared
+COPY packages/protocol-core packages/protocol-core
 COPY apps/mock-wallet apps/mock-wallet
 WORKDIR /repo/apps/mock-wallet
 ENV NODE_ENV=production PORT=7003

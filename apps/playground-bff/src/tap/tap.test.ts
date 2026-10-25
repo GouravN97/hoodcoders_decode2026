@@ -28,7 +28,17 @@ describe('classifyStep', () => {
     ['POST', '/v1/verify/vp-submission/direct-post', ProtocolStep.VP_RESPONSE],
     ['GET', '/v1/verify/vp-result/txn_1', ProtocolStep.VERIFY_RESULT],
     ['GET', '/v1/verify/did.json', ProtocolStep.DID_RESOLUTION],
+    ['POST', '/v1/verify/vc-verification', ProtocolStep.VC_DIRECT_VERIFY],
     ['GET', '/v1/certify/actuator/health', ProtocolStep.UNKNOWN],
+    // The mock verifier, published under /mock-verifier on the Verify host.
+    ['POST', '/mock-verifier/api/requests', ProtocolStep.VERIFY_CREATE_REQUEST],
+    ['GET', '/mock-verifier/api/requests/req_1/status?wait=50000', ProtocolStep.VERIFY_STATUS],
+    ['GET', '/mock-verifier/api/results/txn_1', ProtocolStep.VERIFY_RESULT],
+    ['POST', '/mock-verifier/api/verify-credential', ProtocolStep.VC_DIRECT_VERIFY],
+    ['GET', '/mock-verifier/oid4vp/request/req_1', ProtocolStep.VP_REQUEST_OBJECT],
+    ['POST', '/mock-verifier/oid4vp/request/req_1', ProtocolStep.VP_REQUEST_OBJECT],
+    ['POST', '/mock-verifier/oid4vp/response/req_1', ProtocolStep.VP_RESPONSE],
+    ['GET', 'https://verify.localhost:8443/mock-verifier/did.json', ProtocolStep.DID_RESOLUTION],
   ])('%s %s → %s', (method, url, step) => {
     expect(classifyStep(method, url)).toBe(step);
   });
