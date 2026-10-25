@@ -7,12 +7,18 @@ test.describe.configure({ mode: 'serial', timeout: 120_000 });
 
 async function liveRun(
   page: import('@playwright/test').Page,
-  opts: { format: 'ldp_vc' | 'vc+sd-jwt'; expected?: 'Valid' | 'Invalid'; tamper?: string },
+  opts: {
+    format: 'ldp_vc' | 'vc+sd-jwt' | 'mso_mdoc';
+    expected?: 'Valid' | 'Invalid';
+    tamper?: string;
+    issuer?: string;
+    verifier?: string;
+  },
 ) {
   await page.goto('/');
-  await pickImplementation(page, 'Issuer', 'Inji Certify');
+  await pickImplementation(page, 'Issuer', opts.issuer ?? 'Inji Certify');
   await pickImplementation(page, 'Wallet', 'Mock wallet');
-  await pickImplementation(page, 'Verifier', 'Inji Verify');
+  await pickImplementation(page, 'Verifier', opts.verifier ?? 'Inji Verify');
   await page
     .getByRole('radiogroup', { name: 'Credential format' })
     .getByText(opts.format, { exact: true })
@@ -102,12 +108,38 @@ test('the sequence diagram of a live run is drawn from captured messages, and th
   expect(md).toContain('W--)L: Request to library (inferred)');
 });
 
+test('SD-JWT to the mock verifier: every check listed, and Inji Verify gives the second opinion', async ({ page }) => {
+  await liveRun(page, { format: 'vc+sd-jwt', verifier: 'Mock verifier' });
+  const banner = page.getByTestId('verification-result');
+  await expect(banner).toHaveAttribute('data-outcome', 'VALID', { timeout: 90_000 });
+  await expect(banner.getByTestId('verifier-checks').locator('[data-status="fail"]')).toHaveCount(0);
+  await expect(banner.getByTestId('second-opinion')).toHaveAttribute('data-agrees', 'true');
+});
+
+// Needs the mdoc profile: docker compose --profile mdoc up -d
+test('mDoc: Certify mock mDoc → mock wallet → mock verifier ends Valid, decoded in the inspector', async ({ page }) => {
+  await liveRun(page, { format: 'mso_mdoc', issuer: 'Inji Certify (mock mDoc)', verifier: 'Mock verifier' });
+  const banner = page.getByTestId('verification-result');
+  await expect(banner).toHaveAttribute('data-outcome', 'VALID', { timeout: 90_000 });
+  for (const stage of ['issuer-signature', 'digests', 'holder-binding'])
+    await expect(banner.getByTestId('verifier-checks').locator(`[data-stage="${stage}"]`)).toHaveAttribute('data-status', 'pass');
+
+  await openSection(page, 'Protocol inspector');
+  const inspector = page.getByRole('region', { name: 'Protocol inspector' });
+  await inspector.getByRole('list', { name: 'Protocol messages' }).locator('button', { hasText: 'Credential request' }).first().click();
+  await inspector.getByRole('tab', { name: 'Response' }).click();
+  await expect(inspector.getByTestId('mdoc-elements').first().getByText(/✗/)).toHaveCount(0);
+  await expect(inspector.getByTestId('mdoc-observations').first()).toContainText('{docType, issuerSigned}');
+});
+
 test('the history lists the saved live runs and the matrix exports their latest results', async ({ page }) => {
   await page.goto('/history');
   await expect(page.getByRole('note')).toHaveCount(0); // no sample data against the real BFF
   const rows = page.getByRole('table', { name: 'Runs' }).locator('tbody tr');
   await expect(rows.first()).toBeVisible();
-  await expect(rows.first()).toContainText('Inji Verify');
+  // The serial runs above end at Inji Verify and at the mock verifier.
+  await expect(rows.filter({ hasText: 'Inji Verify' }).first()).toBeVisible();
+  await expect(rows.filter({ hasText: 'Mock verifier' }).first()).toBeVisible();
 
   await page.goto('/history?tab=matrix');
   const download = page.waitForEvent('download');

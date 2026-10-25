@@ -11,19 +11,6 @@ import {
 } from '@playground/shared';
 import type { SelectionState } from '../../store/selection';
 
-/**
- * The implementations whose formats constrain a run in this mode. An issue-only run never meets
- * the verifier; a present-only run still needs the issuer, whose metadata names the credential.
- */
-export function constrainingRoles(
-  mode: RunMode,
-  issuer: CatalogEntry | undefined,
-  wallet: CatalogEntry | undefined,
-  verifier: CatalogEntry | undefined,
-): Array<CatalogEntry | undefined> {
-  return mode === 'issue-only' ? [issuer, wallet] : [issuer, wallet, verifier];
-}
-
 /** Formats every selected implementation supports. */
 export function commonFormats(selected: Array<CatalogEntry | undefined>): CredentialFormat[] {
   const chosen = selected.filter((e): e is CatalogEntry => Boolean(e));
@@ -43,7 +30,10 @@ export function selectableFormats(
   if (mode === 'issue-only' && issuer) {
     return PLAYGROUND_FORMATS.filter((format) => issuer.capabilities.formats.includes(format));
   }
-  return commonFormats(constrainingRoles(mode, issuer, wallet, verifier));
+  // A verifier that cannot check a format the issuer and wallet share does not hide it: the
+  // compatibility panel says so and suggests Issue only or a verifier that does.
+  void verifier;
+  return commonFormats([issuer, wallet]);
 }
 
 /** Why a card cannot be picked given the other roles' selections, or undefined if it can. */

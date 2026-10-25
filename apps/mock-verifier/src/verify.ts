@@ -4,14 +4,20 @@
 //   submission, requested credential, signature,
 //   disclosures, holder binding                   → INVALID
 //   validity period (expired)                      → EXPIRED
-// SD-JWT VC only (vc+sd-jwt and dc+sd-jwt). A JSON-LD presentation is reported as not checked.
+// SD-JWT VC (vc+sd-jwt, dc+sd-jwt) and ISO mDoc (mso_mdoc, a DeviceResponse with an ISO 18013-7
+// Annex B session transcript). A JSON-LD presentation is reported as not checked.
 import {
   describeField,
   disclosedClaims,
   formatAllowed,
+  parseDeviceResponse,
+  parseMdoc,
   parseSdJwt,
+  printable,
   unmetFields,
+  verifyMdoc,
   verifySdJwt,
+  type ParsedMdoc,
   type PresentationSubmission,
   type StageResult,
 } from '@playground/protocol-core';
@@ -26,6 +32,10 @@ import type { Transaction } from './transactions.ts';
 export interface VerifyContext {
   clientId: string;
   trustedIssuers: string[];
+  /** DER certificates trusted as mDoc issuers. */
+  trustedMdocCertificates?: Uint8Array[];
+  /** The response_uri of a request: the mDoc session transcript is bound to it. */
+  responseUriFor?: (requestId: string) => string;
   now?: Date;
 }
 
@@ -37,7 +47,7 @@ const stage = (id: string, label: string, status: StageResult['status'], message
 });
 
 const REJECTING = ['response-shape', 'state'];
-const INVALIDATING = ['submission', 'requested-credential', 'format', 'issuer-signature', 'disclosures', 'holder-binding'];
+const INVALIDATING = ['submission', 'requested-credential', 'format', 'issuer-signature', 'disclosures', 'digests', 'holder-binding'];
 
 /** The outcome the stages add up to. */
 export function outcomeOf(stages: StageResult[]): VerificationOutcome {
@@ -50,7 +60,27 @@ export function outcomeOf(stages: StageResult[]): VerificationOutcome {
   return 'VALID';
 }
 
+/** A vp_token or credential that is CBOR (base64url, no SD-JWT separator, not JSON). */
+const looksLikeMdoc = (token: string) => !token.includes('~') && !token.trim().startsWith('{') && !token.includes('.');
+
+/** The elements a presented mDoc discloses, as Presentation Exchange paths see them. */
+function mdocView(m: ParsedMdoc): Record<string, unknown> {
+  const claims: Record<string, Record<string, unknown>> = {};
+  for (const e of m.elements) (claims[e.namespace] ??= {})[e.elementIdentifier] = printable(e.elementValue);
+  return claims;
+}
+
 function credentialFacts(token: string): Pick<MockVerifierResult, 'format' | 'credentialType' | 'issuer'> {
+  if (looksLikeMdoc(token)) {
+    for (const read of [() => parseDeviceResponse(token).documents[0]!, () => parseMdoc(token)]) {
+      try {
+        return { format: 'mso_mdoc', credentialType: read().docType };
+      } catch {
+        /* try the other shape */
+      }
+    }
+    return {};
+  }
   try {
     const sd = parseSdJwt(token);
     const format = CredentialFormatSchema.safeParse(sd.header.typ);
@@ -121,7 +151,41 @@ export async function verifyResponse(tx: Transaction, fields: URLSearchParams, c
   );
 
   if (vpToken.trim().startsWith('{')) {
-    stages.push(stage('format', 'Credential format', 'fail', 'JSON-LD presentations are not checked by this mock verifier (SD-JWT VC only)'));
+    stages.push(stage('format', 'Credential format', 'fail', 'JSON-LD presentations are not checked by this mock verifier (SD-JWT VC and mDoc only)'));
+    return done();
+  }
+
+  if (looksLikeMdoc(vpToken)) {
+    let doc: ParsedMdoc;
+    try {
+      const response = parseDeviceResponse(vpToken);
+      if (response.status !== undefined && response.status !== 0) throw new Error(`DeviceResponse status is ${response.status}`);
+      doc = response.documents[0]!;
+    } catch (e) {
+      stages.push(stage('format', 'mDoc format', 'fail', `vp_token is not a usable DeviceResponse: ${(e as Error).message}`));
+      return done();
+    }
+    if (descriptor) {
+      const unmet = unmetFields(mdocView(doc), descriptor);
+      const problems = [
+        !formatAllowed(descriptor, 'mso_mdoc') && `format mso_mdoc is not one the request accepts (${Object.keys(descriptor.format ?? {}).join(', ')})`,
+        doc.docType !== descriptor.id && `docType ${doc.docType}, the request asked for ${descriptor.id}`,
+        ...unmet.map((f) => `requested ${describeField(f)}, not disclosed`),
+        entry && entry.format !== 'mso_mdoc' && `submission says ${entry.format}, the token is mso_mdoc`,
+      ].filter(Boolean);
+      stages.push(
+        problems.length > 0
+          ? stage('requested-credential', 'Requested credential', 'fail', problems.join('; '))
+          : stage('requested-credential', 'Requested credential', 'pass', `${doc.docType} with the requested elements, for input descriptor ${descriptor.id}`),
+      );
+    }
+    stages.push(
+      ...(await verifyMdoc(doc, {
+        handover: { clientId: ctx.clientId, responseUri: ctx.responseUriFor?.(tx.requestId) ?? '', nonce: tx.nonce },
+        trustedCertificates: ctx.trustedMdocCertificates ?? [],
+        ...(ctx.now ? { now: ctx.now } : {}),
+      })),
+    );
     return done();
   }
 
@@ -162,8 +226,19 @@ export async function verifyCredentialOnly(credential: string, ctx: VerifyContex
   // A presentation's key-binding JWT is not part of the credential.
   const token = credential.trim().replace(/~[^~]+$/, '~');
   if (token.startsWith('{')) {
-    const stages = [stage('format', 'Credential format', 'fail', 'JSON-LD credentials are not checked by this mock verifier (SD-JWT VC only)')];
+    const stages = [stage('format', 'Credential format', 'fail', 'JSON-LD credentials are not checked by this mock verifier (SD-JWT VC and mDoc only)')];
     return result(stages, undefined, ctx);
+  }
+  if (looksLikeMdoc(credential.trim())) {
+    try {
+      const stages = await verifyMdoc(parseMdoc(credential.trim()), {
+        trustedCertificates: ctx.trustedMdocCertificates ?? [],
+        ...(ctx.now ? { now: ctx.now } : {}),
+      });
+      return result(stages, credential.trim(), ctx);
+    } catch (e) {
+      return result([stage('format', 'mDoc format', 'fail', (e as Error).message)], undefined, ctx);
+    }
   }
   const stages = await verifySdJwt(token, {
     trustedIssuers: ctx.trustedIssuers,

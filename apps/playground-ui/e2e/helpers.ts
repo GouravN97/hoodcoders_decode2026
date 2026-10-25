@@ -16,9 +16,11 @@ export async function startRun(
   page: Page,
   opts: {
     wallet: string;
+    /** Issuer card name (default Inji Certify). */
+    issuer?: string;
     /** Verifier card name (default Inji Verify). */
     verifier?: string;
-    format: 'ldp_vc' | 'vc+sd-jwt';
+    format: 'ldp_vc' | 'vc+sd-jwt' | 'mso_mdoc';
     expected?: 'Valid' | 'Invalid' | 'Valid but expired';
     scenario?: string;
     /** Tamper picker option, e.g. 'Edited claim (T-CLAIM-EDIT)'. */
@@ -29,7 +31,7 @@ export async function startRun(
 ) {
   const qs = new URLSearchParams({ simSpeed: String(opts.simSpeed ?? 4), ...(opts.scenario ? { scenario: opts.scenario } : {}) });
   await page.goto(`/?${qs}`);
-  await pickImplementation(page, 'Issuer', 'Inji Certify');
+  await pickImplementation(page, 'Issuer', opts.issuer ?? 'Inji Certify');
   await pickImplementation(page, 'Wallet', opts.wallet);
   await pickImplementation(page, 'Verifier', opts.verifier ?? 'Inji Verify');
   await page.getByRole('radiogroup', { name: 'Credential format' }).getByText(opts.format, { exact: true }).click();

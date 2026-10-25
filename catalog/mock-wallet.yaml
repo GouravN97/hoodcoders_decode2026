@@ -11,7 +11,7 @@ versionProbe:
   kind: static
   value: 0.1.0
 capabilities:
-  formats: [ldp_vc, vc+sd-jwt, dc+sd-jwt]
+  formats: [ldp_vc, vc+sd-jwt, dc+sd-jwt, mso_mdoc]
   # Holder proofs: ES256 proof JWTs, SD-JWT key binding and JsonWebSignature2020 (ES256) VPs.
   proofSuites: [Ed25519Signature2020, ES256]
   grantTypes: [pre-authorized_code]

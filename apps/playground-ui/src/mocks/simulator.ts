@@ -29,12 +29,12 @@ import {
   type VerificationOutcome,
   type VerificationStage,
 } from '@playground/shared';
+import { parseDeviceResponse, pemToDer, TEST_MDOC_ISSUER_CERT_PEM, verifyMdoc } from '@playground/protocol-core';
 import { simulatedEvents } from '../realtime';
 import { mockCatalog } from './catalog';
 import { db, type MockRunRecord } from './db';
 import {
   buildFixtures,
-  ISSUER_URL,
   simulatedMockVerifierResult,
   verifierEndpoints,
   type RunFixtures,
@@ -357,10 +357,10 @@ class RunSimulation {
     this.step('offer_prepared', 'active');
     await this.sleep(300);
     const createId = this.exchange({
-      component: 'certify',
+      component: fx.issuerComponent,
       from: 'bff',
       method: 'POST',
-      url: `${ISSUER_URL}/v1/certify/pre-authorized-data`,
+      url: `${fx.issuerUrl}/v1/certify/pre-authorized-data`,
       status: 201,
       step: ProtocolStep.VCI_CREDENTIAL_OFFER,
       reqContentType: 'application/json',
@@ -372,7 +372,7 @@ class RunSimulation {
       correlationKeys: [fx.offerId],
     });
     const offerId = this.exchange({
-      component: 'certify',
+      component: fx.issuerComponent,
       from: 'bff',
       method: 'OOB',
       url: fx.offerUri,
@@ -400,10 +400,10 @@ class RunSimulation {
     await this.sleep(this.human ? 3500 : 600);
 
     const offerFetchId = this.exchange({
-      component: 'certify',
+      component: fx.issuerComponent,
       from,
       method: 'GET',
-      url: `${ISSUER_URL}/v1/certify/credential-offer-data/${fx.offerId}`,
+      url: `${fx.issuerUrl}/v1/certify/credential-offer-data/${fx.offerId}`,
       status: 200,
       step: ProtocolStep.VCI_CREDENTIAL_OFFER,
       resBody: this.json(fx.offer),
@@ -413,25 +413,25 @@ class RunSimulation {
     this.step('offer_delivered', 'done', { evidenceKind: 'tap', exchangeId: offerFetchId });
     await this.sleep(250);
     this.exchange({
-      component: 'certify',
+      component: fx.issuerComponent,
       from,
       method: 'GET',
-      url: `${ISSUER_URL}/.well-known/openid-credential-issuer`,
+      url: `${fx.issuerUrl}/.well-known/openid-credential-issuer`,
       status: 200,
       step: ProtocolStep.VCI_ISSUER_METADATA,
       resBody: this.json(fx.issuerMetadata),
     });
     await this.sleep(250);
     this.exchange({
-      component: 'certify',
+      component: fx.issuerComponent,
       from,
       method: 'GET',
-      url: `${ISSUER_URL}/.well-known/oauth-authorization-server`,
+      url: `${fx.issuerUrl}/.well-known/oauth-authorization-server`,
       status: 200,
       step: ProtocolStep.VCI_AS_METADATA,
       resBody: this.json({
-        issuer: ISSUER_URL,
-        token_endpoint: `${ISSUER_URL}/v1/certify/oauth/token`,
+        issuer: fx.issuerUrl,
+        token_endpoint: `${fx.issuerUrl}/v1/certify/oauth/token`,
         'pre-authorized_grant_anonymous_access_supported': true,
         grant_types_supported: ['urn:ietf:params:oauth:grant-type:pre-authorized_code'],
       }),
@@ -445,10 +445,10 @@ class RunSimulation {
         error_description: 'Pre-authorized code is expired or has already been used',
       });
       const id = this.exchange({
-        component: 'certify',
+        component: fx.issuerComponent,
         from,
         method: 'POST',
-        url: `${ISSUER_URL}/v1/certify/oauth/token`,
+        url: `${fx.issuerUrl}/v1/certify/oauth/token`,
         status: 400,
         step: ProtocolStep.VCI_TOKEN,
         reqContentType: 'application/x-www-form-urlencoded',
@@ -466,10 +466,10 @@ class RunSimulation {
       return false;
     }
     const tokenId = this.exchange({
-      component: 'certify',
+      component: fx.issuerComponent,
       from,
       method: 'POST',
-      url: `${ISSUER_URL}/v1/certify/oauth/token`,
+      url: `${fx.issuerUrl}/v1/certify/oauth/token`,
       status: 200,
       step: ProtocolStep.VCI_TOKEN,
       reqContentType: 'application/x-www-form-urlencoded',
@@ -482,10 +482,10 @@ class RunSimulation {
     this.step(ProtocolStep.VCI_CREDENTIAL, 'active');
     await this.sleep(700);
     const credId = this.exchange({
-      component: 'certify',
+      component: fx.issuerComponent,
       from,
       method: 'POST',
-      url: `${ISSUER_URL}/v1/certify/issuance/credential`,
+      url: `${fx.issuerUrl}/v1/certify/issuance/credential`,
       status: 200,
       step: ProtocolStep.VCI_CREDENTIAL,
       reqContentType: 'application/json',
@@ -525,7 +525,7 @@ class RunSimulation {
         id: crypto.randomUUID(),
         format: config.format,
         credentialConfigurationId: config.credentialConfigurationId,
-        issuer: ISSUER_URL,
+        issuer: fx.issuerUrl,
         raw: fx.credentialRaw,
         receivedAt: new Date().toISOString(),
         holderDid: 'did:jwk:mock-holder',
@@ -688,14 +688,18 @@ class RunSimulation {
     const mockResult: MockVerifierResult | undefined = mock
       ? {
           transactionId: fx.transactionId,
-          ...simulatedMockVerifierResult(fx.problem, format, false),
+          ...(format === 'mso_mdoc' ? await this.mockVerifierMdoc() : simulatedMockVerifierResult(fx.problem, format, false)),
           format,
           credentialType: run.config.credentialConfigurationId,
-          issuer: ISSUER_URL,
+          issuer: fx.issuerUrl,
           verifiedAt: new Date().toISOString(),
         }
       : undefined;
-    const verifierRaw = mockResult ?? fx.vpResult;
+    const verifierRaw =
+      mockResult ??
+      (format === 'mso_mdoc'
+        ? { simulated: true, note: 'Inji Verify 0.18.2 does not verify mso_mdoc; no answer is simulated for it' }
+        : fx.vpResult);
     const resultBody = this.json(verifierRaw);
     const resultId = this.exchange({
       component: fx.verifier.component,
@@ -711,7 +715,9 @@ class RunSimulation {
     this.artifact('verification_result', resultBody, resultId);
     const vcStatus = (fx.vpResult as { vcResults: Array<{ verificationStatus: string }> }).vcResults[0]!
       .verificationStatus;
-    const outcome = mockResult?.outcome ?? OUTCOME_FROM_INJI[vcStatus] ?? 'ERROR';
+    // Inji Verify 0.18.2 has no mso_mdoc support; the simulator does not invent an answer for it.
+    const unsupported = !mock && format === 'mso_mdoc';
+    const outcome = mockResult?.outcome ?? (unsupported ? 'ERROR' : (OUTCOME_FROM_INJI[vcStatus] ?? 'ERROR'));
     const stages = mockResult?.stages;
     this.run.observedOutcome = outcome;
     const secondOpinion = await this.secondOpinion(outcome, stages);
@@ -734,6 +740,32 @@ class RunSimulation {
     return true;
   }
 
+  /** The mock verifier's mDoc checks, run for real on the simulated DeviceResponse. */
+  private async mockVerifierMdoc(): Promise<Pick<MockVerifierResult, 'outcome' | 'stages'>> {
+    const { fx } = this;
+    const doc = parseDeviceResponse(fx.vpToken).documents[0]!;
+    const descriptor = (fx.presentationDefinition as { input_descriptors: Array<{ id: string }> }).input_descriptors[0]!;
+    const stages: VerificationStage[] = [
+      { id: 'response-shape', label: 'Response shape', status: 'pass', message: 'vp_token and presentation_submission present' },
+      { id: 'state', label: 'State', status: 'pass', message: 'state matches the request' },
+      { id: 'submission', label: 'Presentation submission', status: 'pass', message: `Maps to input descriptor ${descriptor.id} as mso_mdoc` },
+      doc.docType === descriptor.id
+        ? { id: 'requested-credential', label: 'Requested credential', status: 'pass', message: `${doc.docType} with the requested elements, for input descriptor ${descriptor.id}` }
+        : { id: 'requested-credential', label: 'Requested credential', status: 'fail', message: `docType ${doc.docType}, the request asked for ${descriptor.id}` },
+      ...(await verifyMdoc(doc, {
+        handover: { clientId: fx.verifier.clientId, responseUri: fx.verifier.response(fx.requestId), nonce: fx.nonce },
+        trustedCertificates: pemToDer(TEST_MDOC_ISSUER_CERT_PEM),
+      })),
+    ];
+    const failed = (ids: string[]) => stages.some((st) => st.status === 'fail' && ids.includes(st.id));
+    const outcome: VerificationOutcome = failed(['requested-credential', 'format', 'issuer-signature', 'digests', 'holder-binding'])
+      ? 'INVALID'
+      : failed(['validity'])
+        ? 'EXPIRED'
+        : 'VALID';
+    return { outcome, stages };
+  }
+
   /** VER-002, as the BFF does it: the other verifier checks the presented credential on its own. */
   private async secondOpinion(outcome: VerificationOutcome, stages: VerificationStage[] | undefined): Promise<SecondOpinion | undefined> {
     const { fx, run } = this;
@@ -747,7 +779,7 @@ class RunSimulation {
     const mock = other.id === 'mock-verifier';
     const answer = simulatedMockVerifierResult(fx.problem, run.config.format, true);
     const body = mock
-      ? { ...answer, format: run.config.format, issuer: ISSUER_URL, verifiedAt: new Date().toISOString() }
+      ? { ...answer, format: run.config.format, issuer: fx.issuerUrl, verifiedAt: new Date().toISOString() }
       : { verificationStatus: { VALID: 'SUCCESS', INVALID: 'INVALID', EXPIRED: 'EXPIRED' }[answer.outcome as string] ?? 'INVALID' };
     const exchangeId = this.exchange({
       component: endpoints.component,

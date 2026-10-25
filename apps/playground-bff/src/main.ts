@@ -70,6 +70,13 @@ const TAPS = [
     upstream: env.TAP_UPSTREAM_MOCK_VERIFIER ?? '',
     publicOrigin: env.VERIFY_PUBLIC_URL,
   },
+  // Certify mock mDoc (second Certify) is published as /mdoc/… on the Certify host.
+  {
+    component: 'certify-mdoc',
+    port: Number(env.TAP_CERTIFY_MDOC_PORT ?? 3005),
+    upstream: env.TAP_UPSTREAM_CERTIFY_MDOC ?? '',
+    publicOrigin: env.CERTIFY_PUBLIC_URL && `${env.CERTIFY_PUBLIC_URL}/mdoc`,
+  },
 ];
 const tapUrl = (component: string) => {
   const t = TAPS.find((x) => x.component === component && x.upstream);
@@ -78,10 +85,13 @@ const tapUrl = (component: string) => {
 
 const registry = new ImplementationRegistry(CATALOG_DIR, {
   // The BFF's own protocol calls go through its tap, so they appear in the inspector.
-  certifyApiUrl: env.CERTIFY_API_URL || tapUrl('certify'),
-  verifyApiUrl: env.VERIFY_API_URL || tapUrl('verify'),
+  apiUrls: {
+    'inji-certify': env.CERTIFY_API_URL || tapUrl('certify'),
+    'inji-certify-mdoc': tapUrl('certify-mdoc'),
+    'inji-verify': env.VERIFY_API_URL || tapUrl('verify'),
+    'mock-verifier': env.MOCK_VERIFIER_API_URL || tapUrl('mock-verifier'),
+  },
   verifyClientId: env.VERIFY_CLIENT_ID ?? 'did:web:verify.localhost%3A8443:v1:verify',
-  mockVerifierApiUrl: env.MOCK_VERIFIER_API_URL || tapUrl('mock-verifier'),
   // Optional stable overrides. Without them the Hovi adapter discovers the public browser-client
   // values from playground.hovi.id, where they are intentionally exposed to every visitor.
   hoviSupabaseUrl: env.HOVI_SUPABASE_URL,

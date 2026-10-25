@@ -13,7 +13,8 @@ versionProbe:
   kind: static
   value: ${CERTIFY_VERSION:-0.14.0}
 capabilities:
-  formats: [ldp_vc, vc+sd-jwt, mso_mdoc]
+  # mso_mdoc comes from a second Certify in mock mDoc mode: catalog/inji-certify-mdoc.yaml.
+  formats: [ldp_vc, vc+sd-jwt]
   proofSuites: [Ed25519Signature2020, ES256]
   grantTypes: [pre-authorized_code, authorization_code]
   vciProfiles: [oid4vci-draft13]

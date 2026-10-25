@@ -23,6 +23,7 @@ interface CredentialOffer {
 interface CredentialConfiguration {
   format: CredentialFormat;
   vct?: string;
+  doctype?: string;
   credential_definition?: { '@context'?: string[]; type?: string[] };
   proof_types_supported?: { jwt?: { proof_signing_alg_values_supported?: string[] } };
 }
@@ -128,8 +129,14 @@ export async function acceptOffer(
   );
   if (!token.access_token) throw new WalletError(tokenStep, 'Token response has no access_token');
 
+  // mso_mdoc binds the key itself (cose_key), so the proof carries it as `jwk`; other formats bind
+  // a DID. (Inji Certify's mock mDoc plugin also cannot read a did:jwk kid with a #0 fragment.)
   const proof = await new SignJWT({ ...(token.c_nonce ? { nonce: token.c_nonce } : {}) })
-    .setProtectedHeader({ alg: 'ES256', typ: 'openid4vci-proof+jwt', kid: holder.kid })
+    .setProtectedHeader(
+      config.format === 'mso_mdoc'
+        ? { alg: 'ES256', typ: 'openid4vci-proof+jwt', jwk: holder.publicJwk }
+        : { alg: 'ES256', typ: 'openid4vci-proof+jwt', kid: holder.kid },
+    )
     .setAudience(metadata.credential_issuer)
     .setIssuedAt()
     .sign(holder.privateKey);
@@ -142,7 +149,9 @@ export async function acceptOffer(
           credential_definition: config.credential_definition,
           ...proofField,
         }
-      : { format: config.format, vct: config.vct, ...proofField };
+      : config.format === 'mso_mdoc'
+        ? { format: config.format, doctype: config.doctype, ...proofField }
+        : { format: config.format, vct: config.vct, ...proofField };
 
   const credStep = ProtocolStep.VCI_CREDENTIAL;
   const response = parseJson(

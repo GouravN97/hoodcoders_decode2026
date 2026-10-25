@@ -1,8 +1,9 @@
-// Turns a held credential (ldp_vc JSON or SD-JWT) into the fields the credential card shows.
+// Turns a held credential (ldp_vc JSON, SD-JWT or mDoc) into the fields the credential card shows.
+import { printable } from '@playground/protocol-core';
 import { decodeBody } from './decode';
 
 export interface CredentialSummary {
-  kind: 'ldp_vc' | 'sd-jwt' | 'unknown';
+  kind: 'ldp_vc' | 'sd-jwt' | 'mso_mdoc' | 'unknown';
   type?: string;
   issuer?: string;
   validFrom?: string;
@@ -45,6 +46,18 @@ export function summarizeCredential(raw: string): CredentialSummary {
       claims: Object.entries(subject)
         .filter(([k]) => k !== 'id')
         .map(([name, value]) => ({ name, value: str(value) })),
+    };
+  }
+  if (d.kind === 'mdoc' && d.documents[0]) {
+    const doc = d.documents[0];
+    const v = doc.mso.validityInfo;
+    return {
+      kind: 'mso_mdoc',
+      type: doc.docType,
+      validFrom: v.validFrom?.toISOString(),
+      validUntil: v.validUntil?.toISOString(),
+      proofType: doc.issuerAuth.alg === -7 ? 'ES256 (COSE)' : undefined,
+      claims: doc.elements.map((e) => ({ name: e.elementIdentifier, value: str(printable(e.elementValue)) })),
     };
   }
   return { kind: 'unknown', claims: [] };

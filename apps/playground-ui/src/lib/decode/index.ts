@@ -1,5 +1,6 @@
 // Client-side payload decoders for the protocol inspector. Pure and synchronous (SD-JWT
 // digest checks live in ./sdjwt.ts and are async), so they can move to protocol-core later.
+import { parseDeviceResponse, parseMdoc, type ParsedMdoc } from '@playground/protocol-core';
 import { base64url, decodeJwt, decodeProtectedHeader } from 'jose';
 
 export interface DecodedJwt {
@@ -29,12 +30,16 @@ export type Decoded =
   | { kind: 'sd-jwt'; issuerJwt: DecodedJwt; disclosures: Disclosure[]; kbJwt?: DecodedJwt }
   | { kind: 'json'; value: unknown; isLdpVc: boolean; embedded: Embedded[] }
   | { kind: 'form'; fields: Record<string, string>; embedded: Embedded[] }
-  | { kind: 'uri'; scheme: string; params: Record<string, string>; embedded: Embedded[] };
+  | { kind: 'uri'; scheme: string; params: Record<string, string>; embedded: Embedded[] }
+  /** ISO mDoc: a credential (IssuerSigned, or Certify's {docType, issuerSigned}) or a DeviceResponse vp_token. */
+  | { kind: 'mdoc'; container: 'credential' | 'DeviceResponse'; documents: ParsedMdoc[] };
 
 const JWT_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/;
 const SD_JWT_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*~/;
 const CUSTOM_URI_RE = /^([a-z][a-z0-9+.-]*):\/\/[^\s]*\?/i;
 const FORM_RE = /^[\w.%-]+=[^&\s]*(&[\w.%-]+=[^&\s]*)*$/;
+/** Long base64url with no dots (Certify pads it with "="): a CBOR candidate (mDoc), confirmed only if it parses as one. */
+const CBOR_B64_RE = /^[A-Za-z0-9_-]{120,}={0,2}$/;
 
 const textDecoder = new TextDecoder();
 
@@ -78,9 +83,25 @@ export function decodeSdJwt(raw: string): Extract<Decoded, { kind: 'sd-jwt' }> |
   return { kind: 'sd-jwt', issuerJwt, disclosures, ...(kbJwt ? { kbJwt } : {}) };
 }
 
+/** An mDoc credential or DeviceResponse, or null when the text is not one. */
+export function decodeMdoc(raw: string): Extract<Decoded, { kind: 'mdoc' }> | null {
+  if (!CBOR_B64_RE.test(raw)) return null;
+  try {
+    return { kind: 'mdoc', container: 'DeviceResponse', documents: parseDeviceResponse(raw).documents };
+  } catch {
+    try {
+      return { kind: 'mdoc', container: 'credential', documents: [parseMdoc(raw)] };
+    } catch {
+      return null;
+    }
+  }
+}
+
 /** Strings worth decoding further when found inside JSON, forms or URIs. */
 function decodeNested(value: string): Decoded | null {
   const v = value.trim();
+  const mdoc = decodeMdoc(v);
+  if (mdoc) return mdoc;
   if (SD_JWT_RE.test(v)) return decodeSdJwt(v);
   if (JWT_RE.test(v)) {
     const jwt = decodeJwtParts(v);
@@ -173,6 +194,8 @@ export function decodeBody(body: string | undefined, contentType?: string): Deco
   if (jwt) return { kind: 'jwt', jwt };
   const uri = decodeUri(raw);
   if (uri) return uri;
+  const mdoc = decodeMdoc(raw);
+  if (mdoc) return mdoc;
   if (FORM_RE.test(raw)) return decodeForm(raw);
   return { kind: 'text', value: raw };
 }
@@ -201,5 +224,7 @@ export function decodedKindLabel(d: Decoded): string {
       return 'Form';
     case 'uri':
       return `${d.scheme}:// URI`;
+    case 'mdoc':
+      return d.container === 'DeviceResponse' ? 'mDoc DeviceResponse' : 'mDoc';
   }
 }

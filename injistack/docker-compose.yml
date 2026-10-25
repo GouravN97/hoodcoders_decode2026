@@ -116,6 +116,58 @@ services:
           - ${CERTIFY_PUBLIC_HOST:-certify.localhost}
           - ${VERIFY_PUBLIC_HOST:-verify.localhost}
 
+  # ---------- Certify mock mDoc (profile mdoc) ----------
+  # A second Certify from the same pinned image, configured like upstream's certify-mock-mdl.properties:
+  # plugin-mode=VCIssuance with MDocMockVCIssuancePlugin, which issues an ISO mDL (mso_mdoc). That mode is
+  # a global switch, so it cannot share the Farmer Certify; it gets its own database (inji_certify_mock)
+  # and issuer key. Published as https://${CERTIFY_PUBLIC_HOST}:8443/mdoc/… through the gateway and the
+  # Protocol Tap (:3005).
+  certify-mdoc-init:
+    profiles:
+      - mdoc
+    image: postgres:15
+    entrypoint: ["/bin/sh", "/scripts/certify-mdoc-init.sh"]
+    volumes:
+      - ./scripts/certify-mdoc-init.sh:/scripts/certify-mdoc-init.sh:ro
+      - ./db/certify_init.sql:/db/certify_init.sql:ro
+      - ./db/certify-mdoc-config.sql:/db/certify-mdoc-config.sql:ro
+      - certify-mdoc-key:/mdoc-key
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - injistack
+
+  certify-mdoc:
+    profiles:
+      - mdoc
+    image: injistack/inji-certify-with-plugins:0.14.0
+    user: root
+    environment:
+      container_user: mosip
+      active_profile_env: "default,mock-mdoc"
+      SPRING_CONFIG_NAME: certify
+      SPRING_CONFIG_LOCATION: /home/mosip/config/
+      # The issuer key and certificate certify-mdoc-init made, as a Spring config tree.
+      SPRING_CONFIG_IMPORT: optional:configtree:/mdoc-key/
+      enable_certify_artifactory: "false"
+      download_hsm_client: "false"
+      mosip_certify_domain_url: https://${CERTIFY_PUBLIC_HOST:-certify.localhost}:8443/mdoc
+      JAVA_TOOL_OPTIONS: *local-ca-java
+    volumes:
+      - ./config/certify-default.properties:/home/mosip/config/certify-default.properties:ro
+      - ./config/certify-mock-mdoc.properties:/home/mosip/config/certify-mock-mdoc.properties:ro
+      - certify-mdoc-data:/home/mosip/CERTIFY_PKCS12
+      - certify-mdoc-key:/mdoc-key:ro
+      - local-certs:/certs:ro
+    depends_on:
+      certify-mdoc-init:
+        condition: service_completed_successfully
+      certs:
+        condition: service_completed_successfully
+    networks:
+      - injistack
+
   mimoto-service:
     profiles:
       - wallet
@@ -340,7 +392,7 @@ services:
 
   # ---------- Playground ----------
   # BFF: catalog, run orchestration, reports, live run events and the Protocol Tap (Certify tap on :3002,
-  # Verify tap on :3003, mock verifier tap on :3004, all behind certify-nginx). Finished runs are kept in the playground-data volume.
+  # Verify tap on :3003, mock verifier tap on :3004, Certify mock mDoc tap on :3005, all behind certify-nginx). Finished runs are kept in the playground-data volume.
   playground-bff:
     build:
       context: ..
@@ -352,6 +404,7 @@ services:
       TAP_UPSTREAM_CERTIFY: http://certify:8090
       TAP_UPSTREAM_VERIFY: http://verify-service:8080
       TAP_UPSTREAM_MOCK_VERIFIER: http://mock-verifier:7004
+      TAP_UPSTREAM_CERTIFY_MDOC: http://certify-mdoc:8090
       CERTIFY_PUBLIC_URL: https://${CERTIFY_PUBLIC_HOST:-certify.localhost}:8443
       VERIFY_PUBLIC_URL: ${VERIFY_PUBLIC_URL:-https://verify.localhost:8443}
       VERIFY_CLIENT_ID: ${VERIFY_DID:-did:web:verify.localhost%3A8443:v1:verify}
@@ -360,6 +413,7 @@ services:
       VERIFY_INTERNAL_URL: http://verify-service:8080
       MOCK_WALLET_URL: http://mock-wallet:7003
       MOCK_VERIFIER_INTERNAL_URL: http://mock-verifier:7004
+      CERTIFY_MDOC_INTERNAL_URL: http://certify-mdoc:8090
       INJI_WEB_INTERNAL_URL: http://inji-web:3004
       INJI_WEB_PUBLIC_URL: http://localhost:3004
       MIMOTO_PUBLIC_URL: http://localhost:8099
@@ -372,6 +426,7 @@ services:
           {"name": "verify-ui", "url": "http://verify-ui:8000/"},
           {"name": "mock-wallet", "url": "http://mock-wallet:7003/health"},
           {"name": "mock-verifier", "url": "http://mock-verifier:7004/mock-verifier/health", "optional": true},
+          {"name": "certify-mdoc", "url": "http://certify-mdoc:8090/v1/certify/actuator/health", "optional": true},
           {"name": "esignet", "url": "http://esignet:8080/health", "optional": true},
           {"name": "mimoto", "url": "http://mimoto-service:8099/v1/mimoto/issuers", "optional": true},
           {"name": "inji-web", "url": "http://inji-web:3004/", "optional": true}
@@ -417,8 +472,12 @@ services:
       CLIENT_ID: ${MOCK_VERIFIER_DID:-}
       # Certify's SD-JWT `iss` is mosip.certify.domain.url. Other issuers are accepted with a warning.
       TRUSTED_ISSUERS: https://${CERTIFY_PUBLIC_HOST:-certify.localhost}:8443
+      # mDoc issuer certificates to trust (certify-mdoc's, when the mdoc profile has made it).
+      TRUSTED_MDOC_CERTS: /trust/issuer.crt
     ports:
       - "8105:7004"
+    volumes:
+      - certify-mdoc-key:/trust:ro
     networks:
       - injistack
 
@@ -444,5 +503,7 @@ networks:
 volumes:
   postgres-data:
   certify-data:
+  certify-mdoc-data:
+  certify-mdoc-key:
   local-certs:
   playground-data:

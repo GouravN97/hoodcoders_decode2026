@@ -31,10 +31,18 @@ export function predict(
   const presenting = runUsesRole(config.mode, 'verifier');
   for (const entry of [issuer, wallet, verifier].filter((e) => runUsesRole(config.mode, e.role))) {
     if (!entry.capabilities.formats.includes(config.format)) {
+      // A verifier that cannot check the format: say what can (e.g. Inji Verify 0.18.2 and mso_mdoc).
+      const others = catalog
+        .filter((c) => c.role === 'verifier' && c.id !== entry.id && c.capabilities.formats.includes(config.format))
+        .map((c) => c.displayName);
+      const hint =
+        entry.role !== 'verifier'
+          ? ''
+          : `; run Issue only${others.length > 0 ? `, or choose ${others.join(' or ')}` : ''}`;
       reasons.push({
         role: entry.role,
         severity: 'error',
-        message: `${entry.displayName} does not support ${config.format}`,
+        message: `${entry.displayName} does not ${entry.role === 'verifier' ? 'verify' : 'support'} ${config.format}${hint}`,
       });
     }
     if (entry.health === 'down') {

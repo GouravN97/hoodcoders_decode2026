@@ -73,7 +73,7 @@ The problem statement asks us not to replicate the external playground. Our diff
 | **M6** Two formats end-to-end, labelled per run | `LdpVcHandler`, `SdJwtVcHandler`, UI `FormatBadge` | P3 |
 | **M7** Pass/fail report per run | `RunReportBuilder`, `VerdictCalculator`, Markdown/JSON/JUnit renderers | P3 |
 | **G1** Non-Inji standards-compliant mock | `apps/mock-issuer`, `apps/mock-verifier` (optional walt.id adapters) | P4 |
-| **G2** mDoc/mDL third format | `MsoMdocHandler`, Certify mock mDoc plugin configuration | P4 |
+| **G2** mDoc/mDL third format | `MsoMdocHandler`, Certify mock mDoc plugin configuration (implemented 25 October 2026: `certify-mdoc` profile, `packages/protocol-core/src/mdoc.ts`; see README "mDoc") | P4 |
 | **G3** Animated Mermaid sequence diagram | `SequenceDiagramBuilder` + UI `SequenceDiagramView` | P3 |
 | **G4** Replay & tamper mode | `TamperService`, mock-wallet hooks, tap `TransitTamperRule` | P4 |
 | **G5** Historical dashboard | `HistoryController`, UI `/history` | P4 |

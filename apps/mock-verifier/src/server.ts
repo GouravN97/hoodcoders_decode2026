@@ -7,8 +7,9 @@
 //   POST oid4vp/response/:id           direct_post (wallet)
 //   GET  did.json                      the verifier's did:web document (wallet)
 //   GET  health
+import { existsSync, readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import type { PresentationDefinition } from '@playground/protocol-core';
+import { pemToDer, type PresentationDefinition } from '@playground/protocol-core';
 import {
   MockVerifierCreateRequestSchema,
   MockVerifierVerifyCredentialSchema,
@@ -57,8 +58,18 @@ async function readJson<S extends z.ZodType>(req: IncomingMessage, schema: S): P
 const randomHex = (bytes: number) =>
   Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) => b.toString(16).padStart(2, '0')).join('');
 
+/** Trusted mDoc issuer certificates, re-read each time: certify-mdoc may create its certificate later. */
+const mdocCertificates = (files: string[]) =>
+  files.filter((f) => existsSync(f)).flatMap((f) => pemToDer(readFileSync(f, 'utf8')));
+
 export function createVerifierServer(config: VerifierConfig, key: VerifierKey, store = new TransactionStore()): Server {
-  const ctx = { clientId: config.clientId, trustedIssuers: config.trustedIssuers };
+  const responseUriFor = (requestId: string) => `${config.publicUrl}/oid4vp/response/${requestId}`;
+  const context = () => ({
+    clientId: config.clientId,
+    trustedIssuers: config.trustedIssuers,
+    trustedMdocCertificates: mdocCertificates(config.trustedMdocCertFiles),
+    responseUriFor,
+  });
 
   const route = async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', 'http://verifier');
@@ -112,7 +123,7 @@ export function createVerifierServer(config: VerifierConfig, key: VerifierKey, s
 
     if (method === 'POST' && path === '/api/verify-credential') {
       const body = await readJson(req, MockVerifierVerifyCredentialSchema);
-      return send(res, 200, await verifyCredentialOnly(body.credential, ctx));
+      return send(res, 200, await verifyCredentialOnly(body.credential, context()));
     }
 
     // Wallet-facing: request object by reference. Some wallets POST their metadata here (request_uri_method=post).
@@ -126,7 +137,7 @@ export function createVerifierServer(config: VerifierConfig, key: VerifierKey, s
         client_id: config.clientId,
         response_type: 'vp_token',
         response_mode: 'direct_post',
-        response_uri: `${config.publicUrl}/oid4vp/response/${tx.requestId}`,
+        response_uri: responseUriFor(tx.requestId),
         nonce: tx.nonce,
         state: tx.requestId,
         presentation_definition: tx.presentationDefinition,
@@ -135,6 +146,7 @@ export function createVerifierServer(config: VerifierConfig, key: VerifierKey, s
           vp_formats: {
             'vc+sd-jwt': { 'sd-jwt_alg_values': ['ES256', 'EdDSA'], 'kb-jwt_alg_values': ['ES256', 'EdDSA'] },
             'dc+sd-jwt': { 'sd-jwt_alg_values': ['ES256', 'EdDSA'], 'kb-jwt_alg_values': ['ES256', 'EdDSA'] },
+            mso_mdoc: { alg: ['ES256'] },
           },
         },
       });
@@ -146,7 +158,7 @@ export function createVerifierServer(config: VerifierConfig, key: VerifierKey, s
       if (!tx) throw new HttpError(404, 'Unknown request', 'invalid_request');
       if (tx.submitted) throw new HttpError(400, 'A response was already submitted for this request', 'invalid_request');
       if (store.status(tx) === 'EXPIRED') throw new HttpError(400, 'The request has expired', 'invalid_request');
-      const result = await verifyResponse(tx, new URLSearchParams(await readBody(req)), ctx);
+      const result = await verifyResponse(tx, new URLSearchParams(await readBody(req)), context());
       store.submit(tx, result);
       // A response that cannot be used at all is refused here; every other result is fetched by the BFF.
       if (result.outcome === 'REJECTED' && !result.stages.some((s) => s.message.startsWith('The wallet answered with error'))) {

@@ -1,9 +1,19 @@
 // The mock verifier end to end, in process: the real mock wallet code answers its requests over
 // HTTP, so these tests also show the two playground mocks interoperate.
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
-import { ed25519MultibaseToJwk, sha256b64url } from '@playground/protocol-core';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+  createMdoc,
+  ed25519MultibaseToJwk,
+  pemToDer,
+  sha256b64url,
+  TEST_MDOC_ISSUER_CERT_PEM,
+  TEST_MDOC_ISSUER_KEY_PEM,
+} from '@playground/protocol-core';
 import type { HeldCredential, MockVerifierResult } from '@playground/shared';
-import { base64url, compactVerify, decodeJwt, exportJWK, generateKeyPair, importJWK, SignJWT } from 'jose';
+import { base64url, compactVerify, decodeJwt, exportJWK, generateKeyPair, importJWK, importPKCS8, SignJWT, type CryptoKey } from 'jose';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // Test-only: the wallet side of the conversation.
 import { createHolderKey, type HolderKey } from '../../mock-wallet/src/keys.ts';
@@ -20,6 +30,7 @@ const config: VerifierConfig = {
   publicUrl: '',
   clientId: 'did:web:verifier.test:mock-verifier',
   trustedIssuers: [ISSUER],
+  trustedMdocCertFiles: [join(mkdtempSync(join(tmpdir(), 'mdoc-trust-')), 'issuer.crt')],
   requestTtlMs: 60_000,
 };
 let base = '';
@@ -29,6 +40,7 @@ let issuerKeys: Awaited<ReturnType<typeof generateKeyPair>>;
 let server: ReturnType<typeof createVerifierServer>;
 
 beforeAll(async () => {
+  writeFileSync(config.trustedMdocCertFiles[0]!, TEST_MDOC_ISSUER_CERT_PEM);
   key = await createVerifierKey(config.clientId);
   holder = await createHolderKey();
   issuerKeys = await generateKeyPair('ES256', { extractable: true });
@@ -205,5 +217,91 @@ describe('mock verifier', () => {
     const result = (await res.json()) as MockVerifierResult;
     expect(result.outcome).toBe('VALID');
     expect(stageStatus(result)['holder-binding']).toBe('skip');
+  });
+
+  describe('mso_mdoc', () => {
+    const MDL = 'org.iso.18013.5.1.mDL';
+    const issueMdoc = async (validUntil = new Date(Date.now() + 86_400_000)): Promise<HeldCredential> => ({
+      id: crypto.randomUUID(),
+      format: 'mso_mdoc',
+      credentialConfigurationId: 'MockMDL',
+      issuer: 'https://certify.test/mdoc',
+      raw: await createMdoc({
+        docType: MDL,
+        // An element the request does not ask for comes first, as in Certify's mDL: tampers must
+        // still change what is disclosed.
+        nameSpaces: { 'org.iso.18013.5.1': { issue_date: '2026-10-25', family_name: 'Kumar', given_name: 'Ramesh', birth_date: '1984-03-12' } },
+        issuerKey: (await importPKCS8(TEST_MDOC_ISSUER_KEY_PEM, 'ES256')) as CryptoKey,
+        issuerCertificate: pemToDer(TEST_MDOC_ISSUER_CERT_PEM)[0]!,
+        deviceJwk: holder.publicJwk,
+        validFrom: new Date(Date.now() - 86_400_000),
+        validUntil,
+        wrapped: true,
+      }),
+      receivedAt: new Date().toISOString(),
+      holderDid: holder.did,
+    });
+    const mdocRequest = async (docType = MDL) => {
+      const res = await fetch(`${base}/api/requests`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          presentationDefinition: {
+            id: 'pd-mdoc',
+            input_descriptors: [
+              {
+                id: docType,
+                format: { mso_mdoc: { alg: ['ES256'] } },
+                constraints: {
+                  limit_disclosure: 'required',
+                  fields: [{ path: ["$['org.iso.18013.5.1']['family_name']"], intent_to_retain: false }],
+                },
+              },
+            ],
+          },
+        }),
+      });
+      return (await res.json()) as { requestId: string; transactionId: string; authorizationRequestUri: string };
+    };
+
+    it('verifies the mock wallet’s DeviceResponse: issuer signature, trust, digests, device signature', async () => {
+      const req = await mdocRequest();
+      expect((await respond({ authorizationRequestUri: req.authorizationRequestUri }, holder, [await issueMdoc()])).status).toBe(200);
+      const result = await resultOf(req.transactionId);
+      expect(result).toMatchObject({ outcome: 'VALID', format: 'mso_mdoc', credentialType: MDL });
+      // The wrapper Certify issues is reported, not failed.
+      expect(stageStatus(result)).toMatchObject({ 'requested-credential': 'pass', 'issuer-signature': 'pass', 'issuer-trust': 'pass', digests: 'pass', 'holder-binding': 'pass', validity: 'pass' });
+    });
+
+    it.each([
+      ['T-SIG-FLIP', 'issuer-signature'],
+      ['T-CLAIM-EDIT', 'digests'],
+    ] as const)('rejects %s mDocs at the %s check', async (tamper, failing) => {
+      const req = await mdocRequest();
+      await respond({ authorizationRequestUri: req.authorizationRequestUri, tamper }, holder, [await issueMdoc()]);
+      const result = await resultOf(req.transactionId);
+      expect(result.outcome).toBe('INVALID');
+      expect(stageStatus(result)[failing]).toBe('fail');
+    });
+
+    it('rejects an mDoc of another docType and reports an expired one as Expired', async () => {
+      const wrong = await mdocRequest('org.example.other.1');
+      await respond({ authorizationRequestUri: wrong.authorizationRequestUri, tamper: 'T-WRONG-TYPE' }, holder, [await issueMdoc()]);
+      expect((await resultOf(wrong.transactionId)).stages.find((s) => s.id === 'requested-credential')).toMatchObject({ status: 'fail', message: expect.stringContaining('org.example.other.1') });
+      const expired = await mdocRequest();
+      await respond({ authorizationRequestUri: expired.authorizationRequestUri }, holder, [await issueMdoc(new Date(Date.now() - 3_600_000))]);
+      expect((await resultOf(expired.transactionId)).outcome).toBe('EXPIRED');
+    });
+
+    it('checks an mDoc credential on its own for the second opinion', async () => {
+      const res = await fetch(`${base}/api/verify-credential`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ credential: (await issueMdoc()).raw, format: 'mso_mdoc' }),
+      });
+      const result = (await res.json()) as MockVerifierResult;
+      expect(result.outcome).toBe('VALID');
+      expect(stageStatus(result)['holder-binding']).toBe('skip');
+    });
   });
 });

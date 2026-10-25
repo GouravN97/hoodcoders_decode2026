@@ -32,7 +32,31 @@ const INVALID_PRESENTATION_CODES = [
   'VP_WITHOUT_PROOF',
 ];
 
+/** The namespace an mDoc docType keeps its elements in: the mDL's is ISO 18013-5's, others use the docType. */
+export const mdocNamespace = (docType: string) => (docType.endsWith('.mDL') ? docType.slice(0, -'.mDL'.length) : docType);
+
 export function presentationDefinitionFor(spec: PresentationSpec): object {
+  if (spec.format === 'mso_mdoc') {
+    // ISO 18013-7 Annex B: the input descriptor's id is the docType; fields name namespace elements.
+    const ns = mdocNamespace(spec.credentialType);
+    return {
+      id: spec.id,
+      purpose: spec.purpose,
+      input_descriptors: [
+        {
+          id: spec.credentialType,
+          format: { mso_mdoc: { alg: ['ES256'] } },
+          constraints: {
+            limit_disclosure: 'required',
+            fields: ['family_name', 'given_name', 'birth_date'].map((e) => ({
+              path: [`$['${ns}']['${e}']`],
+              intent_to_retain: false,
+            })),
+          },
+        },
+      ],
+    };
+  }
   const isSdJwt = spec.format !== 'ldp_vc';
   return {
     id: spec.id,

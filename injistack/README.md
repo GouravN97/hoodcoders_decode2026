@@ -59,6 +59,31 @@ docker compose logs -f mimoto-service
 docker compose logs -f verify-service
 ```
 
+### Certify mock mDoc (optional)
+
+```sh
+docker compose --profile mdoc up -d
+```
+
+adds a second Certify from the same pinned image in its own mock mDoc mode
+(`config/certify-mock-mdoc.properties`, as upstream's `certify-mock-mdl.properties`:
+`plugin-mode=VCIssuance`, `MDocMockVCIssuancePlugin`). It issues an ISO mDL
+(`org.iso.18013.5.1.mDL`) as `mso_mdoc` and is published at
+`https://<certify-host>:8443/mdoc/…` through the gateway and the Protocol Tap
+(`:3005`); the playground lists it as **Inji Certify (mock mDoc)**. The one-shot
+`certify-mdoc-init` creates its database (`inji_certify_mock`, schema from
+`db/certify_init.sql` plus `db/certify-mdoc-config.sql`) and a throwaway P-256
+issuer key and certificate in the `certify-mdoc-key` volume, once; the mock
+verifier trusts that certificate. Neither the key nor the certificate is in
+the repository.
+
+What we observed from this issuer (25 October 2026): it accepts pre-authorized
+offers, but issues fixed mock mDL data whatever the offer's claims say (it puts
+the token's `sub`, which is the offer's claims as JSON, into `document_number`);
+it binds the holder key with `cose_key`, so the proof must carry a `jwk` header
+(a `did:jwk…#0` kid fails with `vci_exchange_failed`). Details in the
+[results](../docs/external-credential-interoperability-results.md#mdoc-certify-mock-mdoc).
+
 The Certify mock setup is intended for the local guest/demo flow.
 Authentication through eSignet, Google sign-in, and MOSIP Resident APIs are
 not included in the baseline command. The command intentionally starts the local

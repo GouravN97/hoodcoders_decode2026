@@ -40,6 +40,7 @@ beforeAll(async () => {
     publicUrl: '',
     clientId: 'did:web:verify.test:mock-verifier',
     trustedIssuers: [ISSUER],
+    trustedMdocCertFiles: [],
     requestTtlMs: 60_000,
   };
   server = createVerifierServer(config, await createVerifierKey(config.clientId));

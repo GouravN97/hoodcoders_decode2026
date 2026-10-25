@@ -73,6 +73,17 @@ describe('decodeBody', () => {
     expect(token.kind === 'json' && token.embedded.map((e) => e.path)).toEqual(['access_token']);
   });
 
+  it('decodes an mDoc credential response (padded base64url, as Certify sends it) and a DeviceResponse vp_token', async () => {
+    const fx = await buildFixtures({ runId: crypto.randomUUID(), format: 'mso_mdoc', credentialConfigurationId: 'MockMDL', scenario: 'valid', verifierId: 'mock-verifier' });
+    const padded = fx.credentialRaw + '='.repeat((4 - (fx.credentialRaw.length % 4)) % 4);
+    const d = decodeBody(JSON.stringify({ credential: padded }));
+    expect(d.kind === 'json' && d.embedded[0]?.decoded).toMatchObject({ kind: 'mdoc', container: 'credential', documents: [{ docType: 'org.iso.18013.5.1.mDL', shape: 'wrapped' }] });
+    const form = decodeBody(fx.vpSubmissionBody, 'application/x-www-form-urlencoded');
+    expect(form.kind === 'form' && form.embedded.find((e) => e.path === 'vp_token')?.decoded).toMatchObject({ kind: 'mdoc', container: 'DeviceResponse' });
+    // A short opaque token is not mistaken for CBOR.
+    expect(decodeBody('SFLo3Ai2sajuJudySCahMKItuzIPN7I0').kind).toBe('text');
+  });
+
   it('handles empty, plain text and URL queries', () => {
     expect(decodeBody(undefined).kind).toBe('empty');
     expect(decodeBody('   ').kind).toBe('empty');

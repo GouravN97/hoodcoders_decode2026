@@ -3,8 +3,9 @@
 # nginx's own $variables are left alone.
 #
 # Every protocol request goes through the playground's Protocol Tap (playground-bff:3002 for
-# Certify, :3003 for Verify, :3004 for the mock verifier), which records it and forwards it unchanged. When the BFF is not
-# running, nginx falls back to the service itself (`backup`), so the stack keeps working.
+# Certify, :3003 for Verify, :3004 for the mock verifier, :3005 for Certify mock mDoc), which
+# records it and forwards it unchanged. When the BFF is not running, nginx falls back to the
+# service itself (`backup`), so the stack keeps working.
 
 server_names_hash_bucket_size 128;
 
@@ -23,6 +24,12 @@ upstream verify_api {
     zone verify_api 64k;
     server playground-bff:3003 max_fails=1 fail_timeout=10s resolve;
     server verify-service:8080 backup resolve;
+}
+
+upstream certify_mdoc_api {
+    zone certify_mdoc_api 64k;
+    server playground-bff:3005 max_fails=1 fail_timeout=10s resolve;
+    server certify-mdoc:8090 backup resolve;
 }
 
 upstream mock_verifier_api {
@@ -84,6 +91,23 @@ server {
     # OAuth authorization server metadata (RFC 8414) for Certify acting as its own token issuer.
     location = /.well-known/oauth-authorization-server {
         proxy_pass http://certify_api/v1/certify/.well-known/oauth-authorization-server;
+        add_header 'Access-Control-Allow-Origin' '*' always;
+    }
+
+    # Certify mock mDoc (certify-mdoc, profile mdoc): its credential_issuer is https://<host>:8443/mdoc,
+    # so its endpoints and .well-known documents live under /mdoc/ on this host.
+    location /mdoc/v1/certify/ {
+        proxy_pass http://certify_mdoc_api/v1/certify/;
+        add_header 'Access-Control-Allow-Origin' '*' always;
+    }
+
+    location = /mdoc/.well-known/openid-credential-issuer {
+        proxy_pass http://certify_mdoc_api/v1/certify/.well-known/openid-credential-issuer;
+        add_header 'Access-Control-Allow-Origin' '*' always;
+    }
+
+    location = /mdoc/.well-known/oauth-authorization-server {
+        proxy_pass http://certify_mdoc_api/v1/certify/.well-known/oauth-authorization-server;
         add_header 'Access-Control-Allow-Origin' '*' always;
     }
 
