@@ -1,6 +1,12 @@
 // In-memory store shared by the MSW handlers and the run simulator, so REST responses and
 // live events always describe the same run.
-import type { CheckFinding, ExchangeWithDecoded, HeldCredential, RunDetail } from '@playground/shared';
+import type {
+  CheckFinding,
+  ExchangeWithDecoded,
+  HeldCredential,
+  RunDetail,
+  TamperPlan,
+} from '@playground/shared';
 
 export interface MockRunRecord {
   run: RunDetail;
@@ -9,6 +15,8 @@ export interface MockRunRecord {
   cancelled: boolean;
   /** Pending manual-evidence waits, keyed by step id. */
   manualWaiters: Map<string, () => void>;
+  /** The tamper the run applies, planned when it was created. */
+  tamperPlan?: TamperPlan;
 }
 
 const runs = new Map<string, MockRunRecord>();
@@ -29,6 +37,8 @@ export const db = {
   },
   get: (id: string) => runs.get(id),
   all: () => [...runs.values()],
+  /** Runs newest first, as GET /api/runs returns them. */
+  list: () => [...runs.values()].map((r) => r.run).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
   heldCredentials,
   clear: () => {
     runs.clear();

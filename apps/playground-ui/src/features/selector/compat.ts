@@ -1,6 +1,7 @@
 // Pure selection rules for the selector screen (unit-tested).
 import {
   PLAYGROUND_FORMATS,
+  runUsesRole,
   type CatalogEntry,
   type CredentialConfigurationSummary,
   type CredentialFormat,
@@ -75,7 +76,7 @@ export function buildRunConfig(
     SelectionState,
     'format' | 'credentialConfigurationId' | 'presentationFlow' | 'expectedOutcome'
   > &
-    Partial<Pick<SelectionState, 'mode' | 'heldCredentialId'>>,
+    Partial<Pick<SelectionState, 'mode' | 'heldCredentialId' | 'tamper'>>,
   issuer: CatalogEntry | undefined,
   wallet: CatalogEntry | undefined,
   verifier: CatalogEntry | undefined,
@@ -102,6 +103,7 @@ export function buildRunConfig(
     ...(mode === 'present-only' && s.heldCredentialId
       ? { heldCredentialId: s.heldCredentialId }
       : {}),
+    ...(s.tamper && runUsesRole(mode, 'verifier') ? { tamper: s.tamper } : {}),
     ...(scenario ? { labels: { scenario } } : {}),
   };
 }

@@ -33,6 +33,9 @@ export const CreateRunResponseSchema = z.object({ id: z.string() });
 /** GET /api/runs/:id */
 export const RunResponseSchema = RunDetailSchema;
 
+/** GET /api/runs — newest first. */
+export const RunsResponseSchema = z.array(RunDetailSchema);
+
 /**
  * GET /api/runs/:id/exchanges?decode=true — full exchanges in `seq` order. `decoded` is the
  * BFF's PayloadDecoderService output; the UI falls back to its own decoders when absent.

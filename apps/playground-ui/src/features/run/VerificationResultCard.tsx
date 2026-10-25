@@ -1,4 +1,11 @@
-import { outcomeLabel, verdictLabel, type RunDetail, type VerificationOutcome } from '@playground/shared';
+import {
+  outcomeLabel,
+  reportTamper,
+  verdictLabel,
+  type ReportTamper,
+  type RunDetail,
+  type VerificationOutcome,
+} from '@playground/shared';
 import { AlertIcon, CheckIcon, ClockIcon, XIcon } from '../../components/icons';
 import { CodeBlock } from '../../components/JsonTree';
 import { cx } from '../../components/ui';
@@ -21,11 +28,33 @@ const EXPLAIN: Record<VerificationOutcome, string> = {
   ERROR: 'The verifier could not produce a result.',
 };
 
-export function VerificationResultCard({ run }: { run: RunDetail }) {
+/** Whether the verifier caught the run's tamper, in one sentence. */
+export function TamperVerdict({ tamper, verifierName }: { tamper: ReportTamper; verifierName: string }) {
+  const tone =
+    tamper.detected === false ? 'text-bad' : tamper.detected && tamper.observedOutcome === tamper.expectedOutcome ? 'text-ok' : 'text-warn';
+  return (
+    <p className={cx('text-xs', tone)} data-testid="tamper-verdict">
+      <strong>
+        {tamper.id} {tamper.label.toLowerCase()}
+      </strong>
+      {tamper.defaulted && <span className="text-muted"> (applied because the run expected Invalid)</span>}:{' '}
+      {tamper.detected === null
+        ? 'no verification result to judge.'
+        : !tamper.detected
+          ? `not detected — ${verifierName} accepted it as ${outcomeLabel('VALID')}.`
+          : tamper.observedOutcome === tamper.expectedOutcome
+            ? `${verifierName} rejected it as expected.`
+            : `${verifierName} rejected it as ${outcomeLabel(tamper.observedOutcome!)}, not the expected ${outcomeLabel(tamper.expectedOutcome)}.`}
+    </p>
+  );
+}
+
+export function VerificationResultCard({ run, verifierName = 'Verifier' }: { run: RunDetail; verifierName?: string }) {
   const outcome = run.result?.outcome ?? run.observedOutcome;
   if (!outcome) return null;
   const tone = TONE[outcome];
   const matched = outcome === run.config.expectedOutcome;
+  const tamper = reportTamper(run);
 
   // Enters once per run: opacity always fades in; the rise and blur only without reduced motion.
   return (
@@ -45,7 +74,7 @@ export function VerificationResultCard({ run }: { run: RunDetail }) {
           <tone.Icon width={26} height={26} strokeWidth={2.5} />
         </span>
         <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-muted">Inji Verify result</p>
+          <p className="text-[11px] font-medium uppercase tracking-wider text-muted">{verifierName} result</p>
           <p className={cx('text-2xl font-bold tracking-tight', tone.text)}>{outcomeLabel(outcome)}</p>
           <p className="text-[13px] text-muted">{EXPLAIN[outcome]}</p>
         </div>
@@ -57,6 +86,11 @@ export function VerificationResultCard({ run }: { run: RunDetail }) {
         </span>
         {run.verdict && <span>Run verdict: <strong>{verdictLabel(run.verdict)}</strong></span>}
       </div>
+      {tamper && (
+        <div className="border-t border-border/60 bg-surface/60 px-5 py-2">
+          <TamperVerdict tamper={tamper} verifierName={verifierName} />
+        </div>
+      )}
       {run.result?.verifierRaw !== undefined && (
         <details className="border-t border-border/60 bg-surface">
           <summary className="cursor-pointer px-5 py-2 text-xs font-medium text-muted hover:text-fg">

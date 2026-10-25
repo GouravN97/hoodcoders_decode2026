@@ -99,7 +99,10 @@ export function RunPage() {
 
       {/* What needs attention right now: the verdict, failures, and anything the person has to do. */}
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-        <VerificationResultCard run={data} />
+        <VerificationResultCard
+          run={data}
+          verifierName={catalog.data?.find((c) => c.id === data.config.verifierId)?.displayName ?? 'Verifier'}
+        />
         <StepErrorPanel steps={data.steps} onSelectExchange={jumpToExchange} />
         {awaitingHold && (
           <HoldConfirmCard

@@ -1,13 +1,18 @@
 // REST contract of apps/mock-wallet (plan §8.5), used by the BFF's MockWalletAdapter and the CLI.
 import { z } from 'zod';
 import { CredentialFormatSchema } from './domain';
+import { ReplayInputSchema, TamperEvidenceSchema } from './tamper';
 
-/** Tampers the mock wallet can apply before presenting (plan §13). */
+/** Tampers the mock wallet can apply before presenting (plan §13; see TAMPER_CATALOGUE). */
 export const MockWalletTamperSchema = z.enum([
   /** Flip one character of the issuer's signature: the verifier must answer Invalid. */
   'T-SIG-FLIP',
   /** Change a claim after signing (JSON-LD) or swap a disclosure value (SD-JWT): Invalid. */
   'T-CLAIM-EDIT',
+  /** Present the held credential although it does not match the request's input descriptor. */
+  'T-WRONG-TYPE',
+  /** Answer with an earlier vp_token, or sign over an earlier nonce (`replay` says which). */
+  'T-NONCE-REPLAY',
 ]);
 export type MockWalletTamper = z.infer<typeof MockWalletTamperSchema>;
 
@@ -40,6 +45,8 @@ export const RespondRequestSchema = z.object({
   /** Present this credential; otherwise the newest one matching the request. */
   credentialId: z.string().optional(),
   tamper: MockWalletTamperSchema.optional(),
+  /** T-NONCE-REPLAY input, taken by the BFF from an earlier run. */
+  replay: ReplayInputSchema.optional(),
 });
 export type RespondRequest = z.infer<typeof RespondRequestSchema>;
 
@@ -50,6 +57,8 @@ export const RespondResponseSchema = z.object({
   status: z.number().int(),
   body: z.string().optional(),
   tamper: MockWalletTamperSchema.optional(),
+  /** What the tamper changed, for the inspector's before/after view. */
+  tamperEvidence: TamperEvidenceSchema.optional(),
   /** Problems the wallet noticed but did not stop for, e.g. an unverifiable request object signature. */
   warnings: z.array(z.string()),
 });

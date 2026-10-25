@@ -163,6 +163,7 @@ export function PlaygroundPage() {
             configsLoading={configs.isLoading}
             issuer={issuer}
             wallet={wallet}
+            verifier={verifier}
           />
           <CompatibilityHint config={config} />
         </div>

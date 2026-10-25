@@ -145,8 +145,10 @@ shows that error on the credential step. SD-JWT credentials need none.
 and **Inji Verify**, choose SD-JWT or JSON-LD and press **Run**: the BFF creates a
 pre-authorized offer in Certify, the mock wallet redeems it, the BFF asks Inji
 Verify for a presentation request, the wallet answers it, and the run ends with
-Inji Verify's verdict and a pass/fail report. Choose **Invalid** as the expected
-result and the mock wallet breaks the issuer's signature before presenting.
+Inji Verify's verdict and a pass/fail report. Pick a **Tamper** (broken signature,
+edited claim, wrong type, replay, expired) and the mock wallet breaks the
+presentation on purpose; the run reports whether Inji Verify caught it (see
+[Replay and tamper](../README.md#replay-and-tamper)).
 With **Inji Wallet (mobile)** the run shows QR codes for a phone instead (see
 [Phones and tunnels](#phones-and-tunnels)).
 
@@ -631,7 +633,7 @@ Start the emulator and Metro if they are not running, then unlock the app.
 | --- | --- |
 | **Valid** | Steps above with `FarmerCredentialSdJwt` (`vc+sd-jwt`). `FarmerCredential` (`ldp_vc`) can demonstrate issuance and submission, but the pinned mobile Wallet currently fails Verify proof validation with `did:jwk:...#0#0`. |
 | **Valid but Expired** | Choose **Credential** `FarmerCredentialExpired` (ldp_vc) or `FarmerCredentialSdJwtExpired` (vc+sd-jwt) and **Expected result** **Expired**. These are genuinely signed copies whose validity ended on 2025-01-01. The app stores an expired `ldp_vc` and shows it as "Valid"; Inji Verify reports **EXPIRED**. |
-| **Invalid** | Inji Wallet cannot tamper with a credential, so use the **mock wallet** with a tamper switch (see [Playground, Protocol Tap and mock wallet](#playground-protocol-tap-and-mock-wallet)) |
+| **Invalid** | Inji Wallet cannot tamper with a credential, so use the **mock wallet** and pick a **Tamper** in the run settings (see [Playground, Protocol Tap and mock wallet](#playground-protocol-tap-and-mock-wallet)) |
 
 ### Troubleshooting
 

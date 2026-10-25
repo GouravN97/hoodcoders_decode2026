@@ -17,6 +17,7 @@ import { useReport } from '../../api/queries';
 import { DownloadIcon, IssuerIcon } from '../../components/icons';
 import { Button, Card, cx, ErrorNote, SectionTitle, Spinner, type Tone } from '../../components/ui';
 import { EvidenceIcon, STATUS_LABEL, StatusIcon } from '../run/status';
+import { TamperVerdict } from '../run/VerificationResultCard';
 import { downloadReport } from './download';
 
 const VERDICT_TONE: Record<InteropVerdict, Tone> = {
@@ -133,6 +134,12 @@ function ReportBody({ report }: { report: RunReport }) {
               ? outcomeLabel(report.observedOutcome)
               : 'no verification result'}
         </Row>
+        {report.tamper && (
+          <Row label="Tamper">
+            <TamperVerdict tamper={report.tamper} verifierName={report.verifier.displayName} />
+            {report.tamper.summary && <span className="text-xs text-muted">{report.tamper.summary}</span>}
+          </Row>
+        )}
         <Row label="Error detail">
           {report.error ? (
             <span className="text-bad">

@@ -126,6 +126,20 @@ describe('selector rules', () => {
     );
   });
 
+  it('carries a tamper only for runs that present the credential', () => {
+    const sel = {
+      format: 'vc+sd-jwt' as const,
+      credentialConfigurationId: 'X',
+      presentationFlow: 'cross-device-qr' as const,
+      expectedOutcome: 'INVALID' as const,
+      tamper: { id: 'T-SIG-FLIP' },
+    };
+    const cc = { id: 'X', format: 'vc+sd-jwt' as const, displayName: 'x', proofSuites: ['ES256' as const] };
+    const roles = [get('inji-certify'), get('mock-wallet'), get('inji-verify')] as const;
+    expect(buildRunConfig({ ...sel, mode: 'full' }, ...roles, cc)?.tamper).toEqual({ id: 'T-SIG-FLIP' });
+    expect(buildRunConfig({ ...sel, mode: 'issue-only' }, ...roles, cc)).not.toHaveProperty('tamper');
+  });
+
   it('ignores the verifier when working out formats for an issue-only run', () => {
     const ldpOnlyVerifier = {
       ...get('inji-verify'),

@@ -14,6 +14,7 @@ import {
   type Role,
   type RunMode,
 } from './domain';
+import { AppliedTamperSchema } from './tamper';
 
 export const RunPhaseSchema = z.enum(['issuing', 'holding', 'presenting', 'verifying']);
 export type RunPhase = z.infer<typeof RunPhaseSchema>;
@@ -173,6 +174,8 @@ export const RunDetailSchema = z.object({
     .object({ purpose: DeliveryPurposeSchema, instruction: DeliveryInstructionSchema })
     .optional(),
   result: VerificationResultSchema.optional(),
+  /** The tamper this run applies (plan §13): planned at creation, then completed with what changed. */
+  tamper: AppliedTamperSchema.optional(),
   artifacts: z.array(ArtifactSchema),
 });
 export type RunDetail = z.infer<typeof RunDetailSchema>;

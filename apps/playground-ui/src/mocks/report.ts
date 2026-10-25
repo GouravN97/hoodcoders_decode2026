@@ -1,5 +1,11 @@
 // Mock RunReportBuilder: assembles the Task 7 report from the stored run.
-import type { CatalogEntry, ReportParticipant, Role, RunReport } from '@playground/shared';
+import {
+  reportTamper,
+  type CatalogEntry,
+  type ReportParticipant,
+  type Role,
+  type RunReport,
+} from '@playground/shared';
 import { decodeBody } from '../lib/decode';
 import type { MockRunRecord } from './db';
 
@@ -33,6 +39,7 @@ export function buildRunReport(record: MockRunRecord, catalog: CatalogEntry[]): 
         ? { step: run.steps.find((s) => s.status === 'skipped')?.step ?? 'run', message: 'Cancelled by user' }
         : undefined;
   const proofType = proofTypeOf(credential?.raw) ?? run.config.proofSuite;
+  const tamper = reportTamper(run);
 
   return {
     runId: run.id,
@@ -66,6 +73,7 @@ export function buildRunReport(record: MockRunRecord, catalog: CatalogEntry[]): 
     })),
     correlation: run.correlation,
     findings: record.findings,
+    ...(tamper ? { tamper } : {}),
     inspectorUrl: `${location.origin}/runs/${run.id}#inspector`,
   };
 }

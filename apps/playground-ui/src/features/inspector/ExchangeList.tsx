@@ -77,6 +77,11 @@ export function ExchangeList({
                   </div>
                   <div className="flex flex-wrap items-center gap-1">
                     <span className="text-xs">{protocolStepLabel(ex.step)}</span>
+                    {ex.tampered && (
+                      <Badge tone="bad" title={ex.tampered.diff}>
+                        Tampered · {ex.tampered.ruleId}
+                      </Badge>
+                    )}
                     {named.map((k) => (
                       <Badge key={k} tone="accent">
                         {artifactLabel(k)}

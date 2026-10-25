@@ -25,7 +25,7 @@ Inji products per role: **Inji Certify** (issuer), **Inji Wallet** mobile app / 
 | 6 | Two formats end-to-end: `ldp_vc` and SD-JWT (`vc+sd-jwt`) | §7.1 formats |
 | 7 | Pass/fail report per run (issuer, wallet, verifier, format, proof type, outcome, error) | §6, §8.2 |
 
-Task 1 is the critical path. Tasks 2, 5 and 7 can be built against mocks/fake data. No good-to-have work starts until all seven pass.
+Task 1 is the critical path. Tasks 2, 5 and 7 can be built against mocks/fake data. All seven lanes work (the mobile `ldp_vc` `#0#0` and Inji Web `invalid_client` gaps are documented findings), so good-to-have work started on 25 October 2026, one PR per item: tamper mode, sequence diagram, history, mock verifier, mDoc, same-device / DC API.
 
 ## Key design decisions (summary of plan §1)
 

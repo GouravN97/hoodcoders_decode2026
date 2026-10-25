@@ -1,6 +1,12 @@
 // RunReportBuilder (plan §8.2, Task 7): the pass/fail report for one run. The Markdown rendering
 // is shared with the UI (renderReportMarkdown in packages/shared).
-import type { CatalogEntry, ReportParticipant, Role, RunReport } from '@playground/shared';
+import {
+  reportTamper,
+  type CatalogEntry,
+  type ReportParticipant,
+  type Role,
+  type RunReport,
+} from '@playground/shared';
 import { decodeBody } from '../decoder/payload-decoder.ts';
 import type { RunRecord } from './store.ts';
 
@@ -44,6 +50,7 @@ export function buildRunReport(
           ? { step: 'preflight', message: run.errorSummary }
           : undefined;
   const proofType = proofTypeOf(credential?.raw) ?? run.config.proofSuite;
+  const tamper = reportTamper(run);
 
   return {
     runId: run.id,
@@ -77,6 +84,7 @@ export function buildRunReport(
     })),
     correlation: run.correlation,
     findings: record.findings,
+    ...(tamper ? { tamper } : {}),
     inspectorUrl: `${uiOrigin.replace(/\/$/, '')}/runs/${run.id}?view=inspector`,
   };
 }

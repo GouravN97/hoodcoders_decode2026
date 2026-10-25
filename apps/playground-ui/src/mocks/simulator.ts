@@ -5,8 +5,10 @@ import {
   formatLabel,
   ProtocolStep,
   runUsesPhase,
+  tamperDiffText,
   type ArtifactKind,
   type CatalogEntry,
+  type CheckFinding,
   type CredentialFormat,
   type DeliveryInstruction,
   type DeliveryPurpose,
@@ -145,6 +147,7 @@ class RunSimulation {
     outOfBand?: boolean;
     correlationKeys?: string[];
     artifactKinds?: ArtifactKind[];
+    tampered?: ExchangeWithDecoded['tampered'];
   }): string {
     const id = crypto.randomUUID();
     const ex: ExchangeWithDecoded = {
@@ -183,6 +186,7 @@ class RunSimulation {
       correlationKeys: e.correlationKeys ?? [],
       outOfBand: e.outOfBand ?? false,
       ...(e.artifactKinds ? { artifactKinds: e.artifactKinds } : {}),
+      ...(e.tampered ? { tampered: e.tampered } : {}),
     };
     this.record.exchanges.push(ex);
     const { request, response, decoded: _decoded, ...summary } = ex;
@@ -198,6 +202,12 @@ class RunSimulation {
     const artifact = { id: crypto.randomUUID(), kind, raw, sourceExchangeId, ...(format ? { format } : {}) };
     this.run.artifacts.push(artifact);
     this.publish({ type: 'run.artifact', runId: this.run.id, artifact });
+  }
+
+  finding(f: Omit<CheckFinding, 'id'>) {
+    const finding: CheckFinding = { id: crypto.randomUUID(), ...f };
+    this.record.findings.push(finding);
+    this.publish({ type: 'run.check', runId: this.run.id, finding });
   }
 
   delivery(purpose: DeliveryPurpose, instruction: DeliveryInstruction) {
@@ -545,6 +555,8 @@ class RunSimulation {
 
     this.step(ProtocolStep.VP_RESPONSE, 'active');
     await this.sleep(this.human ? 2500 : 700);
+    const evidence = fx.tamperEvidence;
+    const applied = this.run.tamper;
     const respId = this.exchange({
       component: 'verify',
       from,
@@ -557,8 +569,30 @@ class RunSimulation {
       resBody: '{}',
       correlationKeys: [fx.requestId],
       artifactKinds: ['vp_token', 'presentation_submission'],
+      ...(evidence && applied
+        ? {
+            tampered: {
+              ruleId: applied.id,
+              diff: tamperDiffText(evidence),
+              target: evidence.target,
+              ...(evidence.before ? { before: evidence.before } : {}),
+              ...(evidence.after ? { after: evidence.after } : {}),
+            },
+          }
+        : {}),
     });
     this.artifact('vp_token', fx.vpToken, respId, format);
+    if (evidence && applied) {
+      if (evidence.after) {
+        this.artifact(
+          evidence.target === 'credential' ? 'tampered_credential' : 'tampered_vp',
+          evidence.after,
+          respId,
+          format,
+        );
+      }
+      this.run.tamper = { ...applied, summary: evidence.summary, exchangeId: respId };
+    }
     this.artifact('presentation_submission', this.json(fx.presentationSubmission), respId);
     this.step(ProtocolStep.VP_RESPONSE, 'done', { evidenceKind: 'tap', exchangeId: respId });
     this.run.delivery = undefined;
@@ -619,11 +653,34 @@ class RunSimulation {
     const steps = this.run.steps;
     const inconclusive = steps.some((s) => s.status === 'inconclusive');
     const failed = steps.some((s) => s.status === 'failed');
+    const observed = this.run.observedOutcome;
+    // Same rule as the BFF: a tamper run passes when the verifier refuses the tampered presentation.
+    const tamper = this.run.tamper;
+    const tamperCaught = Boolean(tamper && observed && observed !== 'VALID');
+    if (tamper && observed && this.uses('verifying')) {
+      this.finding({
+        checkId: 'TAMPER-001',
+        stage: 'verification',
+        severity: !tamperCaught ? 'FAIL' : observed === tamper.expectedOutcome ? 'PASS' : 'WARN',
+        message: !tamperCaught
+          ? `The verifier accepted a presentation the playground had tampered with (${tamper.id})`
+          : `The verifier rejected the ${tamper.id} presentation${observed === tamper.expectedOutcome ? ' as expected' : ` as ${observed}`}`,
+        specRef: 'Playground tamper catalogue (plan §13)',
+        ...(tamper.exchangeId ? { exchangeId: tamper.exchangeId } : {}),
+      });
+    }
     // Issue-only runs pass once the credential is stored; the others on the verifier's answer.
     const matched = this.uses('verifying')
-      ? this.run.observedOutcome === this.run.config.expectedOutcome
+      ? observed === this.run.config.expectedOutcome || tamperCaught
       : steps.every((s) => s.status === 'done');
-    const verdict: InteropVerdict = inconclusive ? 'INCONCLUSIVE' : !failed && matched ? 'PASS' : 'FAIL';
+    const warned = this.record.findings.some((f) => f.severity === 'WARN');
+    const verdict: InteropVerdict = inconclusive
+      ? 'INCONCLUSIVE'
+      : !failed && matched
+        ? warned
+          ? 'PASS_WITH_WARNINGS'
+          : 'PASS'
+        : 'FAIL';
     this.run.verdict = verdict;
     if (!this.run.errorSummary && verdict !== 'PASS') {
       const bad = steps.find((s) => s.error);
@@ -655,11 +712,14 @@ class RunSimulation {
 export async function startSimulation(record: MockRunRecord, wallet: CatalogEntry): Promise<void> {
   const { config } = record.run;
   const scenario = scenarioFor(config.expectedOutcome, config.labels?.scenario);
+  const plan = record.tamperPlan;
   const fx = await buildFixtures({
     runId: record.run.id,
     format: config.format,
     credentialConfigurationId: config.credentialConfigurationId,
     scenario,
+    ...(plan?.def.mechanism === 'wallet-hook' ? { tamper: plan.def.id } : {}),
+    ...(plan?.replay ? { replay: plan.replay } : {}),
   });
   const sim = new RunSimulation(record, wallet, fx, scenario);
   try {

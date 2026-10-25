@@ -7,6 +7,7 @@ export const queryKeys = {
   credentialConfigurations: (issuerId: string) => ['catalog', issuerId, 'credential-configurations'] as const,
   heldCredentials: (walletId: string) => ['catalog', walletId, 'credentials'] as const,
   prediction: (config: RunConfig | null) => ['prediction', config] as const,
+  runs: (query: Record<string, string | undefined>) => ['runs', 'list', query] as const,
   run: (id: string) => ['runs', id] as const,
   exchanges: (id: string) => ['runs', id, 'exchanges'] as const,
   report: (id: string) => ['runs', id, 'report'] as const,
@@ -44,6 +45,9 @@ export const useCreateRun = () => useMutation({ mutationFn: api.createRun });
 
 export const useRun = (id: string) =>
   useQuery({ queryKey: queryKeys.run(id), queryFn: () => api.run(id) });
+
+export const useRuns = (query: Record<string, string | undefined>, enabled = true) =>
+  useQuery({ queryKey: queryKeys.runs(query), queryFn: () => api.runs(query), enabled, staleTime: 5_000 });
 
 export const useExchanges = (id: string) =>
   useQuery({ queryKey: queryKeys.exchanges(id), queryFn: () => api.exchanges(id) });

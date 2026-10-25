@@ -4,7 +4,13 @@
 //
 // ⚠️ Inji Certify / Inji Verify endpoint paths and response shapes are modelled on their
 // public docs and must be checked against the pinned image tags before relying on them.
-import type { CredentialFormat } from '@playground/shared';
+import {
+  describeTamper,
+  type CredentialFormat,
+  type ReplayInput,
+  type TamperEvidence,
+  type TamperId,
+} from '@playground/shared';
 import { base64url, exportJWK, generateKeyPair, SignJWT, type JWK } from 'jose';
 import { disclosureDigest } from '../lib/decode/sdjwt';
 
@@ -41,6 +47,8 @@ export interface CredentialConfigFixture {
   credentialType: string;
   proofSuite: 'Ed25519Signature2020' | 'ES256';
   validitySeconds?: number;
+  /** Signed with validity in the past, like Certify's FarmerCredential*Expired configurations. */
+  expired?: boolean;
 }
 
 export const CREDENTIAL_CONFIGURATIONS: CredentialConfigFixture[] = [
@@ -59,22 +67,25 @@ export const CREDENTIAL_CONFIGURATIONS: CredentialConfigFixture[] = [
     proofSuite: 'ES256',
   },
   {
-    id: 'FarmerCredentialShortLived',
+    id: 'FarmerCredentialExpired',
     format: 'ldp_vc',
-    displayName: 'Farmer credential — 60 s validity (JSON-LD)',
+    displayName: 'Farmer credential (JSON-LD, expired)',
     credentialType: 'FarmerCredential',
     proofSuite: 'Ed25519Signature2020',
-    validitySeconds: 60,
+    expired: true,
   },
   {
-    id: 'FarmerCredentialSdJwtShortLived',
+    id: 'FarmerCredentialSdJwtExpired',
     format: 'vc+sd-jwt',
-    displayName: 'Farmer credential — 60 s validity (SD-JWT)',
-    credentialType: 'urn:eu.playground:farmer:1',
+    displayName: 'Farmer credential (SD-JWT, expired)',
+    credentialType: 'FarmerCredentialSdJwtExpired',
     proofSuite: 'ES256',
-    validitySeconds: 60,
+    expired: true,
   },
 ];
+
+/** The type a T-WRONG-TYPE run asks for (the BFF's WRONG_CREDENTIAL_TYPE). */
+export const WRONG_CREDENTIAL_TYPE = 'PlaygroundWrongTypeCredential';
 
 const HOVI_CREDENTIAL_CONFIGURATIONS: CredentialConfigFixture[] = [
   {
@@ -125,12 +136,17 @@ export function credentialConfigurationsForIssuer(issuerId: string) {
 const iso = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 const epoch = (d: Date) => Math.floor(d.getTime() / 1000);
 
+/** Changes the middle character, keeping the length, as the mock wallet's T-SIG-FLIP does. */
+function flipMiddle(value: string): string {
+  const mid = Math.floor(value.length / 2);
+  const flipped = value[mid] === 'A' ? 'B' : 'A';
+  return `${value.slice(0, mid)}${flipped}${value.slice(mid + 1)}`;
+}
+
 /** Breaks a JWS signature without changing its length, as a tampered credential would. */
 function corruptSignature(jwt: string): string {
   const [h, p, s = ''] = jwt.split('.');
-  const mid = Math.floor(s.length / 2);
-  const flipped = s[mid] === 'A' ? 'B' : 'A';
-  return `${h}.${p}.${s.slice(0, mid)}${flipped}${s.slice(mid + 1)}`;
+  return `${h}.${p}.${flipMiddle(s)}`;
 }
 
 function ldpProof(verificationMethod: string, purpose: string, created: Date, extra: object = {}) {
@@ -170,6 +186,8 @@ export interface RunFixtures {
   presentationSubmission: object;
   vpSubmissionBody: string;
   vpResult: object;
+  /** What the wallet's tamper changed, when the run applies one. */
+  tamperEvidence?: TamperEvidence;
 }
 
 export async function buildFixtures(opts: {
@@ -177,8 +195,11 @@ export async function buildFixtures(opts: {
   format: CredentialFormat;
   credentialConfigurationId: string;
   scenario: Scenario;
+  /** A wallet-hook tamper the mock wallet applies when presenting (plan §13). */
+  tamper?: TamperId;
+  replay?: ReplayInput;
 }): Promise<RunFixtures> {
-  const { format, scenario } = opts;
+  const { format, scenario, tamper, replay } = opts;
   const config =
     ALL_CREDENTIAL_CONFIGURATIONS.find((c) => c.id === opts.credentialConfigurationId) ??
     ALL_CREDENTIAL_CONFIGURATIONS.find((c) => c.format === format)!;
@@ -283,9 +304,10 @@ export async function buildFixtures(opts: {
       };
 
   // Expired credentials were validly signed, but their validity window has already closed.
-  const validFrom = scenario === 'expired' ? new Date(now.getTime() - 86_400_000) : now;
+  const expired = scenario === 'expired' || config.expired === true;
+  const validFrom = expired ? new Date(now.getTime() - 86_400_000) : now;
   const validUntil =
-    scenario === 'expired'
+    expired
       ? new Date(now.getTime() - 3_600_000)
       : new Date(now.getTime() + (config.validitySeconds ?? 365 * 86_400) * 1000);
 
@@ -294,6 +316,10 @@ export async function buildFixtures(opts: {
   let vpToken: string;
   let proofType: string;
   const nonce = randomToken(16);
+
+  // The wallet signs over the request's nonce, or an earlier run's (T-NONCE-REPLAY, stale nonce).
+  const boundNonce = replay?.variant === 'stale-nonce' ? replay.nonce : nonce;
+  let presentedRaw: string;
 
   if (isSdJwt) {
     const disclosures = Object.entries(FARMER).map(([name, value]) =>
@@ -312,18 +338,30 @@ export async function buildFixtures(opts: {
       .setNotBefore(epoch(validFrom))
       .setExpirationTime(epoch(validUntil))
       .sign(issuerKeys.privateKey);
-    if (scenario === 'invalid-signature') issuerJwt = corruptSignature(issuerJwt);
+    // A broken credential from elsewhere (no wallet tamper): the issued credential itself is bad.
+    if (scenario === 'invalid-signature' && !tamper) issuerJwt = corruptSignature(issuerJwt);
     credentialRaw = `${issuerJwt}~${disclosures.join('~')}~`;
     credentialValue = credentialRaw;
     proofType = 'ES256';
 
+    // What the wallet presents: the issued credential, or a tampered copy of it.
+    let presentedJwt = issuerJwt;
+    const presentedDisclosures = [...disclosures];
+    if (tamper === 'T-SIG-FLIP') presentedJwt = corruptSignature(issuerJwt);
+    if (tamper === 'T-CLAIM-EDIT') {
+      presentedDisclosures[0] = base64url.encode(
+        JSON.stringify([randomToken(12), 'fullName', `${FARMER.fullName} (edited)`]),
+      );
+    }
+    presentedRaw = `${presentedJwt}~${presentedDisclosures.join('~')}~`;
+
     const names = Object.keys(FARMER);
-    const shared = disclosures.filter((_, i) => DISCLOSED_IN_VP.includes(names[i]!));
-    const presented = `${issuerJwt}~${shared.join('~')}~`;
+    const shared = presentedDisclosures.filter((_, i) => DISCLOSED_IN_VP.includes(names[i]!));
+    const presented = `${presentedJwt}~${shared.join('~')}~`;
     const sdHash = base64url.encode(
       new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(presented))),
     );
-    const kbJwt = await new SignJWT({ nonce, sd_hash: sdHash })
+    const kbJwt = await new SignJWT({ nonce: boundNonce, sd_hash: sdHash })
       .setProtectedHeader({ alg: 'ES256', typ: 'kb+jwt' })
       .setAudience(VERIFIER_CLIENT_ID)
       .setIssuedAt()
@@ -345,23 +383,70 @@ export async function buildFixtures(opts: {
       credentialSubject: subject,
       proof: ldpProof(`${ISSUER_DID}#key-0`, 'assertionMethod', validFrom),
     };
-    if (scenario === 'invalid-signature') {
+    if (scenario === 'invalid-signature' && !tamper) {
       // Edited after signing: the proof no longer covers the data.
       subject.landArea = '25 acres';
     }
     credentialValue = vc;
     credentialRaw = JSON.stringify(vc);
     proofType = 'Ed25519Signature2020';
+
+    const presentedVc = structuredClone(vc);
+    if (tamper === 'T-SIG-FLIP') presentedVc.proof.proofValue = flipMiddle(vc.proof.proofValue);
+    if (tamper === 'T-CLAIM-EDIT')
+      presentedVc.credentialSubject.fullName = `${FARMER.fullName} (edited)`;
+    presentedRaw = JSON.stringify(presentedVc);
     vpToken = JSON.stringify({
       '@context': ['https://www.w3.org/2018/credentials/v1'],
       type: ['VerifiablePresentation'],
       holder: holderDid,
-      verifiableCredential: [vc],
+      verifiableCredential: [presentedVc],
       proof: ldpProof(`${holderDid}#0`, 'authentication', now, {
-        challenge: nonce,
+        challenge: boundNonce,
         domain: VERIFIER_CLIENT_ID,
       }),
     });
+  }
+  // T-NONCE-REPLAY resubmit: the earlier run's vp_token goes out unchanged.
+  if (replay?.variant === 'resubmit-vp') vpToken = replay.vpToken;
+
+  let tamperEvidence: TamperEvidence | undefined;
+  if (tamper === 'T-SIG-FLIP' || tamper === 'T-CLAIM-EDIT') {
+    tamperEvidence = {
+      target: 'credential',
+      summary:
+        tamper === 'T-SIG-FLIP'
+          ? "Changed one character of the issuer's signature"
+          : 'Changed one claim value after issuance',
+      changes: describeTamper(credentialRaw, presentedRaw, format),
+      before: credentialRaw,
+      after: presentedRaw,
+    };
+  } else if (tamper === 'T-WRONG-TYPE') {
+    tamperEvidence = {
+      target: 'presentation',
+      summary: 'Presented a credential that does not satisfy the request',
+      changes: [
+        {
+          path: 'credential type',
+          before: `${WRONG_CREDENTIAL_TYPE} (asked for)`,
+          after: `${config.credentialType} (presented)`,
+        },
+      ],
+    };
+  } else if (replay?.variant === 'resubmit-vp') {
+    tamperEvidence = {
+      target: 'vp_token',
+      summary: 'Resubmitted a vp_token captured in an earlier run to this new request',
+      changes: [{ path: 'nonce', before: `${nonce} (asked for by this request)`, after: 'the earlier request’s nonce' }],
+      after: vpToken,
+    };
+  } else if (replay?.variant === 'stale-nonce') {
+    tamperEvidence = {
+      target: 'vp_token',
+      summary: "Signed a fresh presentation over an earlier run's nonce",
+      changes: [{ path: 'nonce', before: nonce, after: replay.nonce }],
+    };
   }
 
   const credentialResponse = { credential: credentialValue };
@@ -369,6 +454,7 @@ export async function buildFixtures(opts: {
   // ---------- presentation ----------
   const requestId = `req_${randomToken(9)}`;
   const transactionId = `txn_${opts.runId.slice(0, 8)}`;
+  const requestedType = tamper === 'T-WRONG-TYPE' ? WRONG_CREDENTIAL_TYPE : config.credentialType;
   const inputDescriptor = isSdJwt
     ? {
         id: 'farmer-sd-jwt',
@@ -376,7 +462,7 @@ export async function buildFixtures(opts: {
         constraints: {
           limit_disclosure: 'required',
           fields: [
-            { path: ['$.vct'], filter: { type: 'string', const: config.credentialType } },
+            { path: ['$.vct'], filter: { type: 'string', const: requestedType } },
             ...DISCLOSED_IN_VP.map((f) => ({ path: [`$.${f}`] })),
           ],
         },
@@ -388,7 +474,7 @@ export async function buildFixtures(opts: {
           fields: [
             {
               path: ['$.type'],
-              filter: { type: 'array', contains: { const: config.credentialType } },
+              filter: { type: 'array', contains: { const: requestedType } },
             },
           ],
         },
@@ -452,14 +538,21 @@ export async function buildFixtures(opts: {
     state: requestId,
   }).toString();
 
+  // The simulated verifier rejects every tamper as Invalid; the real verifier's answer is what runs measure.
   const vcStatus =
-    scenario === 'expired' ? 'EXPIRED' : scenario === 'invalid-signature' ? 'INVALID' : 'SUCCESS';
+    tamper || replay
+      ? 'INVALID'
+      : expired
+        ? 'EXPIRED'
+        : scenario === 'invalid-signature'
+          ? 'INVALID'
+          : 'SUCCESS';
   const vpResult = {
     transactionId,
     vpResultStatus: vcStatus === 'SUCCESS' ? 'SUCCESS' : 'FAILED',
     vcResults: [
       {
-        vc: credentialRaw,
+        vc: presentedRaw,
         verificationStatus: vcStatus,
         ...(vcStatus === 'INVALID'
           ? {
@@ -501,5 +594,6 @@ export async function buildFixtures(opts: {
     presentationSubmission,
     vpSubmissionBody,
     vpResult,
+    ...(tamperEvidence ? { tamperEvidence } : {}),
   };
 }

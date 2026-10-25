@@ -49,3 +49,41 @@ Consequently:
 ## Remaining manual step
 
 Connect an Inji Wallet mobile session, create fresh offers and scan each one using **+ → Scan QR code**. Record the exact wallet message and whether the credential appears in the wallet. This consent-controlled phone action could not be performed from the test environment used for this report.
+
+## Replay and tamper runs against Inji Verify 0.18.2
+
+Date: 25 October 2026  
+Branch: `feat/tamper-mode`  
+Stack: `injistack` Docker Compose: Inji Certify `0.14.0` (pre-authorized code), the playground mock wallet, Inji Verify `0.18.2` (Presentation Exchange, `direct_post`), every message captured by the Protocol Tap.
+
+Each row is one full run (issue → hold → present → verify) started through `POST /api/runs` with the run's `tamper` set, as the **Tamper** picker does. The issued credential is always genuine; the mock wallet changes only what it presents. The request nonces, key-binding nonces and types below were read from the captured `request_uri` and `direct_post` messages, not inferred.
+
+| Tamper | `vc+sd-jwt` | `ldp_vc` | Expected |
+| --- | --- | --- | --- |
+| None (baseline) | VALID | VALID | Valid |
+| `T-SIG-FLIP` | INVALID | INVALID | Invalid |
+| `T-CLAIM-EDIT` | INVALID | INVALID | Invalid |
+| `T-WRONG-TYPE` | **VALID** | **VALID** | Invalid |
+| `T-NONCE-REPLAY`, resubmit the earlier `vp_token` | **VALID** | Refused at `direct_post`: HTTP 400 `invalid_request` "Nonce validation failed due to invalid nonce" | Invalid |
+| `T-NONCE-REPLAY`, new presentation over the earlier nonce | **VALID** | Refused at `direct_post` (same 400) | Invalid |
+| `T-EXPIRED` (`FarmerCredential*Expired`) | EXPIRED | EXPIRED | Valid but expired |
+
+### Findings
+
+1. **Wrong credential type accepted (both formats).** The presentation definition's only field filter asked for `$.vct` (SD-JWT) or `$.type` (JSON-LD) matching `PlaygroundWrongTypeCredential`. The wallet presented a `FarmerCredentialSdJwt` (or `FarmerCredential`) credential. Inji Verify returned `vpResultStatus: SUCCESS`. It verified the credential's signature but did not check the credential against the input descriptor it had asked for.
+2. **SD-JWT holder binding not tied to the request.** In the resubmit run, the request carried nonce `93fb6255…` and the key-binding JWT carried `65392987…` from an earlier request. In the stale-nonce run, the key-binding JWT was freshly signed over an earlier request's nonce. Inji Verify returned SUCCESS both times. For JSON-LD, the same two tampers are refused at `direct_post` with an explicit nonce error, so Inji Verify checks the `ldp_vp` proof challenge but not the SD-JWT key-binding nonce. The key-binding `aud` was the correct `client_id` in every run, so audience checking was not tested (that is `T-AUD-MISMATCH`, not implemented yet).
+
+What was not established: whether these come from Inji Verify itself or from the `vc-verifier` library it uses, and whether Inji Verify 1.0.x (the DCQL lane) behaves the same. Both need a second run before an issue is filed.
+
+### Reproduce
+
+```sh
+# Stack up (injistack/README.md), then one run per tamper:
+curl -s -X POST http://localhost:8101/api/runs -H 'content-type: application/json' -d '{
+  "mode": "full", "issuerId": "inji-certify", "walletId": "mock-wallet", "verifierId": "inji-verify",
+  "format": "vc+sd-jwt", "credentialConfigurationId": "FarmerCredentialSdJwt",
+  "grantType": "pre-authorized_code", "presentationFlow": "cross-device-qr",
+  "expectedOutcome": "INVALID", "tamper": { "id": "T-NONCE-REPLAY", "params": { "variant": "stale-nonce" } }}'
+```
+
+`T-NONCE-REPLAY` needs an earlier untampered run of the same format that Inji Verify accepted. The inspector's **Tamper** tab on the `vp_token` message shows the nonce the request asked for and the nonce that was sent.
