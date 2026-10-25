@@ -23,7 +23,7 @@ Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji V
 | --- | --- |
 | Certify → mock wallet → Inji Verify, SD-JWT (`vc+sd-jwt`) | Valid runs pass, in the browser and over the API |
 | Certify → mock wallet → Inji Verify, JSON-LD (`ldp_vc`) | Valid runs pass against the real stack (checked 25 October 2026; the JSON-LD contexts need internet access) |
-| Certify → Inji Wallet (Android app, `v1.0.0-alpha.1`) → Inji Verify | SD-JWT (`vc+sd-jwt`) verifies **VALID** on an emulator through Cloudflare quick tunnels ([how to test](injistack/README.md#test-with-inji-wallet-on-an-android-emulator)). JSON-LD issuance and VP submission reach Verify, but the pinned Wallet/OpenID4VP dependency emits `did:jwk:...#0#0`, so Verify rejects the presentation. |
+| Certify → Inji Wallet (Android app, `v1.0.0-alpha.1`) → Inji Verify | SD-JWT (`vc+sd-jwt`) verifies **VALID** on an emulator through Cloudflare quick tunnels ([how to test](injistack/README.md#test-with-inji-wallet-on-an-android-emulator)). JSON-LD (`ldp_vc`) also verifies **VALID** (24 October 2026, runs `2e946c94` and `33d84bb6`) since Certify's Farmer template issues a bare `did:jwk` subject id; with a `…#0` subject id the wallet's holder became `…#0#0` and Verify rejected it (gap 4). |
 | Hovi Playground → Inji Wallet | Selectable for Issue-only PID tests in `dc+sd-jwt` and `mso_mdoc`; live offer creation verified, wallet acceptance still needs a phone scan |
 | Animo Playground → Inji Wallet | Selectable for Issue-only EUDI PID tests in `dc+sd-jwt` and `mso_mdoc`; live offer creation verified, wallet acceptance still needs a phone scan |
 | Inji Web | Mimoto, Inji Web and the eSignet login work once the keystore and `wallet-demo` client are set up ([`register-wallet-client.sh`](injistack/scripts/register-wallet-client.sh)); the download still fails because eSignet rejects the client assertion with `invalid_client` ([details and what was ruled out](injistack/README.md#current-local-web-wallet-limitation)) |
@@ -38,9 +38,7 @@ Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji V
 | Replay & tamper (mock wallet → Inji Verify 0.18.2) | Run live for both formats. Broken signature and edited claim are rejected (**INVALID**). Inji Verify **accepts** a wrong credential type for both formats, and, for SD-JWT only, a replayed `vp_token` or one bound to an old nonce ([results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182)) |
 
 The reproducible passing demonstrations are SD-JWT and JSON-LD with the mock
-wallet (including tamper runs) and SD-JWT with the mobile Wallet. The mobile
-JSON-LD result is a documented compatibility limitation of the pinned Wallet
-release, not a Certify or Docker-stack failure.
+wallet (including tamper runs) and both formats with the mobile Wallet.
 
 The UI also still runs entirely against in-browser mocks with `pnpm dev`.
 
@@ -179,7 +177,7 @@ For 1 and 2 it is not yet known whether the cause is Inji Verify or the `vc-veri
 
 | # | Gap | Status | Details |
 | --- | --- | --- | --- |
-| 4 | **Malformed holder ID in `ldp_vc` presentations.** The VP holder is `did:jwk:…#0#0` (the wallet appends `#0` to a DID URL that already ends in `#0`). Verify rejects it with `Illegal character in fragment`. Issuance and VP submission work; the mobile JSON-LD lane cannot pass. SD-JWT is unaffected. | Confirmed | [injistack](injistack/README.md#test-with-inji-wallet-on-an-android-emulator) |
+| 4 | **VP holder derived from the credential subject.** For `ldp_vc` the wallet sets the VP holder to `credentialSubject.id` + `#0`. A subject id that is already a DID URL (`did:jwk:…#0`, which Certify's `${_holderId}` is) becomes `…#0#0`, and Verify rejects it with `Illegal character in fragment`. Worked around in the Farmer template, which strips the fragment; the mobile JSON-LD lane then passes. SD-JWT is unaffected. | Confirmed, worked around | [injistack](injistack/README.md#test-with-inji-wallet-on-an-android-emulator) |
 | 5 | **did:web with a port does not resolve** (same as 3, in the wallet's resolver). | Confirmed | [injistack](injistack/README.md#3-start-the-stack-and-the-tunnels-every-session) |
 | 6 | **Expired credential shown as "Valid".** An `ldp_vc` past its `expirationDate` is stored and labelled Valid in the wallet; Inji Verify correctly reports EXPIRED. | Confirmed | [injistack](injistack/README.md#5-other-outcomes) |
 | 7 | **An empty `face` claim forces a selfie match.** A credential with a `face` claim, even `""`, cannot be shared until the holder passes a face match. | Confirmed | [injistack](injistack/README.md#troubleshooting) |
