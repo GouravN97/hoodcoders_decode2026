@@ -10,3 +10,4 @@ export * from './tamper';
 export * from './compatibility';
 export * from './tamperPlan';
 export * from './sequence';
+export * from './history';

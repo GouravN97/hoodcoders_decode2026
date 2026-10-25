@@ -8,13 +8,20 @@ export const queryKeys = {
   heldCredentials: (walletId: string) => ['catalog', walletId, 'credentials'] as const,
   prediction: (config: RunConfig | null) => ['prediction', config] as const,
   runs: (query: Record<string, string | undefined>) => ['runs', 'list', query] as const,
+  matrix: (includeNegative: boolean) => ['matrix', includeNegative] as const,
   run: (id: string) => ['runs', id] as const,
   exchanges: (id: string) => ['runs', id, 'exchanges'] as const,
   report: (id: string) => ['runs', id, 'report'] as const,
 };
 
+// Health changes while the page is open (a container restarts), so the catalog refreshes itself.
 export const useCatalog = () =>
-  useQuery({ queryKey: queryKeys.catalog, queryFn: api.catalog, staleTime: 30_000 });
+  useQuery({
+    queryKey: queryKeys.catalog,
+    queryFn: api.catalog,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+  });
 
 export const useCredentialConfigurations = (issuerId: string | undefined) =>
   useQuery({
@@ -48,6 +55,9 @@ export const useRun = (id: string) =>
 
 export const useRuns = (query: Record<string, string | undefined>, enabled = true) =>
   useQuery({ queryKey: queryKeys.runs(query), queryFn: () => api.runs(query), enabled, staleTime: 5_000 });
+
+export const useMatrix = (includeNegative: boolean) =>
+  useQuery({ queryKey: queryKeys.matrix(includeNegative), queryFn: () => api.matrix(includeNegative), staleTime: 5_000 });
 
 export const useExchanges = (id: string) =>
   useQuery({ queryKey: queryKeys.exchanges(id), queryFn: () => api.exchanges(id) });

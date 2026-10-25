@@ -7,6 +7,7 @@ import {
   CredentialConfigurationsResponseSchema,
   ExchangesResponseSchema,
   HeldCredentialsResponseSchema,
+  MatrixResponseSchema,
   PredictResponseSchema,
   RunReportSchema,
   RunResponseSchema,
@@ -49,6 +50,14 @@ async function getJson<S extends z.ZodType>(path: string, schema: S, init?: Requ
 
 const post = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) });
 
+/** `?a=1&b=2` from the set values, or an empty string. */
+function queryString(query: Record<string, string | undefined>): string {
+  const params = new URLSearchParams(
+    Object.entries(query).filter((e): e is [string, string] => Boolean(e[1])),
+  );
+  return params.size ? `?${params}` : '';
+}
+
 export type ReportFormat = 'md' | 'json';
 
 export const api = {
@@ -64,12 +73,16 @@ export const api = {
     getJson('/api/compatibility/predict', PredictResponseSchema, post(config)),
   createRun: (config: RunConfig) => getJson('/api/runs', CreateRunResponseSchema, post(config)),
   run: (id: string) => getJson(`/api/runs/${encodeURIComponent(id)}`, RunResponseSchema),
-  /** Saved runs, newest first, filtered by the BFF's query parameters (plan §11.2). */
-  runs: (query: Record<string, string | undefined> = {}) => {
-    const params = new URLSearchParams(
-      Object.entries(query).filter((e): e is [string, string] => Boolean(e[1])),
-    );
-    return getJson(`/api/runs${params.size ? `?${params}` : ''}`, RunsResponseSchema);
+  /** Saved runs as summaries, newest first, filtered by RunsQuerySchema (plan §11.2). */
+  runs: (query: Record<string, string | undefined> = {}) =>
+    getJson(`/api/runs${queryString(query)}`, RunsResponseSchema),
+  /** Latest run per issuer × wallet × verifier × format. */
+  matrix: (includeNegative: boolean) =>
+    getJson(`/api/matrix${queryString({ includeNegative: String(includeNegative) })}`, MatrixResponseSchema),
+  /** The matrix as the BFF renders it in Markdown, with links to each run. */
+  matrixMarkdown: async (includeNegative: boolean) => {
+    const res = await send(`/api/matrix.md${queryString({ includeNegative: String(includeNegative) })}`);
+    return res.text();
   },
   exchanges: (id: string) =>
     getJson(`/api/runs/${encodeURIComponent(id)}/exchanges?decode=true`, ExchangesResponseSchema),

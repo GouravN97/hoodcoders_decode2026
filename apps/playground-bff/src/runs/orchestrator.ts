@@ -155,10 +155,22 @@ export class RunOrchestrator {
         step: t.step,
         status: 'pending' as const,
       })),
-      versions: [config.issuerId, config.walletId, config.verifierId].map((id) => ({
-        implementationId: id,
-        version: catalog.find((c) => c.id === id)?.version ?? 'unknown',
-      })),
+      // Snapshot of what ran, so history stays right after the catalog or a module changes.
+      versions: (
+        [
+          ['issuer', config.issuerId],
+          ['wallet', config.walletId],
+          ['verifier', config.verifierId],
+        ] as const
+      ).map(([role, id]) => {
+        const entry = catalog.find((c) => c.id === id);
+        return {
+          implementationId: id,
+          role,
+          version: entry?.version ?? 'unknown',
+          ...(entry ? { displayName: entry.displayName } : {}),
+        };
+      }),
       ...(planned.tamper ? { tamper: planned.tamper.applied } : {}),
       artifacts: [],
     };

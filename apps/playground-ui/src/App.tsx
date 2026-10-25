@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createBrowserRouter, RouterProvider } from 'react-router';
 import { AppShell } from './components/AppShell';
 import { EmptyState } from './components/ui';
+import { HistoryPage } from './pages/HistoryPage';
 import { LandingPage } from './pages/LandingPage';
 import { PlaygroundPage } from './pages/PlaygroundPage';
 import { RunPage } from './pages/RunPage';
@@ -17,6 +18,7 @@ const router = createBrowserRouter([
       { path: '/', element: <PlaygroundPage /> },
       { path: '/welcome', element: <LandingPage /> },
       { path: '/runs/:id', element: <RunPage /> },
+      { path: '/history', element: <HistoryPage /> },
       { path: '*', element: <EmptyState title="Page not found" /> },
     ],
   },

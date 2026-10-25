@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { CatalogEntrySchema, CredentialConfigurationSummarySchema, PredictionSchema } from './catalog';
 import { ExchangeSchema, RunConfigSchema } from './domain';
+import { MatrixSchema, RunSummarySchema } from './history';
 import { HeldCredentialSchema } from './mockWallet';
 import { RunDetailSchema } from './run';
 
@@ -33,8 +34,11 @@ export const CreateRunResponseSchema = z.object({ id: z.string() });
 /** GET /api/runs/:id */
 export const RunResponseSchema = RunDetailSchema;
 
-/** GET /api/runs — newest first. */
-export const RunsResponseSchema = z.array(RunDetailSchema);
+/** GET /api/runs — newest first, filtered by RunsQuerySchema. */
+export const RunsResponseSchema = z.array(RunSummarySchema);
+
+/** GET /api/matrix?includeNegative=true|false */
+export const MatrixResponseSchema = MatrixSchema;
 
 /**
  * GET /api/runs/:id/exchanges?decode=true — full exchanges in `seq` order. `decoded` is the

@@ -6,6 +6,7 @@ Everything the user sees for mandatory tasks 2, 3/4, 5 and 7:
 | --- | --- |
 | `/welcome` | Landing page: what the playground does (issuer → wallet → verifier, OpenID4VCI / OpenID4VP), what a run shows, links to the New run page, photo credits. Linked as **Welcome** in the sidebar |
 | `/` | Issuer / Wallet / Verifier selector built from `catalog/*.yaml` (three columns, Issuer → Wallet → Verifier, on screens 1280 px and wider; stacked rows that scroll sideways below that), run settings (format, credential, flow, expected result), compatibility hint, Run button |
+| `/history` | Saved runs with filters (module versions, format, outcome, mode, tamper, date; kept in the URL) and the **Matrix** tab: latest result per issuer × wallet × verifier × format, exportable as Markdown. In mock mode it starts with runs marked **sample** (`src/mocks/samples.ts`). Linked as **History** in the sidebar |
 | `/runs/:id` | Live phase stepper, QR / link delivery, "I can see the credential" confirmation, Valid / Invalid / Valid-but-Expired banner. A side menu switches between the credential card, the protocol inspector (raw / decoded / headers, secrets masked) and the pass/fail report with Markdown and JSON downloads; `?view=credential\|inspector\|report` picks one, otherwise it shows the inspector while the run is live and the report once it has finished |
 
 ## Themes

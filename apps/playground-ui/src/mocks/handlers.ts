@@ -1,13 +1,18 @@
 // MSW handlers for the BFF REST API (plan §11.2), backed by the mock db and simulator.
 import {
+  buildMatrix,
   buildSequence,
   canReplayFrom,
   CreateRunRequestSchema,
+  filterRuns,
   ManualEvidenceRequestSchema,
   planTamper,
   PredictRequestSchema,
+  renderMatrixMarkdown,
   renderReportMarkdown,
+  RunsQuerySchema,
   SequenceViewSchema,
+  summarizeRun,
   toMermaid,
   stepTemplateFor,
   SUPPORTED_RUN_MODES,
@@ -107,10 +112,15 @@ export const handlers = [
         step: t.step,
         status: 'pending' as const,
       })),
-      versions: ids.map((id) => ({
-        implementationId: id,
-        version: mockCatalog.find((c) => c.id === id)?.version ?? 'unknown',
-      })),
+      versions: (['issuer', 'wallet', 'verifier'] as const).map((role, i) => {
+        const entry = mockCatalog.find((c) => c.id === ids[i]);
+        return {
+          implementationId: ids[i]!,
+          role,
+          version: entry?.version ?? 'unknown',
+          ...(entry ? { displayName: entry.displayName } : {}),
+        };
+      }),
       ...(planned.tamper ? { tamper: planned.tamper.applied } : {}),
       artifacts: [],
     };
@@ -122,19 +132,29 @@ export const handlers = [
   }),
 
   http.get(api('/runs'), ({ request }) => {
-    const q = new URL(request.url).searchParams;
-    return HttpResponse.json(
-      db
-        .list()
-        .filter(
-          (r) =>
-            (!q.get('issuer') || r.config.issuerId === q.get('issuer')) &&
-            (!q.get('wallet') || r.config.walletId === q.get('wallet')) &&
-            (!q.get('verifier') || r.config.verifierId === q.get('verifier')) &&
-            (!q.get('format') || r.config.format === q.get('format')) &&
-            (!q.get('verdict') || r.verdict === q.get('verdict')),
-        ),
-    );
+    const query = RunsQuerySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
+    if (!query.success) return error(400, `Invalid query: ${query.error.issues[0]?.message}`);
+    return HttpResponse.json(filterRuns(db.list().map((r) => summarizeRun(r, mockCatalog)), query.data));
+  }),
+
+  http.get(api('/matrix'), ({ request }) =>
+    HttpResponse.json(
+      buildMatrix(db.list().map((r) => summarizeRun(r, mockCatalog)), {
+        includeNegative: new URL(request.url).searchParams.get('includeNegative') === 'true',
+      }),
+    ),
+  ),
+
+  http.get(api('/matrix.md'), ({ request }) => {
+    const matrix = buildMatrix(db.list().map((r) => summarizeRun(r, mockCatalog)), {
+      includeNegative: new URL(request.url).searchParams.get('includeNegative') === 'true',
+    });
+    return new HttpResponse(renderMatrixMarkdown(matrix, (id) => `${location.origin}/runs/${id}`), {
+      headers: {
+        'content-type': 'text/markdown; charset=utf-8',
+        'content-disposition': 'attachment; filename="interop-matrix.md"',
+      },
+    });
   }),
 
   http.get(api('/runs/:id'), ({ params }) => {

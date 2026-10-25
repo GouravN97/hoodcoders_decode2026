@@ -1,6 +1,5 @@
 import {
   applicableTampers,
-  canReplayFrom,
   expiredVariantFor,
   flowLabel,
   formatLabel,
@@ -150,10 +149,7 @@ function ReplayFields({ verifier }: { verifier: CatalogEntry | undefined }) {
   const params = ReplayParamsSchema.safeParse(tamper?.params ?? {});
   const { variant, sourceRunId } = params.success ? params.data : { variant: 'resubmit-vp' as const, sourceRunId: undefined };
   const runs = useRuns({ verifier: verifier?.id, format }, Boolean(verifier && format));
-  const sources = useMemo(
-    () => (verifier && format ? (runs.data ?? []).filter((r) => canReplayFrom(r, { verifierId: verifier.id, format })) : []),
-    [runs.data, verifier, format],
-  );
+  const sources = useMemo(() => (runs.data ?? []).filter((r) => r.replayable), [runs.data]);
   const set = (next: { variant: ReplayVariant; sourceRunId?: string | undefined }) =>
     update({
       tamper: {
@@ -198,8 +194,7 @@ function ReplayFields({ verifier }: { verifier: CatalogEntry | undefined }) {
           <option value="">{sources.length > 0 ? 'Newest earlier run' : 'None available'}</option>
           {sources.map((r) => (
             <option key={r.id} value={r.id}>
-              {new Date(r.createdAt).toLocaleString()} · {r.id.slice(0, 8)}
-              {r.tamper ? ` · ${r.tamper.id}` : ''}
+              {new Date(r.createdAt).toLocaleString()} · {r.id.slice(0, 8)} · {r.wallet.name}
             </option>
           ))}
         </select>

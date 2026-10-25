@@ -5,14 +5,19 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { dirname, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  buildMatrix,
   buildSequence,
   canReplayFrom,
+  filterRuns,
   CreateRunRequestSchema,
   ManualEvidenceRequestSchema,
   predict,
   PredictRequestSchema,
+  renderMatrixMarkdown,
   renderReportMarkdown,
+  RunsQuerySchema,
   SequenceViewSchema,
+  summarizeRun,
   toMermaid,
   type HeldCredentialsResponse,
   type RunConfig,
@@ -268,18 +273,28 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   }
 
   if (method === 'GET' && path === '/api/runs') {
-    const q = url.searchParams;
-    const list = runs
-      .list()
-      .filter(
-        (r) =>
-          (!q.get('issuer') || r.config.issuerId === q.get('issuer')) &&
-          (!q.get('wallet') || r.config.walletId === q.get('wallet')) &&
-          (!q.get('verifier') || r.config.verifierId === q.get('verifier')) &&
-          (!q.get('format') || r.config.format === q.get('format')) &&
-          (!q.get('verdict') || r.verdict === q.get('verdict')),
-      );
-    return send(res, 200, list);
+    const query = RunsQuerySchema.safeParse(Object.fromEntries(url.searchParams));
+    if (!query.success) {
+      const issue = query.error.issues[0];
+      throw new HttpError(400, `Invalid query: ${issue?.path.join('.')}: ${issue?.message}`);
+    }
+    const catalog = await registry.list(60_000);
+    return send(res, 200, filterRuns(runs.list().map((r) => summarizeRun(r, catalog)), query.data));
+  }
+
+  // The interoperability matrix: latest run per issuer × wallet × verifier × format (plan §11.2).
+  if (method === 'GET' && (path === '/api/matrix' || path === '/api/matrix.md')) {
+    const catalog = await registry.list(60_000);
+    const matrix = buildMatrix(runs.list().map((r) => summarizeRun(r, catalog)), {
+      includeNegative: url.searchParams.get('includeNegative') === 'true',
+    });
+    if (path === '/api/matrix') return send(res, 200, matrix);
+    res.writeHead(200, {
+      'content-type': 'text/markdown; charset=utf-8',
+      'content-disposition': 'attachment; filename="interop-matrix.md"',
+    });
+    res.end(renderMatrixMarkdown(matrix, (id) => `${UI_ORIGIN.replace(/\/$/, '')}/runs/${id}`));
+    return;
   }
 
   if (method === 'GET' && (m = path.match(/^\/api\/runs\/([^/]+)$/)))

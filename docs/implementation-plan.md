@@ -866,7 +866,7 @@ A headless wallet that exercises **Inji's own wallet-side libraries** (`inji-vci
 | `/` Playground | Three-column role selector, run configuration, live run canvas |
 | `/runs/:id` | Run detail: timeline, sequence diagram, inspector, checks, report downloads, replay/tamper buttons |
 | `/matrix` | Compatibility matrix (predicted vs observed), filterable by format and profile |
-| `/history` | Run history and trends, filters by module version, format, outcome and date |
+| `/history` | Run history and trends, filters by module version, format, outcome and date (**implemented**, with the matrix as a tab; trend charts not built) |
 | `/verify` | Direct verification: paste JSON, upload a file, or scan a PixelPass QR with the SDK's `QRCodeVerification` |
 | `/gaps` | Clustered failures with drafted GitHub issues |
 | `/settings` | Endpoint health, tunnel status, pinned module versions, reveal-secrets toggle (local only) |
@@ -1192,7 +1192,7 @@ Raw exchanges can get large; a retention job keeps full bodies for 30 days and t
 | GET | `/api/catalog/:id/credential-configurations` | Credential configurations from issuer metadata |
 | POST | `/api/compatibility/predict` | `RunConfig` → prediction with reasons |
 | POST | `/api/runs` | Create and start a run |
-| GET | `/api/runs` | History with filters: issuer, wallet, verifier, format, verdict, moduleVersion, from, to |
+| GET | `/api/runs` | History with filters: issuer, wallet, verifier, format, verdict, moduleVersion, from, to (**implemented** as run summaries; filters `RunsQuerySchema` in `packages/shared/src/history.ts`: per-role versions, mode, outcome, tamper, from, to, limit) |
 | GET | `/api/runs/:id` | Run with steps, verdict and prediction |
 | GET | `/api/runs/:id/exchanges?decode=true` | Captured exchanges, optionally decoded |
 | GET | `/api/runs/:id/sequence` | Mermaid source for the sequence diagram (`?view=openid4vp\|full`, implemented) |
@@ -1201,8 +1201,8 @@ Raw exchanges can get large; a retention job keeps full bodies for 30 days and t
 | POST | `/api/runs/:id/cancel` | Cancel |
 | POST | `/api/runs/:id/replay` | Re-run with the same config, optionally with a tamper |
 | GET | `/api/runs/:id/report?format=md\|json\|junit` | Report |
-| GET | `/api/matrix` | Aggregated matrix (latest per combination) |
-| GET | `/api/matrix.md` | Markdown matrix |
+| GET | `/api/matrix` | Aggregated matrix (latest per combination; **implemented**, versions in the key, negative tests left out unless `?includeNegative=true`) |
+| GET | `/api/matrix.md` | Markdown matrix (**implemented**) |
 | POST | `/api/direct-verify` | Pasted/uploaded/scanned VC → chosen verifier + differential verification |
 | GET | `/api/gaps` | Gap clusters with issue drafts |
 | GET | `/api/health` | Aggregate health |

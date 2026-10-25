@@ -8,6 +8,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   CatalogFileSchema,
+  interpolateEnv,
   type CatalogEntry,
   type HealthStatus,
   type ImplementationDescriptor,
@@ -62,12 +63,6 @@ const FACTORIES: Record<string, Factory> = {
   MockWalletAdapter: (d) => new MockWalletAdapter(d),
 };
 
-export function interpolateEnv(text: string, env: NodeJS.ProcessEnv = process.env): string {
-  return text.replace(
-    /\$\{(\w+)(?::-([^}]*))?\}/g,
-    (_, name: string, fallback?: string) => env[name] || fallback || '',
-  );
-}
 
 interface Slot {
   descriptor: ImplementationDescriptor;
@@ -87,7 +82,7 @@ export class ImplementationRegistry extends EventEmitter {
       .filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'))
       .sort()) {
       const parsed = CatalogFileSchema.safeParse(
-        parse(interpolateEnv(readFileSync(join(dir, file), 'utf8'))),
+        parse(interpolateEnv(readFileSync(join(dir, file), 'utf8'), process.env)),
       );
       if (!parsed.success) {
         console.error(

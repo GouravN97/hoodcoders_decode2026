@@ -545,6 +545,22 @@ describe('credentialTypeOf', () => {
   });
 });
 
+describe('RunOrchestrator version snapshot', () => {
+  it('records the catalog version, role and name of each module when the run is created', async () => {
+    const { orchestrator, store, entries } = setup({});
+    const { id, versions } = await orchestrator.create(config);
+    expect(versions).toEqual([
+      { implementationId: 'issuer', role: 'issuer', version: '1', displayName: 'issuer' },
+      { implementationId: 'wallet', role: 'wallet', version: '1', displayName: 'wallet' },
+      { implementationId: 'verifier', role: 'verifier', version: '1', displayName: 'verifier' },
+    ]);
+    // A later catalog change does not rewrite history.
+    entries.find((e) => e.id === 'verifier')!.version = '2';
+    const run = await finished(store, id);
+    expect(run.versions.find((v) => v.role === 'verifier')?.version).toBe('1');
+  });
+});
+
 describe('RunOrchestrator prediction', () => {
   it('does not call a failed run known-unsupported because of stale cached health', async () => {
     const { orchestrator, store, entries } = setup({ outcome: 'VALID' });
