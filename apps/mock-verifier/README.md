@@ -27,6 +27,8 @@ Every response goes through the same stages, in order, and the result lists each
 | `holder-binding` | key-binding JWT signed by the `cnf` key, `nonce` and `aud` of this request, `sd_hash` | Invalid |
 | `validity` | `exp` and `nbf` | Expired (or Invalid for not-yet-valid) |
 
+A `vp_token` sent as a JSON-encoded string (`"eyJ…~…~"`, as Inji Wallet sends it) is read as the presentation inside, with a warning on `response-shape`.
+
 A response that cannot be used at all (wrong `state`, malformed) is refused at `direct_post` with HTTP 400 `invalid_request`, and the result is still stored. A wallet's `error` response is stored as Rejected and answered 200.
 
 For `mso_mdoc` the stages are the same ids where they mean the same thing: `requested-credential` (the docType is the input descriptor's id, as ISO 18013-7 has it, and the requested `$['namespace']['element']` fields are disclosed), `format` (DeviceResponse status, MSO docType, and observed differences from ISO 18013-5 as a warning), `issuer-signature` (COSE_Sign1 with the `x5chain` leaf), `issuer-trust` (the leaf against `TRUSTED_MDOC_CERTS`), `digests` (each disclosed element against the MSO's value digests), `holder-binding` (the device signature over the ISO 18013-7 Annex B session transcript: `client_id`, `response_uri`, `nonce`; the mdoc nonce is the empty string because `direct_post` carries no JWE `apu`) and `validity` (`validFrom` / `validUntil`).

@@ -123,6 +123,25 @@ describe('mock verifier', () => {
     expect(Object.values(stageStatus(result)).every((s) => s === 'pass')).toBe(true);
   });
 
+  it('reads a JSON-encoded vp_token, as Inji Wallet sends it, and says so', async () => {
+    const req = await createRequest();
+    const requestObject = decodeJwt(await (await fetch(new URL(req.authorizationRequestUri).searchParams.get('request_uri')!)).text()) as { nonce: string };
+    const vp = await presentSdJwt({ raw: (await issue()).raw, holder, nonce: requestObject.nonce, audience: config.clientId });
+    const res = await fetch(`${base}/oid4vp/response/${req.requestId}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        vp_token: JSON.stringify(vp),
+        presentation_submission: JSON.stringify({ id: 's', definition_id: 'pd-1', descriptor_map: [{ id: 'farmer', format: 'vc+sd-jwt', path: '$' }] }),
+        state: req.requestId,
+      }),
+    });
+    expect(res.status).toBe(200);
+    const result = await resultOf(req.transactionId);
+    expect(result.outcome).toBe('VALID');
+    expect(stageStatus(result)['response-shape']).toBe('warn');
+  });
+
   it('accepts dc+sd-jwt', async () => {
     const req = await createRequest('FarmerCredentialSdJwt', 'dc+sd-jwt');
     await respond({ authorizationRequestUri: req.authorizationRequestUri }, holder, [await issue({ typ: 'dc+sd-jwt' })]);

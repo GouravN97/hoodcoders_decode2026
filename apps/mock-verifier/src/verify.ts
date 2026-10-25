@@ -23,6 +23,7 @@ import {
 } from '@playground/protocol-core';
 import {
   CredentialFormatSchema,
+  unwrapVpToken,
   type CredentialFormat,
   type MockVerifierResult,
   type VerificationOutcome,
@@ -107,7 +108,9 @@ function result(stages: StageResult[], token: string | undefined, ctx: VerifyCon
 /** Checks a direct_post body against the transaction it answers. */
 export async function verifyResponse(tx: Transaction, fields: URLSearchParams, ctx: VerifyContext): Promise<MockVerifierResult> {
   const stages: StageResult[] = [];
-  const vpToken = fields.get('vp_token');
+  const raw = fields.get('vp_token');
+  const unwrapped = raw ? unwrapVpToken(raw) : undefined;
+  const vpToken = unwrapped?.token ?? null;
   const done = () => result(stages, vpToken ?? undefined, ctx, tx.transactionId);
 
   const error = fields.get('error');
@@ -126,7 +129,11 @@ export async function verifyResponse(tx: Transaction, fields: URLSearchParams, c
     stages.push(stage('response-shape', 'Response shape', 'fail', 'presentation_submission is missing or not JSON'));
     return done();
   }
-  stages.push(stage('response-shape', 'Response shape', 'pass', 'vp_token and presentation_submission present'));
+  stages.push(
+    unwrapped?.jsonEncoded
+      ? stage('response-shape', 'Response shape', 'warn', 'vp_token is a JSON-encoded string ("…"); read as the presentation inside. Draft 23 calls vp_token a JSON String; most wallets send the bare value')
+      : stage('response-shape', 'Response shape', 'pass', 'vp_token and presentation_submission present'),
+  );
 
   const state = fields.get('state');
   stages.push(

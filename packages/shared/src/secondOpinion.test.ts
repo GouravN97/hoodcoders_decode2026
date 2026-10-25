@@ -16,6 +16,8 @@ describe('second opinion (VER-002)', () => {
   it('takes the credential out of a vp_token', () => {
     expect(credentialFromVpToken('h.p.s~d1~d2~kb.p.s')).toBe('h.p.s~d1~d2~');
     expect(credentialFromVpToken('h.p.s~d1~')).toBe('h.p.s~d1~');
+    // Inji Wallet's JSON-encoded string.
+    expect(credentialFromVpToken('"h.p.s~d1~kb.p.s"')).toBe('h.p.s~d1~');
     expect(credentialFromVpToken(JSON.stringify({ verifiableCredential: [{ id: 'vc-1' }] }))).toBe('{"id":"vc-1"}');
     expect(credentialFromVpToken('h.p.s')).toBeUndefined();
     expect(credentialFromVpToken('{not json')).toBeUndefined();

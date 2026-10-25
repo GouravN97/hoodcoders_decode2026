@@ -81,7 +81,8 @@ What we observed from this issuer (25 October 2026): it accepts pre-authorized
 offers, but issues fixed mock mDL data whatever the offer's claims say (it puts
 the token's `sub`, which is the offer's claims as JSON, into `document_number`);
 it binds the holder key with `cose_key`, so the proof must carry a `jwk` header
-(a `did:jwk…#0` kid fails with `vci_exchange_failed`). Details in the
+(a `did:jwk…#0` kid fails with `vci_exchange_failed`). Inji Wallet `1.0.0-alpha.1`
+sends such a kid, so it cannot receive this mDoc (checked on the emulator). Details in the
 [results](../docs/external-credential-interoperability-results.md#mdoc-certify-mock-mdoc).
 
 The Certify mock setup is intended for the local guest/demo flow.
@@ -616,6 +617,12 @@ The script:
 3. Recreates the containers that use them.
 4. Points Certify's credential configurations at the new issuer DID.
 5. Waits until the issuer metadata loads through the tunnel.
+
+The tunnels connect to Cloudflare over HTTP/2: QUIC needs outbound UDP to port
+7844, which some networks block (cloudflared then retries forever and the
+hostname answers 530). Set `TUNNEL_PROTOCOL=quic` to use QUIC anyway. It also
+writes a portless `MOCK_VERIFIER_DID`, and with `PROFILES="wallet mdoc"` it
+recreates the mock mDoc Certify too.
 
 It is ready when it prints `Certify reachable through the tunnel`. Quick-tunnel
 hostnames change every time cloudflared restarts, so rerun the script after a

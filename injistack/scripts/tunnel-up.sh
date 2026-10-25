@@ -10,6 +10,8 @@
 #   ./scripts/tunnel-up.sh stop     # stop the tunnels
 #
 # Profiles to bring up default to "wallet"; override with PROFILES="wallet esignet".
+# Tunnels use HTTP/2 to Cloudflare by default: QUIC needs outbound UDP 7844, which some networks
+# block (cloudflared then retries forever and the hostname answers 530). TUNNEL_PROTOCOL=quic to override.
 # Requires: cloudflared, docker, curl.
 set -euo pipefail
 
@@ -52,6 +54,7 @@ stop_tunnels
 start_tunnel() {
   local name="$1"
   nohup cloudflared tunnel --url https://localhost:8443 --no-tls-verify --no-autoupdate \
+    --protocol "${TUNNEL_PROTOCOL:-http2}" \
     > "$STATE_DIR/$name.log" 2>&1 &
   echo $! >> "$PID_FILE"
 }

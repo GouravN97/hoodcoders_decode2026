@@ -112,7 +112,16 @@ What this shows:
 3. The two Inji Verify gaps found with the tamper runs are presentation checks, not credential checks: the mock verifier catches both, at the requested-credential and holder-binding stages. This confirms the gaps are on Inji Verify's side and not an artefact of the mock wallet's presentations.
 4. `ldp_vc` gets no second opinion: the mock verifier checks SD-JWT VC only.
 
-Not run yet: Certify → Inji Wallet (emulator) → mock verifier. It needs the Cloudflare tunnels (the phone cannot reach `*.localhost`), and the mock verifier's `did:web` client ID must be portless (`MOCK_VERIFIER_DID`, which `tunnel-up.sh` now sets).
+### Inji Wallet (emulator) → mock verifier
+
+Run 25 October 2026 through Cloudflare quick tunnels (portless `MOCK_VERIFIER_DID`), Inji Wallet `1.0.0-alpha.1` on the `Medium_Phone_API_37.0` emulator, Certify → Inji Wallet → mock verifier, `vc+sd-jwt`: **VALID** (run `d24bf201` after the fix below). Inji Wallet resolved the mock verifier's `did:web`, verified its EdDSA request object (no warning), asked the holder for consent ("share your cards with Playground mock…", a step the Inji Verify runs did not show), and posted a presentation that passes every check, including the key-binding JWT (an Ed25519 `did:jwk` holder key). Inji Verify's second opinion agreed.
+
+Two things only this lane showed:
+
+1. **`vp_token` is a JSON-encoded string.** Inji Wallet posts `vp_token="eyJ…~…~<kb-jwt>"` with the quotes. OpenID4VP draft 23 calls `vp_token` a "JSON String", and Inji Verify reads this form; the playground's mock wallet, like most wallets, sends the bare value. The first attempt failed at the mock verifier's SD-JWT format check. The mock verifier now reads the quoted form and reports it as a warning.
+2. **No claims were disclosed.** The presentation definition only constrains `$.vct`, and Inji Wallet sent the SD-JWT with no disclosures. That satisfies the request; a request that needs claims has to name them.
+
+The first attempt also exposed a playground bug: the second opinion sent the quoted string to Inji Verify, got INVALID, and recorded the verifiers as agreeing. The credential is now unwrapped before the second opinion.
 
 ## mDoc: Certify mock mDoc
 
@@ -136,13 +145,13 @@ Observed in the credential Certify returns (not inferred from source):
 1. **Wrapped structure.** The credential is CBOR `{docType, issuerSigned}`. OpenID4VCI's `mso_mdoc` and ISO 18013-5 expect the `IssuerSigned` structure itself. The mock wallet unwraps it when presenting.
 2. **The offer's claims are ignored.** Whatever the pre-authorized offer says, the mDL carries the plugin's fixed mock data (family name "Agatha", given name "Joseph", birth date 1994-11-06). `document_number` holds the access token's `sub`, which for a pre-authorized token is the offer's claims serialised as JSON.
 3. **`driving_privileges` is a text string** (a Java `Map.toString()`, e.g. `{issue_date=…, vehicle_category_code=A, …}`). ISO 18013-5 defines an array of maps.
-4. **Holder key binding is `cose_key` only.** A proof whose `kid` is `did:jwk:…#0` fails with `vci_exchange_failed` (the plugin base64-decodes the DID including the fragment: `Illegal base64 character 23`). A `jwk` header or a bare `did:jwk` works. Inji Wallet sends `did:jwk:…#0` kids for other formats; whether it does so for `mso_mdoc` has not been tested (the emulator lane needs the tunnels).
+4. **Holder key binding is `cose_key` only.** A proof whose `kid` is `did:jwk:…#0` fails with `vci_exchange_failed` (the plugin base64-decodes the DID including the fragment: `Illegal base64 character 23`). A `jwk` header or a bare `did:jwk` works. Inji Wallet `1.0.0-alpha.1` sends exactly that for `mso_mdoc` (observed on the emulator, below).
 5. **Padded base64url.** The credential string sometimes ends in `=`.
 6. The concern from reading the DataProvider path's source (untagged `validityInfo` dates, no `signed` date) does **not** apply to this plugin: its `validityInfo` dates are tagged and `signed` is present.
 
 The issuer signature and every element digest of a Certify-issued mDL also verify in `packages/protocol-core` unit tests, against a saved credential (`src/fixtures/certify-0.14.0-mock-mdl.mdoc`).
 
-Not run: Certify mock mDoc → **Inji Wallet** issue-only on the emulator (needs the Cloudflare tunnels).
+**Certify mock mDoc → Inji Wallet (emulator), issue-only: fails at the credential request** (run `714478ff`). The wallet took the offer, showed the issuer's name from the metadata, exchanged the pre-authorized code, and sent `{"format":"mso_mdoc","doctype":"org.iso.18013.5.1.mDL"}` with a proof whose header has `kid: did:jwk:…#0` and no `jwk`. Certify answered `400 vci_exchange_failed` (log: `Exception on mdoc creation`, `Illegal base64 character 23`); the wallet showed "Server issue". Both sides contribute: the configuration advertises `cose_key` binding, for which the proof should carry the key (`jwk`), and the mock plugin cannot read a valid `did:jwk` DID URL with a fragment.
 
 ## Same-device link and Digital Credentials API
 
