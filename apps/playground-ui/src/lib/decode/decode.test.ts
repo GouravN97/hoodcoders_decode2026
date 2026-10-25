@@ -80,6 +80,9 @@ describe('decodeBody', () => {
     expect(d.kind === 'json' && d.embedded[0]?.decoded).toMatchObject({ kind: 'mdoc', container: 'credential', documents: [{ docType: 'org.iso.18013.5.1.mDL', shape: 'wrapped' }] });
     const form = decodeBody(fx.vpSubmissionBody, 'application/x-www-form-urlencoded');
     expect(form.kind === 'form' && form.embedded.find((e) => e.path === 'vp_token')?.decoded).toMatchObject({ kind: 'mdoc', container: 'DeviceResponse' });
+    // Inji Wallet sends vp_token as a JSON-encoded string.
+    const quoted = decodeBody(new URLSearchParams({ vp_token: JSON.stringify('eyJhbGciOiJFUzI1NiJ9.e30.c2ln~') }).toString(), 'application/x-www-form-urlencoded');
+    expect(quoted.kind === 'form' && quoted.embedded.find((e) => e.path === 'vp_token')?.decoded.kind).toBe('sd-jwt');
     // A short opaque token is not mistaken for CBOR.
     expect(decodeBody('SFLo3Ai2sajuJudySCahMKItuzIPN7I0').kind).toBe('text');
   });

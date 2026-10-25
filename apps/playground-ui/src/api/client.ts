@@ -12,6 +12,7 @@ import {
   RunReportSchema,
   RunResponseSchema,
   RunsResponseSchema,
+  type DcApiResponseRequest,
   type ManualEvidenceRequest,
   type RunConfig,
 } from '@playground/shared';
@@ -88,6 +89,10 @@ export const api = {
     getJson(`/api/runs/${encodeURIComponent(id)}/exchanges?decode=true`, ExchangesResponseSchema),
   manualEvidence: async (id: string, body: ManualEvidenceRequest) => {
     await send(`/api/runs/${encodeURIComponent(id)}/manual-evidence`, post(body));
+  },
+  /** What navigator.credentials.get returned (or threw) for a dc-api run. */
+  dcApiResponse: async (id: string, body: DcApiResponseRequest) => {
+    await send(`/api/runs/${encodeURIComponent(id)}/dc-api-response`, post(body));
   },
   cancel: async (id: string) => {
     await send(`/api/runs/${encodeURIComponent(id)}/cancel`, { method: 'POST' });

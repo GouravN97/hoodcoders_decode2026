@@ -11,6 +11,7 @@ import {
   type MockVerifierResult,
 } from '@playground/shared';
 import type { z } from 'zod';
+import { CALLER_HEADER } from '../tap/proxy.ts';
 import { AdapterError, probeHealth, staticVersion, upstream, type UpstreamResponse } from './http.ts';
 import { presentationDefinitionFor, transactionIdFor } from './inji-verify.ts';
 import type {
@@ -29,6 +30,20 @@ function parsed<S extends z.ZodType>(step: string, res: UpstreamResponse, schema
   const result = schema.safeParse(res.json());
   if (!result.success) throw new AdapterError(step, 'The mock verifier answered with an unexpected body', res.status, res.text);
   return result.data;
+}
+
+/** A DCQL query (OpenID4VP 1.0) for an SD-JWT VC of the run's type: the DC API request's query. */
+export function dcqlQueryFor(spec: PresentationSpec) {
+  return {
+    credentials: [
+      {
+        id: spec.id,
+        format: spec.format,
+        meta: { vct_values: [spec.credentialType] },
+        claims: [{ path: ['fullName'] }],
+      },
+    ],
+  };
 }
 
 /** The mock verifier's result → the playground's VerifierResult, keeping every stage. */
@@ -66,6 +81,25 @@ export class MockVerifierAdapter implements VerifierAdapter {
   }
 
   async createPresentationRequest(ctx: RunContext, spec: PresentationSpec): Promise<PresentationRequestHandle> {
+    if (spec.responseMode === 'dc_api') {
+      const dcqlQuery = dcqlQueryFor(spec);
+      const res = await upstream('request_created', `${this.base}/api/requests`, {
+        method: 'POST',
+        runId: ctx.runId,
+        signal: ctx.signal,
+        body: JSON.stringify({ transactionId: transactionIdFor(ctx.runId), responseMode: 'dc_api', dcqlQuery }),
+      });
+      const data = parsed('request_created', res, MockVerifierCreateResponseSchema);
+      if (!data.dcApiRequest) throw new AdapterError('request_created', 'The mock verifier returned no DC API request', res.status, res.text);
+      return {
+        requestId: data.requestId,
+        transactionId: data.transactionId,
+        authorizationRequestUri: '',
+        presentationDefinition: dcqlQuery,
+        dcqlQuery,
+        dcApiRequest: data.dcApiRequest,
+      };
+    }
     const presentationDefinition = presentationDefinitionFor(spec);
     const res = await upstream('request_created', `${this.base}/api/requests`, {
       method: 'POST',
@@ -77,7 +111,7 @@ export class MockVerifierAdapter implements VerifierAdapter {
     return {
       requestId: data.requestId,
       transactionId: data.transactionId,
-      authorizationRequestUri: data.authorizationRequestUri,
+      authorizationRequestUri: data.authorizationRequestUri ?? '',
       presentationDefinition,
     };
   }
@@ -98,6 +132,17 @@ export class MockVerifierAdapter implements VerifierAdapter {
       { runId: ctx.runId, signal: ctx.signal },
     );
     return mapMockVerifierResult(parsed(ProtocolStep.VERIFY_RESULT, res, MockVerifierResultSchema));
+  }
+
+  async submitDcApiResponse(ctx: RunContext, handle: PresentationRequestHandle, response: { origin: string; data: unknown }) {
+    // Recorded as the wallet's message: the browser's wallet produced it; the BFF only relays it.
+    await upstream(ProtocolStep.VP_RESPONSE, `${this.base}/api/dc-api/${encodeURIComponent(handle.requestId)}`, {
+      method: 'POST',
+      runId: ctx.runId,
+      signal: ctx.signal,
+      headers: { [CALLER_HEADER]: 'wallet' },
+      body: JSON.stringify(response),
+    });
   }
 
   async verifyCredential(ctx: RunContext, credential: string, format: CredentialFormat): Promise<VerifierResult> {

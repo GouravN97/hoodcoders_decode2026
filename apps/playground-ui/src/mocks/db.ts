@@ -2,6 +2,7 @@
 // live events always describe the same run.
 import type {
   CheckFinding,
+  DcApiResponseRequest,
   ExchangeWithDecoded,
   HeldCredential,
   RunDetail,
@@ -15,6 +16,8 @@ export interface MockRunRecord {
   cancelled: boolean;
   /** Pending manual-evidence waits, keyed by step id. */
   manualWaiters: Map<string, () => void>;
+  /** A dc-api run waiting for the browser's navigator.credentials.get result. */
+  dcApiWaiter?: (response: DcApiResponseRequest) => void;
   /** The tamper the run applies, planned when it was created. */
   tamperPlan?: TamperPlan;
 }

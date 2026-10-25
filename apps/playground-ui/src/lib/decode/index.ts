@@ -99,7 +99,16 @@ export function decodeMdoc(raw: string): Extract<Decoded, { kind: 'mdoc' }> | nu
 
 /** Strings worth decoding further when found inside JSON, forms or URIs. */
 function decodeNested(value: string): Decoded | null {
-  const v = value.trim();
+  let v = value.trim();
+  // A JSON-encoded string (Inji Wallet's vp_token): decode what is inside the quotes.
+  if (v.startsWith('"')) {
+    try {
+      const inner: unknown = JSON.parse(v);
+      if (typeof inner === 'string') v = inner.trim();
+    } catch {
+      /* not JSON */
+    }
+  }
   const mdoc = decodeMdoc(v);
   if (mdoc) return mdoc;
   if (SD_JWT_RE.test(v)) return decodeSdJwt(v);

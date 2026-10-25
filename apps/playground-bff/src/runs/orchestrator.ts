@@ -29,6 +29,7 @@ import {
   type CatalogEntry,
   type CheckFinding,
   type CredentialFormat,
+  type DcApiResponseRequest,
   type DeliveryInstruction,
   type DeliveryPurpose,
   type EvidenceKind,
@@ -216,6 +217,16 @@ export class RunOrchestrator {
     if (record) record.run.correlation = 'heuristic';
   }
 
+  /** The browser's navigator.credentials.get result for a dc-api run; false if none is waiting. */
+  dcApiResponse(runId: string, response: DcApiResponseRequest): boolean {
+    const record = this.store.get(runId);
+    const waiter = record?.dcApiWaiter;
+    if (!record || !waiter) return false;
+    record.dcApiWaiter = undefined;
+    waiter(response);
+    return true;
+  }
+
   confirmManual(runId: string, step: string): boolean {
     const waiter = this.store.get(runId)?.manualWaiters.get(step);
     waiter?.();
@@ -348,6 +359,7 @@ class RunExecution {
     uri: string,
     artifactKinds: ArtifactKind[],
     correlationKeys: string[] = [],
+    body = uri,
   ): string {
     const ex: Exchange = {
       id: randomUUID(),
@@ -360,7 +372,7 @@ class RunExecution {
       url: uri,
       latencyMs: 0,
       step,
-      request: { headers: {}, body: uri },
+      request: { headers: {}, body },
       correlationKeys,
       outOfBand: true,
       artifactKinds,
@@ -783,6 +795,7 @@ class RunExecution {
       this.tamper?.def.id === 'T-WRONG-TYPE'
         ? WRONG_CREDENTIAL_TYPE
         : await this.credentialType(held);
+    if (config.presentationFlow === 'dc-api') return this.presentDcApi(credentialType);
     const request = await this.attempt('request_created', () =>
       verifier.createPresentationRequest(this.ctx, {
         id: config.credentialConfigurationId,
@@ -915,6 +928,106 @@ class RunExecution {
     }
     this.run.delivery = undefined;
     return { request, submitted };
+  }
+
+  /**
+   * Digital Credentials API: the page asks the browser's own wallet (navigator.credentials.get) with
+   * an unsigned OpenID4VP 1.0 / DCQL request, and the BFF relays the answer to the verifier. The
+   * selected wallet is not contacted.
+   */
+  private async presentDcApi(credentialType: string): Promise<Presentation> {
+    const { verifier } = this.adapters;
+    const config = this.run.config;
+    if (!verifier.submitDcApiResponse) {
+      throw new StepOutcome('request_created', 'failed', {
+        message: `${verifier.descriptor.displayName} does not take Digital Credentials API responses`,
+      });
+    }
+    const request = await this.attempt('request_created', () =>
+      verifier.createPresentationRequest(this.ctx, {
+        id: config.credentialConfigurationId,
+        format: config.format,
+        credentialType,
+        purpose: `Interop playground run ${this.run.id.slice(0, 8)}`,
+        responseMode: 'dc_api',
+      }),
+    );
+    const dcRequest = request.dcApiRequest;
+    if (!dcRequest) throw new StepOutcome('request_created', 'failed', { message: 'The verifier returned no DC API request' });
+    register(this.run.id, request.requestId, request.transactionId);
+    const created = getExchangesByRun(this.run.id).find((e) => e.step === ProtocolStep.VERIFY_CREATE_REQUEST);
+    const oob = this.outOfBand(
+      verifier.component ?? 'verify',
+      ProtocolStep.VP_AUTH_REQUEST,
+      `navigator.credentials.get (${dcRequest.protocol})`,
+      ['auth_request', 'dcql_query'],
+      [request.requestId],
+      JSON.stringify(dcRequest, null, 2),
+    );
+    this.artifact('auth_request', JSON.stringify(dcRequest, null, 2), oob);
+    if (request.dcqlQuery) this.artifact('dcql_query', JSON.stringify(request.dcqlQuery, null, 2), created?.id);
+    this.step('request_created', 'done', { evidenceKind: 'adapter', exchangeId: created?.id ?? oob });
+
+    this.step('request_delivered', 'active');
+    this.delivery('presentation', {
+      kind: 'dc-api',
+      protocol: dcRequest.protocol,
+      request: dcRequest.data,
+      hint: "Ask this browser's wallet for the credential. The browser shows its own prompt.",
+    });
+    const answer = await this.waitDcApi(this.settings.humanTimeoutMs);
+    // Which browser answered, for the report (plan §10.4).
+    this.run.config.labels = {
+      ...this.run.config.labels,
+      'dc-api.origin': answer.origin,
+      ...(answer.userAgent ? { 'dc-api.userAgent': answer.userAgent } : {}),
+      ...(answer.error ? { 'dc-api.error': `${answer.error.name}: ${answer.error.message}` } : {}),
+    };
+    if (answer.error) {
+      throw new StepOutcome('request_delivered', 'failed', {
+        message: `The browser's navigator.credentials.get failed: ${answer.error.name}: ${answer.error.message}`,
+      });
+    }
+    this.step('request_delivered', 'done', { evidenceKind: 'manual' });
+    this.step(ProtocolStep.VP_REQUEST_OBJECT, 'skipped');
+
+    this.step(ProtocolStep.VP_RESPONSE, 'active');
+    await this.attempt(ProtocolStep.VP_RESPONSE, () =>
+      verifier.submitDcApiResponse!(this.ctx, request, { origin: answer.origin, data: answer.data }),
+    );
+    const posted = getExchangesByRun(this.run.id).filter((e) => e.step === ProtocolStep.VP_RESPONSE).at(-1);
+    const tokens = (answer.data as { vp_token?: Record<string, unknown> } | undefined)?.vp_token;
+    const first = tokens ? Object.values(tokens)[0] : undefined;
+    const vpToken = Array.isArray(first) ? first[0] : first;
+    if (typeof vpToken === 'string') this.artifact('vp_token', vpToken, posted?.id, config.format);
+    this.done(ProtocolStep.VP_RESPONSE, posted ? { kind: 'tap', exchange: posted } : { kind: 'adapter' });
+    this.run.delivery = undefined;
+    return { request, submitted: Promise.resolve() };
+  }
+
+  private waitDcApi(timeoutMs: number): Promise<DcApiResponseRequest> {
+    return new Promise((resolve, reject) => {
+      const onAbort = () => {
+        clearTimeout(timer);
+        this.record.dcApiWaiter = undefined;
+        reject(this.ctx.signal.reason ?? new Cancelled());
+      };
+      const timer = setTimeout(() => {
+        this.record.dcApiWaiter = undefined;
+        this.ctx.signal.removeEventListener('abort', onAbort);
+        reject(
+          new StepOutcome('request_delivered', 'inconclusive', {
+            message: `No answer from the browser's Digital Credentials API within ${Math.round(timeoutMs / 60_000)} min`,
+          }),
+        );
+      }, timeoutMs);
+      this.ctx.signal.addEventListener('abort', onAbort, { once: true });
+      this.record.dcApiWaiter = (response) => {
+        clearTimeout(timer);
+        this.ctx.signal.removeEventListener('abort', onAbort);
+        resolve(response);
+      };
+    });
   }
 
   /** Marks the exchange that carried the tampered payload and keeps the payload as an artifact. */

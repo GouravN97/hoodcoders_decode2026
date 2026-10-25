@@ -41,9 +41,26 @@ export function secondOpinionFinding(
       };
 }
 
+/**
+ * A `vp_token` form value as the presentation itself. OpenID4VP draft 23 calls it a "JSON String";
+ * Inji Wallet sends that literally, quoted (`"eyJ…~…~"`), where most wallets send the bare value.
+ */
+export function unwrapVpToken(raw: string): { token: string; jsonEncoded: boolean } {
+  const t = raw.trim();
+  if (t.startsWith('"')) {
+    try {
+      const inner: unknown = JSON.parse(t);
+      if (typeof inner === 'string') return { token: inner, jsonEncoded: true };
+    } catch {
+      /* not JSON: leave it */
+    }
+  }
+  return { token: t, jsonEncoded: false };
+}
+
 /** The credential inside a vp_token, as a verifier would check it on its own. */
 export function credentialFromVpToken(vpToken: string): string | undefined {
-  const token = vpToken.trim();
+  const token = unwrapVpToken(vpToken).token;
   if (!token.startsWith('{') && !token.startsWith('[')) {
     // SD-JWT: drop the key-binding JWT, keep the issuer JWT and disclosures.
     return token.includes('~') ? token.replace(/~[^~]*$/, '~') : undefined;

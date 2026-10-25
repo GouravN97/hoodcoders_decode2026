@@ -23,6 +23,7 @@ import {
 } from '@playground/protocol-core';
 import {
   CredentialFormatSchema,
+  unwrapVpToken,
   type CredentialFormat,
   type MockVerifierResult,
   type VerificationOutcome,
@@ -107,7 +108,9 @@ function result(stages: StageResult[], token: string | undefined, ctx: VerifyCon
 /** Checks a direct_post body against the transaction it answers. */
 export async function verifyResponse(tx: Transaction, fields: URLSearchParams, ctx: VerifyContext): Promise<MockVerifierResult> {
   const stages: StageResult[] = [];
-  const vpToken = fields.get('vp_token');
+  const raw = fields.get('vp_token');
+  const unwrapped = raw ? unwrapVpToken(raw) : undefined;
+  const vpToken = unwrapped?.token ?? null;
   const done = () => result(stages, vpToken ?? undefined, ctx, tx.transactionId);
 
   const error = fields.get('error');
@@ -126,7 +129,11 @@ export async function verifyResponse(tx: Transaction, fields: URLSearchParams, c
     stages.push(stage('response-shape', 'Response shape', 'fail', 'presentation_submission is missing or not JSON'));
     return done();
   }
-  stages.push(stage('response-shape', 'Response shape', 'pass', 'vp_token and presentation_submission present'));
+  stages.push(
+    unwrapped?.jsonEncoded
+      ? stage('response-shape', 'Response shape', 'warn', 'vp_token is a JSON-encoded string ("…"); read as the presentation inside. Draft 23 calls vp_token a JSON String; most wallets send the bare value')
+      : stage('response-shape', 'Response shape', 'pass', 'vp_token and presentation_submission present'),
+  );
 
   const state = fields.get('state');
   stages.push(
@@ -137,6 +144,10 @@ export async function verifyResponse(tx: Transaction, fields: URLSearchParams, c
   if (stages.at(-1)!.status === 'fail') return done();
 
   const pd = tx.presentationDefinition;
+  if (!pd) {
+    stages.push(stage('submission', 'Presentation submission', 'fail', 'This request was made for the Digital Credentials API, not direct_post'));
+    return done();
+  }
   const entry = submission.descriptor_map?.[0];
   const descriptor = pd.input_descriptors.find((d) => d.id === entry?.id);
   const submissionProblems = [
@@ -220,6 +231,67 @@ export async function verifyResponse(tx: Transaction, fields: URLSearchParams, c
   );
   return done();
 }
+
+/**
+ * A Digital Credentials API response (OpenID4VP 1.0, unsigned request): `vp_token` is an object
+ * keyed by DCQL credential query id, each value an array of presentations. Without a client_id the
+ * key-binding JWT's `aud` is `origin:<page origin>`. SD-JWT VC only.
+ */
+export async function verifyDcApiResponse(tx: Transaction, origin: string, data: unknown, ctx: VerifyContext): Promise<MockVerifierResult> {
+  const stages: StageResult[] = [];
+  const query = tx.dcqlQuery?.credentials[0];
+  const vpTokens = (data as { vp_token?: unknown } | null)?.vp_token;
+  const entry = query && vpTokens && typeof vpTokens === 'object' ? (vpTokens as Record<string, unknown>)[query.id] : undefined;
+  const token = Array.isArray(entry) ? entry[0] : entry;
+  const done = () => result(stages, typeof token === 'string' ? token : undefined, ctx, tx.transactionId);
+
+  if (!query || typeof token !== 'string') {
+    stages.push(
+      stage('response-shape', 'Response shape', 'fail', `vp_token has no presentation for credential query ${JSON.stringify(query?.id)}`),
+    );
+    return done();
+  }
+  stages.push(
+    Array.isArray(entry)
+      ? stage('response-shape', 'Response shape', 'pass', `vp_token.${query.id} holds ${entry.length} presentation(s)`)
+      : stage('response-shape', 'Response shape', 'warn', `vp_token.${query.id} is a string; OpenID4VP 1.0 expects an array`),
+  );
+  stages.push(stage('state', 'State', 'skip', 'Not used: a Digital Credentials API response returns to the page that asked'));
+
+  try {
+    const sd = parseSdJwt(token);
+    const typ = String(sd.header.typ ?? '');
+    const claims = disclosedClaims(sd);
+    const vctValues = (query.meta?.vct_values as string[] | undefined) ?? [];
+    const missing = (query.claims ?? []).filter((c) => readClaim(claims, c.path) === undefined).map((c) => c.path.join('.'));
+    const problems = [
+      typ !== query.format && `format ${typ}, the query asked for ${query.format}`,
+      vctValues.length > 0 && !vctValues.includes(String(claims.vct)) && `vct ${String(claims.vct)} is not one of ${vctValues.join(', ')}`,
+      missing.length > 0 && `requested claims not disclosed: ${missing.join(', ')}`,
+    ].filter(Boolean);
+    stages.push(
+      problems.length > 0
+        ? stage('requested-credential', 'Requested credential', 'fail', problems.join('; '))
+        : stage('requested-credential', 'Requested credential', 'pass', `${typ} credential satisfies DCQL query ${query.id}`),
+    );
+  } catch {
+    /* the SD-JWT stages below report the parse error */
+  }
+
+  stages.push(
+    ...(await verifySdJwt(token, {
+      nonce: tx.nonce,
+      audience: `origin:${origin}`,
+      trustedIssuers: ctx.trustedIssuers,
+      ...(ctx.now ? { now: ctx.now } : {}),
+    })),
+  );
+  return done();
+}
+
+/** A DCQL claims path (`["a", "b"]`) in the disclosed claims. */
+const readClaim = (claims: Record<string, unknown>, path: Array<string | number | null>) =>
+  path.reduce<unknown>((o, k) => (o && typeof o === 'object' && k !== null ? (o as Record<string, unknown>)[k] : undefined), claims);
 
 /** A credential on its own: signature, disclosures, issuer trust and validity, no holder binding. */
 export async function verifyCredentialOnly(credential: string, ctx: VerifyContext): Promise<MockVerifierResult> {

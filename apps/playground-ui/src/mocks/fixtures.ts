@@ -199,6 +199,10 @@ const ALL_CREDENTIAL_CONFIGURATIONS = [
   ...ANIMO_CREDENTIAL_CONFIGURATIONS,
 ];
 
+/** The `vct` / type / docType a mock credential configuration issues. */
+export const credentialTypeOf = (configurationId: string) =>
+  ALL_CREDENTIAL_CONFIGURATIONS.find((c) => c.id === configurationId)?.credentialType ?? configurationId;
+
 export function credentialConfigurationsForIssuer(issuerId: string) {
   if (issuerId === 'hovi-playground') return HOVI_CREDENTIAL_CONFIGURATIONS;
   if (issuerId === 'animo-playground') return ANIMO_CREDENTIAL_CONFIGURATIONS;

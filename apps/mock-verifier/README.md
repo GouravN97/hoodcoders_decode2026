@@ -4,7 +4,7 @@ A standards-based OpenID4VP verifier that is not Inji (plan §8.4), so a run can
 
 | | Supported |
 | --- | --- |
-| Profile | OpenID4VP draft 23, Presentation Exchange (`presentation_definition`), response mode `direct_post` |
+| Profile | OpenID4VP draft 23, Presentation Exchange (`presentation_definition`), response mode `direct_post`; and OpenID4VP 1.0 with DCQL over the Digital Credentials API (`dc_api`, unsigned request, SD-JWT only) |
 | Request | Signed request object by reference (`request_uri`, JAR `typ: oauth-authz-req+jwt`, EdDSA), `GET` or `POST` (`request_uri_method=post`) |
 | Client ID | `did:web`, resolving to `<public URL>/did.json` (an `Ed25519VerificationKey2020` key, the shape Inji Verify publishes). A new key per process |
 | Formats | SD-JWT VC: `vc+sd-jwt` and `dc+sd-jwt`, ES256 or EdDSA issuer and key-binding signatures. ISO mDoc (`mso_mdoc`): a DeviceResponse `vp_token`, ES256 COSE. A JSON-LD (`ldp_vc`) presentation is answered "not checked by this mock verifier" (outcome Error) |
@@ -27,9 +27,13 @@ Every response goes through the same stages, in order, and the result lists each
 | `holder-binding` | key-binding JWT signed by the `cnf` key, `nonce` and `aud` of this request, `sd_hash` | Invalid |
 | `validity` | `exp` and `nbf` | Expired (or Invalid for not-yet-valid) |
 
+A `vp_token` sent as a JSON-encoded string (`"eyJ…~…~"`, as Inji Wallet sends it) is read as the presentation inside, with a warning on `response-shape`.
+
 A response that cannot be used at all (wrong `state`, malformed) is refused at `direct_post` with HTTP 400 `invalid_request`, and the result is still stored. A wallet's `error` response is stored as Rejected and answered 200.
 
 For `mso_mdoc` the stages are the same ids where they mean the same thing: `requested-credential` (the docType is the input descriptor's id, as ISO 18013-7 has it, and the requested `$['namespace']['element']` fields are disclosed), `format` (DeviceResponse status, MSO docType, and observed differences from ISO 18013-5 as a warning), `issuer-signature` (COSE_Sign1 with the `x5chain` leaf), `issuer-trust` (the leaf against `TRUSTED_MDOC_CERTS`), `digests` (each disclosed element against the MSO's value digests), `holder-binding` (the device signature over the ISO 18013-7 Annex B session transcript: `client_id`, `response_uri`, `nonce`; the mdoc nonce is the empty string because `direct_post` carries no JWE `apu`) and `validity` (`validFrom` / `validUntil`).
+
+**Digital Credentials API.** `POST api/requests` with `responseMode: "dc_api"` and a `dcqlQuery` returns `dcApiRequest: { protocol: "openid4vp-v1-unsigned", data }` instead of an `openid4vp://` URI. The BFF relays what the browser returned to `POST api/dc-api/:requestId` (`{ origin, data }`). `vp_token` is an object keyed by DCQL credential query id, each value an array; a bare string is accepted with a warning. Without a `client_id`, the key-binding JWT's `aud` must be `origin:<origin>`. `state` is skipped.
 
 `api/verify-credential` runs the credential stages on a credential alone (holder binding is skipped). The BFF uses it as the **second opinion** (`VER-002`) after Inji Verify has answered a run.
 
@@ -43,6 +47,7 @@ All paths are under `BASE_PATH` (default `/mock-verifier`).
 | `GET` | `api/requests/:requestId/status?wait=ms` | BFF | long poll → `{ status: ACTIVE \| VP_SUBMITTED \| EXPIRED }` |
 | `GET` | `api/results/:transactionId` | BFF | `{ outcome, stages[], format?, credentialType?, issuer?, verifiedAt }` |
 | `POST` | `api/verify-credential` | BFF | `{ credential, format? }` → same result shape |
+| `POST` | `api/dc-api/:requestId` | BFF | `{ origin, data }` (the browser wallet's response) → the result |
 | `GET`, `POST` | `oid4vp/request/:requestId` | wallet | signed request object |
 | `POST` | `oid4vp/response/:requestId` | wallet | `direct_post` form |
 | `GET` | `did.json` | wallet | DID document |

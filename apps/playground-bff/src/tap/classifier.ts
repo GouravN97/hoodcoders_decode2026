@@ -75,7 +75,7 @@ const RULES: Rule[] = [
   },
   {
     methods: ['POST'],
-    pattern: /\/mock-verifier\/oid4vp\/response\/[^/]+$/,
+    pattern: /\/mock-verifier\/oid4vp\/response\/[^/]+$|\/mock-verifier\/api\/dc-api\/[^/]+$/,
     step: ProtocolStep.VP_RESPONSE,
   },
 

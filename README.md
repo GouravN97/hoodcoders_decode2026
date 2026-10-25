@@ -23,22 +23,22 @@ Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji V
 | --- | --- |
 | Certify → mock wallet → Inji Verify, SD-JWT (`vc+sd-jwt`) | Valid runs pass, in the browser and over the API |
 | Certify → mock wallet → Inji Verify, JSON-LD (`ldp_vc`) | Valid runs pass against the real stack (checked 25 October 2026; the JSON-LD contexts need internet access) |
-| Certify → Inji Wallet (Android app, `v1.0.0-alpha.1`) → Inji Verify | SD-JWT (`vc+sd-jwt`) verifies **VALID** on an emulator through Cloudflare quick tunnels ([how to test](injistack/README.md#test-with-inji-wallet-on-an-android-emulator)). JSON-LD issuance and VP submission reach Verify, but the pinned Wallet/OpenID4VP dependency emits `did:jwk:...#0#0`, so Verify rejects the presentation. |
+| Certify → Inji Wallet (Android app, `v1.0.0-alpha.1`) → Inji Verify | SD-JWT (`vc+sd-jwt`) verifies **VALID** on an emulator through Cloudflare quick tunnels ([how to test](injistack/README.md#test-with-inji-wallet-on-an-android-emulator)). JSON-LD (`ldp_vc`) also verifies **VALID** (24 October 2026, runs `2e946c94` and `33d84bb6`) since Certify's Farmer template issues a bare `did:jwk` subject id; with a `…#0` subject id the wallet's holder became `…#0#0` and Verify rejected it (gap 4). |
 | Hovi Playground → Inji Wallet | Selectable for Issue-only PID tests in `dc+sd-jwt` and `mso_mdoc`; live offer creation verified, wallet acceptance still needs a phone scan |
 | Animo Playground → Inji Wallet | Selectable for Issue-only EUDI PID tests in `dc+sd-jwt` and `mso_mdoc`; live offer creation verified, wallet acceptance still needs a phone scan |
 | Inji Web | Mimoto, Inji Web and the eSignet login work once the keystore and `wallet-demo` client are set up ([`register-wallet-client.sh`](injistack/scripts/register-wallet-client.sh)); the download still fails because eSignet rejects the client assertion with `invalid_client` ([details and what was ruled out](injistack/README.md#current-local-web-wallet-limitation)) |
 | Valid-but-expired | `FarmerCredentialExpired` (ldp_vc) and `FarmerCredentialSdJwtExpired` (vc+sd-jwt) are signed with validity in the past; Inji Verify reports **EXPIRED** (also the T-EXPIRED tamper) |
 | History and matrix | `/history` with filters by module version, format, outcome, mode, tamper and date; matrix exported as Markdown. Checked against the real stack's saved runs and the mocks |
 | Sequence diagram | Live in the inspector for every run; checked against the real stack (SD-JWT, mock wallet) and the in-browser mocks, in both themes |
-| Certify → mock wallet → **Mock verifier** (non-Inji), SD-JWT (`vc+sd-jwt`) | Run live on 25 October 2026: valid runs pass with all ten checks passing on a real Certify 0.14.0 credential, and every tamper is caught at its own check (signature, disclosures, requested type, holder-binding nonce, expiry). `ldp_vc` is not checked by this verifier |
-| **mDoc** (`mso_mdoc`): Certify mock mDoc → mock wallet → mock verifier | Run live on 25 October 2026 (`docker compose --profile mdoc`): a second Certify 0.14.0 in its own mock mDoc mode issues an ISO mDL by pre-authorized offer; the mock wallet presents it as a DeviceResponse and the mock verifier checks the COSE issuer signature, trust, element digests, the device signature over the OpenID4VP session transcript, and validity. Valid passes; broken signature, edited element, wrong docType and replayed nonce are caught. Inji Verify 0.18.2 refuses an mDoc presentation (`400 INVALID_VP_TOKEN`), so the selector explains that instead of hiding the format ([results](docs/external-credential-interoperability-results.md#mdoc-certify-mock-mdoc)) |
+| Certify → mock wallet → **Mock verifier** (non-Inji), SD-JWT (`vc+sd-jwt`) | Run live on 25 October 2026: valid runs pass with all ten checks passing on a real Certify 0.14.0 credential, and every tamper is caught at its own check (signature, disclosures, requested type, holder-binding nonce, expiry). `ldp_vc` is not checked by this verifier. **Inji Wallet (emulator) → mock verifier, SD-JWT: VALID** (the wallet sends `vp_token` as a JSON-encoded string, which the mock verifier accepts with a warning) |
+| **mDoc** (`mso_mdoc`): Certify mock mDoc → mock wallet → mock verifier | Run live on 25 October 2026 (`docker compose --profile mdoc`): a second Certify 0.14.0 in its own mock mDoc mode issues an ISO mDL by pre-authorized offer; the mock wallet presents it as a DeviceResponse and the mock verifier checks the COSE issuer signature, trust, element digests, the device signature over the OpenID4VP session transcript, and validity. Valid passes; broken signature, edited element, wrong docType and replayed nonce are caught. Issuing it to Inji Wallet on the emulator fails (gap 12). Inji Verify 0.18.2 refuses an mDoc presentation (`400 INVALID_VP_TOKEN`), so the selector explains that instead of hiding the format ([results](docs/external-credential-interoperability-results.md#mdoc-certify-mock-mdoc)) |
+| Same-device link | On a phone-sized or touch screen the delivery panel shows **Open in wallet** for `openid4vp://` and `openid-credential-offer://` links, with the QR code behind a toggle. Checked on the Android emulator (25 October 2026): from emulator Chrome, the button opened Inji Wallet `1.0.0-alpha.1` with the offer. An emulator result, not a physical phone; the rest of that run was not completed (it needs the tunnels) |
+| Digital Credentials API | The mock verifier accepts an unsigned OpenID4VP 1.0 / DCQL request over `navigator.credentials.get`. **No wallet in the catalog advertises it** (Inji Wallet `1.0.0-alpha.1` has no Credential Manager provider), so it is tested only with a stubbed browser API in the UI, and live on the server side with a script standing in for the browser's wallet: a real Certify SD-JWT bound to the page origin is Valid, one bound to another origin fails holder binding |
 | Second opinion (`VER-002`) | After each verification the other verifier checks the presented credential on its own. Inji Verify and the mock verifier agreed on every comparable live run (valid, broken signature, edited claim, expired) |
 | Replay & tamper (mock wallet → Inji Verify 0.18.2) | Run live for both formats. Broken signature and edited claim are rejected (**INVALID**). Inji Verify **accepts** a wrong credential type for both formats, and, for SD-JWT only, a replayed `vp_token` or one bound to an old nonce ([results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182)) |
 
 The reproducible passing demonstrations are SD-JWT and JSON-LD with the mock
-wallet (including tamper runs) and SD-JWT with the mobile Wallet. The mobile
-JSON-LD result is a documented compatibility limitation of the pinned Wallet
-release, not a Certify or Docker-stack failure.
+wallet (including tamper runs) and both formats with the mobile Wallet.
 
 The UI also still runs entirely against in-browser mocks with `pnpm dev`.
 
@@ -84,6 +84,12 @@ Its result lists every check it made, in order: response shape, state, presentat
 - **Mock wallet** stores the mDoc and presents it as a DeviceResponse, disclosing only the requested elements and signing with its device key over the ISO 18013-7 Annex B session transcript (with `direct_post` there is no JWE, so the wallet's mdoc nonce is the empty string on both sides).
 - **Mock verifier** checks it stage by stage (see [its README](apps/mock-verifier/README.md)); it trusts the certificate the `mdoc` profile generated.
 - **Inji Verify 0.18.2** does not verify `mso_mdoc`. With Inji Verify selected, `mso_mdoc` stays selectable and the prediction says: run Issue only, or choose Mock verifier.
+
+### Same-device and Digital Credentials API
+
+**Same device.** When the playground is opened on a phone (narrow or touch screen), an offer or presentation request is shown as an **Open in wallet** button instead of a QR code (**Show QR code instead** brings the QR back). Inji Wallet registers both `openid-credential-offer://` and `openid4vp://`, so the link opens it.
+
+**Digital Credentials API.** With **Mock verifier**, **How to present** offers **Digital Credentials API**. The run then asks the verifier for an unsigned OpenID4VP 1.0 request with a DCQL query, and the run page shows **Request with browser wallet**, which calls `navigator.credentials.get({ digital: … })` on the click. What the browser returns (or the error it throws) goes to `POST /api/runs/:id/dc-api-response`; the BFF relays it to the verifier as the wallet's message, and records the browser's origin, user agent and any error in the run's labels. The presentation must be bound to the page origin (`aud` = `origin:<origin>`). The selected wallet is not contacted, and the prediction says that no wallet in the catalog advertises the API. Browsers without the API get an explanation instead of the button.
 
 ### Sequence diagram
 
@@ -171,7 +177,7 @@ For 1 and 2 it is not yet known whether the cause is Inji Verify or the `vc-veri
 
 | # | Gap | Status | Details |
 | --- | --- | --- | --- |
-| 4 | **Malformed holder ID in `ldp_vc` presentations.** The VP holder is `did:jwk:…#0#0` (the wallet appends `#0` to a DID URL that already ends in `#0`). Verify rejects it with `Illegal character in fragment`. Issuance and VP submission work; the mobile JSON-LD lane cannot pass. SD-JWT is unaffected. | Confirmed | [injistack](injistack/README.md#test-with-inji-wallet-on-an-android-emulator) |
+| 4 | **VP holder derived from the credential subject.** For `ldp_vc` the wallet sets the VP holder to `credentialSubject.id` + `#0`. A subject id that is already a DID URL (`did:jwk:…#0`, which Certify's `${_holderId}` is) becomes `…#0#0`, and Verify rejects it with `Illegal character in fragment`. Worked around in the Farmer template, which strips the fragment; the mobile JSON-LD lane then passes. SD-JWT is unaffected. | Confirmed, worked around | [injistack](injistack/README.md#test-with-inji-wallet-on-an-android-emulator) |
 | 5 | **did:web with a port does not resolve** (same as 3, in the wallet's resolver). | Confirmed | [injistack](injistack/README.md#3-start-the-stack-and-the-tunnels-every-session) |
 | 6 | **Expired credential shown as "Valid".** An `ldp_vc` past its `expirationDate` is stored and labelled Valid in the wallet; Inji Verify correctly reports EXPIRED. | Confirmed | [injistack](injistack/README.md#5-other-outcomes) |
 | 7 | **An empty `face` claim forces a selfie match.** A credential with a `face` claim, even `""`, cannot be shared until the holder passes a face match. | Confirmed | [injistack](injistack/README.md#troubleshooting) |
@@ -183,6 +189,7 @@ For 1 and 2 it is not yet known whether the cause is Inji Verify or the `vc-veri
 | # | Gap | Status | Details |
 | --- | --- | --- | --- |
 | 10 | **SD-JWT is issued only as `vc+sd-jwt`.** Current SD-JWT VC issuers and wallets (Hovi, Animo, EUDI) use `dc+sd-jwt`, so Certify's SD-JWT credentials and theirs do not match by format identifier. | Confirmed | [catalog](catalog/inji-certify.yaml) |
+| 12 | **The mock mDoc plugin cannot read a `did:jwk…#0` proof key.** With the configuration's `cose_key` binding, Inji Wallet `1.0.0-alpha.1` still sends `kid: did:jwk:…#0`; the plugin base64-decodes the DID with its fragment and answers `400 vci_exchange_failed`. So Certify's mock mDoc cannot be issued to Inji Wallet. | Confirmed (emulator) | [results](docs/external-credential-interoperability-results.md#mdoc-certify-mock-mdoc) |
 
 ### Inji Web, Mimoto `0.21.0` and eSignet `2.0.0`
 

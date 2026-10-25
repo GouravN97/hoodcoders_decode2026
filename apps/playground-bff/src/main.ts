@@ -10,6 +10,7 @@ import {
   canReplayFrom,
   filterRuns,
   CreateRunRequestSchema,
+  DcApiResponseRequestSchema,
   ManualEvidenceRequestSchema,
   predict,
   PredictRequestSchema,
@@ -362,6 +363,16 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (!orchestrator.confirmManual(runId, body.step))
       throw new HttpError(409, `Step ${body.step} is not waiting for confirmation`);
     return send(res, 204);
+  }
+
+  // Digital Credentials API: what navigator.credentials.get returned in the browser.
+  if (method === 'POST' && (m = path.match(/^\/api\/runs\/([^/]+)\/dc-api-response$/))) {
+    const runId = decodeURIComponent(m[1]!);
+    runOr404(runId);
+    const body = await readJson(req, DcApiResponseRequestSchema, 'DC API response');
+    if (!orchestrator.dcApiResponse(runId, body))
+      throw new HttpError(409, 'This run is not waiting for a Digital Credentials API response');
+    return send(res, 202);
   }
 
   if (method === 'POST' && (m = path.match(/^\/api\/runs\/([^/]+)\/cancel$/))) {

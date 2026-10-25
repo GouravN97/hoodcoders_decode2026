@@ -55,14 +55,19 @@ export interface PresentationSpec {
   /** `type` for ldp_vc, `vct` for SD-JWT. */
   credentialType: string;
   purpose: string;
+  /** dc_api: a DCQL request for the browser's Digital Credentials API instead of an openid4vp:// URI. */
+  responseMode?: 'direct_post' | 'dc_api';
 }
 
 export interface PresentationRequestHandle {
   requestId: string;
   transactionId: string;
-  /** `openid4vp://authorize?…` as the Inji Verify SDK builds it. */
+  /** `openid4vp://authorize?…` as the Inji Verify SDK builds it; empty for a dc_api request. */
   authorizationRequestUri: string;
   presentationDefinition: object;
+  /** dc_api: what navigator.credentials.get is called with, and its DCQL query. */
+  dcApiRequest?: { protocol: 'openid4vp-v1-unsigned'; data: Record<string, unknown> };
+  dcqlQuery?: object;
 }
 
 export type RequestStatus = 'ACTIVE' | 'VP_SUBMITTED' | 'EXPIRED';
@@ -86,6 +91,12 @@ export interface VerifierAdapter extends RoleAdapter {
   /** One long poll of the request status; returns when it changes or the verifier's poll times out. */
   pollStatus(ctx: RunContext, handle: PresentationRequestHandle): Promise<RequestStatus>;
   fetchResult(ctx: RunContext, handle: PresentationRequestHandle): Promise<VerifierResult>;
+  /** dc_api: relays what the browser's wallet returned, as the wallet's response. */
+  submitDcApiResponse?(
+    ctx: RunContext,
+    handle: PresentationRequestHandle,
+    response: { origin: string; data: unknown },
+  ): Promise<void>;
   /** A credential on its own, outside any presentation: the second opinion (VER-002). */
   verifyCredential?(
     ctx: RunContext,

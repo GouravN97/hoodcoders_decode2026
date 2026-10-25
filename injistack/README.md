@@ -81,7 +81,8 @@ What we observed from this issuer (25 October 2026): it accepts pre-authorized
 offers, but issues fixed mock mDL data whatever the offer's claims say (it puts
 the token's `sub`, which is the offer's claims as JSON, into `document_number`);
 it binds the holder key with `cose_key`, so the proof must carry a `jwk` header
-(a `did:jwk…#0` kid fails with `vci_exchange_failed`). Details in the
+(a `did:jwk…#0` kid fails with `vci_exchange_failed`). Inji Wallet `1.0.0-alpha.1`
+sends such a kid, so it cannot receive this mDoc (checked on the emulator). Details in the
 [results](../docs/external-credential-interoperability-results.md#mdoc-certify-mock-mdoc).
 
 The Certify mock setup is intended for the local guest/demo flow.
@@ -519,10 +520,10 @@ Certify.
 
 This is how the real Inji Wallet app was run against this stack. SD-JWT
 (`vc+sd-jwt`) reaches **VALID** at Inji Verify, and the expired credential
-configurations reach **EXPIRED**. JSON-LD (`ldp_vc`) issuance and sharing reach
-Verify, but the pinned `v1.0.0-alpha.1` Wallet/native OpenID4VP dependency
-currently emits a malformed holder identifier ending in `#0#0`; Verify
-therefore rejects the presentation. Do not report that lane as passing.
+configurations reach **EXPIRED**. JSON-LD (`ldp_vc`) reaches **VALID** too, because
+the Farmer template issues a bare `did:jwk` subject id: the wallet sets the VP
+holder to `credentialSubject.id` + `#0`, so a subject id that already ends in
+`#0` would become `…#0#0`, which Verify rejects.
 
 ### What you need
 
@@ -617,6 +618,12 @@ The script:
 4. Points Certify's credential configurations at the new issuer DID.
 5. Waits until the issuer metadata loads through the tunnel.
 
+The tunnels connect to Cloudflare over HTTP/2: QUIC needs outbound UDP to port
+7844, which some networks block (cloudflared then retries forever and the
+hostname answers 530). Set `TUNNEL_PROTOCOL=quic` to use QUIC anyway. It also
+writes a portless `MOCK_VERIFIER_DID`, and with `PROFILES="wallet mdoc"` it
+recreates the mock mDoc Certify too.
+
 It is ready when it prints `Certify reachable through the tunnel`. Quick-tunnel
 hostnames change every time cloudflared restarts, so rerun the script after a
 restart. Credentials issued under the old hostname then stop verifying, so issue
@@ -665,7 +672,7 @@ Start the emulator and Metro if they are not running, then unlock the app.
 
 | Expected result | How |
 | --- | --- |
-| **Valid** | Steps above with `FarmerCredentialSdJwt` (`vc+sd-jwt`). `FarmerCredential` (`ldp_vc`) can demonstrate issuance and submission, but the pinned mobile Wallet currently fails Verify proof validation with `did:jwk:...#0#0`. |
+| **Valid** | Steps above with `FarmerCredentialSdJwt` (`vc+sd-jwt`) or `FarmerCredential` (`ldp_vc`). |
 | **Valid but Expired** | Choose **Credential** `FarmerCredentialExpired` (ldp_vc) or `FarmerCredentialSdJwtExpired` (vc+sd-jwt) and **Expected result** **Expired**. These are genuinely signed copies whose validity ended on 2025-01-01. The app stores an expired `ldp_vc` and shows it as "Valid"; Inji Verify reports **EXPIRED**. |
 | **Invalid** | Inji Wallet cannot tamper with a credential, so use the **mock wallet** and pick a **Tamper** in the run settings (see [Playground, Protocol Tap and mock wallet](#playground-protocol-tap-and-mock-wallet)) |
 
@@ -678,7 +685,7 @@ Start the emulator and Metro if they are not running, then unlock the app.
 | Containers still use the old hostname | `docker compose restart` does not re-read `.env`. Use `docker compose up -d` (the script does). |
 | `database "mosip_certify" does not exist` | Certify's database is `inji_certify`. |
 | Wallet: `Invalid URL host: "<host>%3A8443"` | A DID with a port. Rerun `tunnel-up.sh`, which writes portless DIDs. |
-| ldp_vc mobile: Verify reports `Illegal character in fragment` on `…#0#0` | Known incompatibility in the pinned `v1.0.0-alpha.1` Wallet/native OpenID4VP dependency. Certify issuance and VP submission succeed; Verify rejects the malformed holder DID. Use SD-JWT for the passing mobile demonstration, or use the mock wallet for JSON-LD verification. Do not repeatedly rebuild the APK or reset the stack for this error. |
+| ldp_vc mobile: Verify reports `Illegal character in fragment` on `…#0#0` | The credential's `credentialSubject.id` ends in `#0` and the wallet appends another. The Farmer template in `db/certify_init.sql` strips the fragment (`${_holderId.replaceAll('\x23.*', '')}`); the init scripts only run on a new database volume, so a database created before that change (commit `5b94e35`, 24 October 2026) keeps the old template until its `postgres-data` volume is recreated. Credentials issued before the fix keep the bad subject id, so issue a new one. |
 | The app asks for a selfie before sharing | The card has an empty `face` claim (old template, or an old card). Delete the card and issue a new one. |
 | App crashes at startup | Dependencies were re-resolved. Restore `package-lock.json` (`git checkout package-lock.json`) and run `npm ci`. |
 | App hangs on first launch on the emulator | The hardware-keystore check; see the emulator-only patch in step 2. |

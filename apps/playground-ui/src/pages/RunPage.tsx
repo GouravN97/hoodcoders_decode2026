@@ -112,7 +112,7 @@ export function RunPage() {
           />
         )}
         {data.delivery && !terminal && (
-          <DeliveryPanel purpose={data.delivery.purpose} instruction={data.delivery.instruction} />
+          <DeliveryPanel runId={data.id} purpose={data.delivery.purpose} instruction={data.delivery.instruction} />
         )}
         {issuing && !credential && !data.delivery && !terminal && (
           <div className="flex items-center gap-2 rounded-xl border border-dashed border-border p-4 text-[13px] text-muted">

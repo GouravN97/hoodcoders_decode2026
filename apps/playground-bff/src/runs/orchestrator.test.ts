@@ -96,6 +96,8 @@ interface Scenario {
   respondStatus?: number;
   /** The vp_token the wallet posts. */
   vpToken?: string;
+  /** The verifier takes Digital Credentials API requests (the mock verifier does). */
+  dcApi?: boolean;
   /** A second verifier in the catalog, asked about the presented credential (VER-002). */
   second?: { outcome?: VerificationOutcome; fails?: boolean; health?: 'up' | 'down' };
 }
@@ -121,6 +123,7 @@ function setup(s: Scenario) {
     tamper: undefined as string | undefined,
     replay: undefined as unknown,
     secondOpinionOn: undefined as string | undefined,
+    dcApiRelayed: undefined as unknown,
   };
   const issuerDescriptor = descriptor('issuer', 'issuer');
   issuerDescriptor.capabilities.expiredVariants = { Farmer: 'FarmerExpired' };
@@ -227,6 +230,15 @@ function setup(s: Scenario) {
       calls.createPresentationRequest++;
       calls.requestedType = spec.credentialType;
       exchange(ctx.runId, ProtocolStep.VERIFY_CREATE_REQUEST, { from: 'bff' });
+      if (spec.responseMode === 'dc_api')
+        return {
+          requestId: 'req_1',
+          transactionId: 'txn_1',
+          authorizationRequestUri: '',
+          presentationDefinition: {},
+          dcqlQuery: { credentials: [{ id: 'q' }] },
+          dcApiRequest: { protocol: 'openid4vp-v1-unsigned' as const, data: { nonce: 'n', response_mode: 'dc_api' } },
+        };
       return {
         requestId: 'req_1',
         transactionId: 'txn_1',
@@ -238,6 +250,14 @@ function setup(s: Scenario) {
       await new Promise((r) => setTimeout(r, 20));
       return respondedAt ? 'VP_SUBMITTED' : 'ACTIVE';
     },
+    ...(s.dcApi
+      ? {
+          submitDcApiResponse: async (ctx: { runId: string }, _h: unknown, response: unknown) => {
+            calls.dcApiRelayed = response;
+            exchange(ctx.runId, ProtocolStep.VP_RESPONSE, { from: 'wallet', reqBody: JSON.stringify(response) });
+          },
+        }
+      : {}),
     fetchResult: async () => {
       if (s.respondStatus) throw new Error('no submission for this transaction');
       return {
@@ -764,5 +784,46 @@ describe('RunOrchestrator second opinion (VER-002)', () => {
     const run = await finished(store, (await orchestrator.create(config)).id);
     expect(calls.secondOpinionOn).toBeUndefined();
     expect(ver002(store, run.id)).toEqual([]);
+  });
+});
+
+describe('RunOrchestrator Digital Credentials API', () => {
+  const dcConfig: RunConfig = { ...config, presentationFlow: 'dc-api' };
+  const waitDelivery = async (store: RunStore, id: string) => {
+    for (let i = 0; i < 100 && store.get(id)!.run.delivery?.instruction.kind !== 'dc-api'; i++)
+      await new Promise((r) => setTimeout(r, 10));
+    return store.get(id)!.run.delivery?.instruction;
+  };
+
+  it('hands the request to the browser, relays its answer as the wallet’s, and never asks the selected wallet', async () => {
+    const { orchestrator, store, calls } = setup({ dcApi: true });
+    const id = (await orchestrator.create(dcConfig)).id;
+    expect(await waitDelivery(store, id)).toMatchObject({ kind: 'dc-api', protocol: 'openid4vp-v1-unsigned', request: { response_mode: 'dc_api' } });
+    expect(orchestrator.dcApiResponse(id, { origin: 'https://ui.test', userAgent: 'TestBrowser/1', protocol: 'openid4vp-v1-unsigned', data: { vp_token: { q: ['h.p.s~kb'] } } })).toBe(true);
+    const run = await finished(store, id);
+    expect(run.verdict).toBe('PASS');
+    expect(calls.respondedWith).toBeUndefined();
+    expect(calls.dcApiRelayed).toMatchObject({ origin: 'https://ui.test', data: { vp_token: { q: ['h.p.s~kb'] } } });
+    expect(statusOf(run, ProtocolStep.VP_REQUEST_OBJECT)?.status).toBe('skipped');
+    expect(statusOf(run, ProtocolStep.VP_RESPONSE)).toMatchObject({ status: 'done', evidenceKind: 'tap' });
+    expect(run.artifacts.find((a) => a.kind === 'vp_token')?.raw).toBe('h.p.s~kb');
+    expect(run.config.labels).toMatchObject({ 'dc-api.origin': 'https://ui.test', 'dc-api.userAgent': 'TestBrowser/1' });
+  });
+
+  it('fails the delivery step with the browser’s error and records it', async () => {
+    const { orchestrator, store } = setup({ dcApi: true });
+    const id = (await orchestrator.create(dcConfig)).id;
+    await waitDelivery(store, id);
+    orchestrator.dcApiResponse(id, { origin: 'https://ui.test', error: { name: 'NotAllowedError', message: 'The user declined' } });
+    const run = await finished(store, id);
+    expect(statusOf(run, 'request_delivered')).toMatchObject({ status: 'failed', error: { message: expect.stringContaining('NotAllowedError') } });
+    expect(run.config.labels?.['dc-api.error']).toBe('NotAllowedError: The user declined');
+  });
+
+  it('refuses a verifier that cannot take DC API responses', async () => {
+    const { orchestrator, store } = setup({});
+    const run = await finished(store, (await orchestrator.create(dcConfig)).id);
+    expect(statusOf(run, 'request_created')?.error?.message).toMatch(/Digital Credentials API/);
+    expect(orchestrator.dcApiResponse(run.id, { origin: 'x' })).toBe(false);
   });
 });

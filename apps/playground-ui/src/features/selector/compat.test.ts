@@ -63,6 +63,11 @@ describe('selector rules', () => {
     ).toEqual(['dc+sd-jwt', 'mso_mdoc']);
   });
 
+  it('offers the Digital Credentials API when the verifier supports it, whatever the wallet', () => {
+    expect(supportedFlows(get('mock-wallet'), get('mock-verifier'))).toEqual(['cross-device-qr', 'dc-api']);
+    expect(supportedFlows(get('mock-wallet'), get('inji-verify'))).not.toContain('dc-api');
+  });
+
   it('offers only flows both wallet and verifier support', () => {
     expect(supportedFlows(get('mock-wallet'), get('inji-verify'))).toEqual(['cross-device-qr']);
     expect(supportedFlows(get('inji-wallet-mobile'), get('inji-verify'))).toEqual([

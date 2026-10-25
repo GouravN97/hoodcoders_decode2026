@@ -16,11 +16,13 @@ capabilities:
   # presentation is answered "not checked by this verifier".
   formats: [vc+sd-jwt, dc+sd-jwt, mso_mdoc]
   proofSuites: [ES256, EdDSA]
-  vpProfiles: [oid4vp-draft23]
-  queryLanguages: [presentation_exchange]
-  responseModes: [direct_post]
+  # draft 23 + Presentation Exchange for openid4vp:// requests; OpenID4VP 1.0 + DCQL over the
+  # Digital Credentials API (unsigned requests, SD-JWT VC only).
+  vpProfiles: [oid4vp-draft23, oid4vp-1.0]
+  queryLanguages: [presentation_exchange, dcql]
+  responseModes: [direct_post, dc_api]
   clientIdSchemes: [did]
-  presentationFlows: [cross-device-qr, same-device-deeplink]
+  presentationFlows: [cross-device-qr, same-device-deeplink, dc-api]
   deliveryChannels: [qr, deeplink]
   automation: headless
   supportsTamper: false
