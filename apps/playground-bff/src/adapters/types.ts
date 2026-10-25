@@ -30,6 +30,13 @@ export interface IssuanceHandle {
   /** `openid-credential-offer://…`; absent for wallet-initiated (authorization code) flows. */
   offerUri?: string;
   offerId?: string;
+  /** The issuer's absolute expiry, when its offer response publishes one. */
+  expiresAt?: string;
+  /**
+   * External issuers receive the wallet's token and credential requests directly, outside the
+   * Protocol Tap. In that case the holder confirms successful storage from the run screen.
+   */
+  observation?: 'tap' | 'manual';
   /** Where the user starts a wallet-initiated flow. */
   entryUrl?: string;
 }
@@ -80,6 +87,8 @@ export interface WalletAdapter extends RoleAdapter {
   presentationDelivery(ctx: RunContext, handle: PresentationRequestHandle): DeliveryInstruction;
   /** Headless wallets only: take the offer and return the stored credential. */
   acceptOffer?(ctx: RunContext, handle: IssuanceHandle): Promise<HeldCredential>;
+  /** Wallets the playground can look into: what they already hold (present-only runs). */
+  listCredentials?(signal: AbortSignal): Promise<HeldCredential[]>;
   /** Headless wallets only: answer the presentation request. */
   respond?(
     ctx: RunContext,

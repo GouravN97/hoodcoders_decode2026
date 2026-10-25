@@ -9,6 +9,7 @@ import {
   ManualEvidenceRequestSchema,
   PredictRequestSchema,
   renderReportMarkdown,
+  type HeldCredentialsResponse,
   type RunConfig,
 } from '@playground/shared';
 import { z } from 'zod';
@@ -64,6 +65,10 @@ const registry = new ImplementationRegistry(CATALOG_DIR, {
   certifyApiUrl: env.CERTIFY_API_URL || tapUrl('certify'),
   verifyApiUrl: env.VERIFY_API_URL || tapUrl('verify'),
   verifyClientId: env.VERIFY_CLIENT_ID ?? 'did:web:verify.localhost%3A8443:v1:verify',
+  // Optional stable overrides. Without them the Hovi adapter discovers the public browser-client
+  // values from playground.hovi.id, where they are intentionally exposed to every visitor.
+  hoviSupabaseUrl: env.HOVI_SUPABASE_URL,
+  hoviSupabaseAnonKey: env.HOVI_SUPABASE_ANON_KEY,
 });
 const runs = new RunStore(DATA_DIR);
 const orchestrator = new RunOrchestrator(registry, runs, {
@@ -207,6 +212,30 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       throw new HttpError(
         502,
         `Could not read ${issuer.descriptor.displayName} metadata: ${(e as Error).message}`,
+      );
+    }
+  }
+
+  // What a wallet already holds, so a present-only run can pick a credential from an earlier run.
+  if (method === 'GET' && (m = path.match(/^\/api\/catalog\/([^/]+)\/credentials$/))) {
+    const id = decodeURIComponent(m[1]!);
+    const wallet = registry.wallet(id);
+    if (!wallet) throw new HttpError(404, `Unknown wallet ${id}`);
+    if (!wallet.listCredentials) {
+      const body: HeldCredentialsResponse = { listable: false, credentials: [] };
+      return send(res, 200, body);
+    }
+    try {
+      const credentials = await wallet.listCredentials(AbortSignal.timeout(10_000));
+      const body: HeldCredentialsResponse = {
+        listable: true,
+        credentials: credentials.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt)),
+      };
+      return send(res, 200, body);
+    } catch (e) {
+      throw new HttpError(
+        502,
+        `Could not list ${wallet.descriptor.displayName}'s credentials: ${(e as Error).message}`,
       );
     }
   }

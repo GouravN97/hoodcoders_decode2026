@@ -3,7 +3,16 @@ import { HandIcon } from '../../components/icons';
 import { Button, Card, Spinner } from '../../components/ui';
 
 /** Human-in-the-loop evidence: the person confirms the credential is visible in the wallet. */
-export function HoldConfirmCard({ runId, walletName }: { runId: string; walletName: string }) {
+export function HoldConfirmCard({
+  runId,
+  walletName,
+  alreadyHeld = false,
+}: {
+  runId: string;
+  walletName: string;
+  /** present-only: the credential came from an earlier run, not from this one. */
+  alreadyHeld?: boolean;
+}) {
   const confirm = useManualEvidence(runId);
   return (
     <Card highlight aria-label="Confirm credential received">
@@ -15,8 +24,9 @@ export function HoldConfirmCard({ runId, walletName }: { runId: string; walletNa
           <div>
             <p className="text-sm font-semibold">Is the credential in {walletName}?</p>
             <p className="text-[13px] text-muted">
-              The issuer has sent the credential. Check that it appears in the wallet, then confirm to move on to
-              presenting it.
+              {alreadyHeld
+                ? 'This run presents a credential the wallet already holds. Check that it is there, then confirm to create the presentation request.'
+                : 'The issuer has sent the credential. Check that it appears in the wallet, then confirm to move on to presenting it.'}
             </p>
           </div>
         </div>

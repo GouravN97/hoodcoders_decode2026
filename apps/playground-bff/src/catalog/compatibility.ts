@@ -1,6 +1,11 @@
 // CompatibilityResolver (plan §8.2): intersects capability descriptors to predict whether a
 // combination should work, with reasons. Same rules as the UI's mock resolver.
-import type { CatalogEntry, Prediction, RunConfig } from '@playground/shared';
+import {
+  runUsesRole,
+  type CatalogEntry,
+  type Prediction,
+  type RunConfig,
+} from '@playground/shared';
 
 export function predict(config: RunConfig, catalog: CatalogEntry[]): Prediction {
   const issuer = catalog.find((c) => c.id === config.issuerId && c.role === 'issuer');
@@ -13,7 +18,11 @@ export function predict(config: RunConfig, catalog: CatalogEntry[]): Prediction 
     };
   }
   const reasons: Prediction['reasons'] = [];
-  for (const entry of [issuer, wallet, verifier]) {
+  // Only the roles this run mode talks to can make it fail: an issue-only run never contacts the
+  // verifier, a present-only run never contacts the issuer.
+  const issuing = runUsesRole(config.mode, 'issuer');
+  const presenting = runUsesRole(config.mode, 'verifier');
+  for (const entry of [issuer, wallet, verifier].filter((e) => runUsesRole(config.mode, e.role))) {
     if (!entry.capabilities.formats.includes(config.format)) {
       reasons.push({
         role: entry.role,
@@ -30,44 +39,66 @@ export function predict(config: RunConfig, catalog: CatalogEntry[]): Prediction 
     }
   }
   const grants = wallet.capabilities.grantTypes;
-  if (grants && !grants.includes(config.grantType)) {
+  if (issuing && grants && !grants.includes(config.grantType)) {
     reasons.push({
       role: 'wallet',
       severity: 'error',
       message: `${wallet.displayName} does not support the ${config.grantType} grant`,
     });
   }
+  const issuerProfiles = issuer.capabilities.vciProfiles ?? [];
+  const walletProfiles = wallet.capabilities.vciProfiles ?? [];
+  if (
+    issuing &&
+    issuerProfiles.length > 0 &&
+    walletProfiles.length > 0 &&
+    !issuerProfiles.some((profile) => walletProfiles.includes(profile))
+  ) {
+    reasons.push({
+      severity: 'error',
+      message: `Issuer speaks ${issuerProfiles.join(', ')}; wallet speaks ${walletProfiles.join(', ')}`,
+    });
+  }
   const wq = wallet.capabilities.queryLanguages ?? [];
   const vq = verifier.capabilities.queryLanguages ?? [];
-  if (wq.length && vq.length && !wq.some((q) => vq.includes(q))) {
+  if (presenting && wq.length && vq.length && !wq.some((q) => vq.includes(q))) {
     reasons.push({
       severity: 'error',
       message: `Wallet speaks ${wq.join(', ')}; verifier requests ${vq.join(', ')}`,
     });
   }
   const flows = wallet.capabilities.presentationFlows ?? [];
-  if (flows.length && !flows.includes(config.presentationFlow)) {
+  if (presenting && flows.length && !flows.includes(config.presentationFlow)) {
     reasons.push({
       role: 'wallet',
       severity: 'error',
       message: `${wallet.displayName} does not support ${config.presentationFlow}`,
     });
   }
-  if (config.expectedOutcome === 'INVALID' && !wallet.capabilities.supportsTamper) {
+  if (presenting && config.expectedOutcome === 'INVALID' && !wallet.capabilities.supportsTamper) {
     reasons.push({
       role: 'wallet',
       severity: 'warn',
       message: `${wallet.displayName} cannot tamper with a credential, so an Invalid result needs a broken credential from elsewhere`,
     });
   }
-  if (config.expectedOutcome === 'EXPIRED') {
+  if (presenting && config.expectedOutcome === 'EXPIRED') {
     reasons.push({
       role: 'issuer',
       severity: 'warn',
-      message: 'Valid-but-expired needs a short-lived credential configuration on the issuer',
+      message: issuing
+        ? 'Valid-but-expired needs a short-lived credential configuration on the issuer'
+        : 'Valid-but-expired needs the wallet to hold a credential that has already expired',
     });
   }
-  if (wallet.id === 'inji-web') {
+  if (!issuing && wallet.capabilities.automation !== 'headless') {
+    reasons.push({
+      role: 'wallet',
+      severity: 'info',
+      message: `Make sure ${wallet.displayName} already holds the credential; you confirm it before the request is sent`,
+    });
+  }
+  if (issuing && wallet.id === 'inji-web') {
     reasons.push({
       role: 'wallet',
       severity: 'info',

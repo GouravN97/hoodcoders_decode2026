@@ -1,4 +1,4 @@
-import { formatDuration, phaseLabel, RUN_PHASES, stepLabel, type RunDetail } from '@playground/shared';
+import { formatDuration, phaseLabel, RUN_MODE_PHASES, stepLabel, type RunDetail } from '@playground/shared';
 import { cx } from '../../components/ui';
 import { EvidenceIcon, phaseStatus, STATUS_LABEL, StatusIcon } from './status';
 
@@ -21,9 +21,17 @@ export function PhaseStepper({
   selectedExchangeId?: string | null;
   onSelectExchange: (exchangeId: string) => void;
 }) {
+  // Only the phases this run's mode goes through (an issue-only run has no Present or Verify).
+  const phases = RUN_MODE_PHASES[run.config.mode].filter((p) => run.steps.some((s) => s.phase === p));
   return (
-    <ol className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Run progress">
-      {RUN_PHASES.map((phase, i) => {
+    <ol
+      className={cx(
+        'grid grid-cols-1 gap-3 sm:grid-cols-2',
+        phases.length === 4 ? 'xl:grid-cols-4' : phases.length === 3 ? 'xl:grid-cols-3' : '',
+      )}
+      aria-label="Run progress"
+    >
+      {phases.map((phase, i) => {
         const steps = run.steps.filter((s) => s.phase === phase);
         const status = phaseStatus(steps);
         return (

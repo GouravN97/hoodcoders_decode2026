@@ -15,6 +15,9 @@ export const CredentialFormatSchema = z.enum([
 ]);
 export type CredentialFormat = z.infer<typeof CredentialFormatSchema>;
 
+/** Every credential format the selector and inspector can exercise. */
+export const PLAYGROUND_FORMATS: readonly CredentialFormat[] = CredentialFormatSchema.options;
+
 /** Formats the mandatory tasks cover end-to-end (Task 6). */
 export const MANDATORY_FORMATS: readonly CredentialFormat[] = ['ldp_vc', 'vc+sd-jwt'];
 
@@ -42,7 +45,12 @@ export type QueryLanguage = z.infer<typeof QueryLanguageSchema>;
 export const ResponseModeSchema = z.enum(['direct_post', 'direct_post.jwt', 'dc_api']);
 export type ResponseMode = z.infer<typeof ResponseModeSchema>;
 
-export const ClientIdSchemeSchema = z.enum(['redirect_uri', 'pre-registered', 'did', 'x509_san_dns']);
+export const ClientIdSchemeSchema = z.enum([
+  'redirect_uri',
+  'pre-registered',
+  'did',
+  'x509_san_dns',
+]);
 export type ClientIdScheme = z.infer<typeof ClientIdSchemeSchema>;
 
 export const PresentationFlowSchema = z.enum(['cross-device-qr', 'same-device-deeplink', 'dc-api']);
@@ -138,6 +146,12 @@ export const RunConfigSchema = z.object({
   presentationFlow: PresentationFlowSchema,
   holderDidMethod: z.enum(['did:jwk', 'did:key']).optional(),
   tamper: TamperSpecSchema.optional(),
+  /**
+   * present-only: the credential the wallet should present, from an earlier run. Only wallets that
+   * can list what they hold (the mock wallet) use it; otherwise the newest matching one is used.
+   */
+  heldCredentialId: z.string().min(1).optional(),
+  /** Ignored by issue-only runs, which end once the credential is in the wallet. */
   expectedOutcome: VerificationOutcomeSchema,
   labels: z.record(z.string(), z.string()).optional(),
 });

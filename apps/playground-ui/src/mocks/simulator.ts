@@ -2,7 +2,9 @@
 // RunEventMap events the real RunEventsGateway sends. Human-in-the-loop wallets wait for the
 // "I can see the credential" confirmation, exactly like the real ManualEvidenceService.
 import {
+  formatLabel,
   ProtocolStep,
+  runUsesPhase,
   type ArtifactKind,
   type CatalogEntry,
   type CredentialFormat,
@@ -12,6 +14,7 @@ import {
   type ExchangeWithDecoded,
   type InteropVerdict,
   type RunEvent,
+  type RunPhase,
   type RunState,
   type RunStep,
   type StepError,
@@ -239,17 +242,26 @@ class RunSimulation {
     };
   }
 
+  private uses(phase: RunPhase) {
+    return runUsesPhase(this.run.config.mode, phase);
+  }
+
+  /** Same phase split as the BFF orchestrator; each phase returns false when it ended the run. */
   async play(): Promise<void> {
+    this.status('Preflight');
+    await this.sleep(400);
+    if (this.uses('issuing') && !(await this.issue())) return;
+    if (!(await this.hold())) return;
+    if (this.uses('presenting') && !(await this.presentAndVerify())) return;
+    return this.finish();
+  }
+
+  private async issue(): Promise<boolean> {
     const { fx, run } = this;
     const format = run.config.format;
     const isWeb = this.wallet.id === 'inji-web';
     const from = this.walletName;
 
-    // ---------- preflight ----------
-    this.status('Preflight');
-    await this.sleep(400);
-
-    // ---------- issuing ----------
     this.status('Issuing');
     this.step('offer_prepared', 'active');
     await this.sleep(300);
@@ -359,7 +371,8 @@ class RunSimulation {
         error: { message: 'Token request rejected: invalid_grant', status: 400, body },
       });
       this.run.errorSummary = 'Token exchange failed: invalid_grant';
-      return this.finish();
+      await this.finish();
+      return false;
     }
     const tokenId = this.exchange({
       component: 'certify',
@@ -393,8 +406,16 @@ class RunSimulation {
     });
     this.artifact('credential', fx.credentialRaw, credId, format);
     this.step(ProtocolStep.VCI_CREDENTIAL, 'done', { evidenceKind: 'tap', exchangeId: credId });
+    return true;
+  }
 
-    // ---------- holding ----------
+  /**
+   * After issuing: the wallet stores the credential. present-only: the mock wallet looks up one it
+   * stored in an earlier mock run; a phone or Inji Web needs the person to confirm it is there.
+   */
+  private async hold(): Promise<boolean> {
+    const { fx, run } = this;
+    const config = run.config;
     this.status('Holding');
     this.step('credential_held', 'active');
     if (this.human) {
@@ -403,16 +424,53 @@ class RunSimulation {
         this.step('credential_held', 'inconclusive', {
           error: { message: 'No confirmation that the credential reached the wallet within 2 minutes' },
         });
-        return this.finish();
+        await this.finish();
+        return false;
       }
       this.step('credential_held', 'done', { evidenceKind: 'manual' });
-    } else {
+    } else if (this.uses('issuing')) {
       await this.sleep(400);
+      db.heldCredentials.push({
+        id: crypto.randomUUID(),
+        format: config.format,
+        credentialConfigurationId: config.credentialConfigurationId,
+        issuer: ISSUER_URL,
+        raw: fx.credentialRaw,
+        receivedAt: new Date().toISOString(),
+        holderDid: 'did:jwk:mock-holder',
+      });
+      this.step('credential_held', 'done', { evidenceKind: 'adapter' });
+    } else {
+      await this.sleep(300);
+      const held = db.heldCredentials
+        .filter((c) =>
+          config.heldCredentialId
+            ? c.id === config.heldCredentialId && c.format === config.format
+            : c.format === config.format && c.credentialConfigurationId === config.credentialConfigurationId,
+        )
+        .at(-1);
+      if (!held) {
+        this.step('credential_held', 'failed', {
+          error: {
+            message: `Mock wallet holds no ${formatLabel(config.format)} ${config.credentialConfigurationId} credential. Run an issue-only or full run first.`,
+          },
+        });
+        await this.finish();
+        return false;
+      }
+      this.run.artifacts.push({ id: crypto.randomUUID(), kind: 'credential', raw: held.raw, format: held.format });
+      this.publish({ type: 'run.artifact', runId: run.id, artifact: this.run.artifacts.at(-1)! });
       this.step('credential_held', 'done', { evidenceKind: 'adapter' });
     }
     this.run.delivery = undefined;
+    return true;
+  }
 
-    // ---------- presenting ----------
+  private async presentAndVerify(): Promise<boolean> {
+    const { fx, run } = this;
+    const format = run.config.format;
+    const from = this.walletName;
+
     this.status('Presenting');
     this.step('request_created', 'active');
     await this.sleep(400);
@@ -466,7 +524,8 @@ class RunSimulation {
         error: { message: 'The wallet did not fetch the presentation request before it expired' },
       });
       this.statusPoll('EXPIRED');
-      return this.finish();
+      await this.finish();
+      return false;
     }
 
     const fetchId = this.exchange({
@@ -534,7 +593,7 @@ class RunSimulation {
     };
     this.publish({ type: 'run.result', runId: run.id, outcome, verifierRaw: fx.vpResult });
     this.step(ProtocolStep.VERIFY_RESULT, 'done', { evidenceKind: 'adapter', exchangeId: resultId });
-    return this.finish();
+    return true;
   }
 
   private statusPoll(status: string) {
@@ -560,11 +619,11 @@ class RunSimulation {
     const steps = this.run.steps;
     const inconclusive = steps.some((s) => s.status === 'inconclusive');
     const failed = steps.some((s) => s.status === 'failed');
-    const verdict: InteropVerdict = inconclusive
-      ? 'INCONCLUSIVE'
-      : !failed && this.run.observedOutcome === this.run.config.expectedOutcome
-        ? 'PASS'
-        : 'FAIL';
+    // Issue-only runs pass once the credential is stored; the others on the verifier's answer.
+    const matched = this.uses('verifying')
+      ? this.run.observedOutcome === this.run.config.expectedOutcome
+      : steps.every((s) => s.status === 'done');
+    const verdict: InteropVerdict = inconclusive ? 'INCONCLUSIVE' : !failed && matched ? 'PASS' : 'FAIL';
     this.run.verdict = verdict;
     if (!this.run.errorSummary && verdict !== 'PASS') {
       const bad = steps.find((s) => s.error);

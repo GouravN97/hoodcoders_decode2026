@@ -5,6 +5,7 @@ import type {
   InteropVerdict,
   PresentationFlow,
   Role,
+  RunMode,
   VerificationOutcome,
 } from './domain';
 import { ProtocolStep } from './domain';
@@ -48,6 +49,14 @@ const PHASE_LABELS: Record<RunPhase, string> = {
   verifying: 'Verify',
 };
 export const phaseLabel = (p: RunPhase) => PHASE_LABELS[p];
+
+const MODE_LABELS: Record<RunMode, string> = {
+  full: 'Full cycle',
+  'issue-only': 'Issue only',
+  'present-only': 'Present & verify only',
+  'direct-verify': 'Direct verify',
+};
+export const modeLabel = (m: RunMode) => MODE_LABELS[m];
 
 const FLOW_LABELS: Record<PresentationFlow, string> = {
   'cross-device-qr': 'QR code on another device',
