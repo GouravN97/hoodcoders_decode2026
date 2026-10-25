@@ -167,3 +167,81 @@
     translate: 100% 0;
   }
 }
+
+/* Sequence diagram (features/inspector/SequenceDiagramView.tsx). Mermaid draws the SVG; these classes,
+   added per arrow, mark what was captured and what was only inferred, and animate new arrows in. */
+@layer components {
+  .seq-diagram svg {
+    height: auto;
+  }
+  .seq-diagram text.seq-inferred {
+    fill: var(--c-muted) !important;
+    font-style: italic;
+  }
+  .seq-diagram .seq-inferred:is(line, path) {
+    stroke: var(--c-muted) !important;
+    opacity: 0.75;
+  }
+  .seq-diagram .seq-oob:is(line, path) {
+    stroke: var(--c-accent) !important;
+  }
+  .seq-diagram text.seq-failed {
+    fill: var(--c-bad) !important;
+  }
+  .seq-diagram .seq-failed:is(line, path) {
+    stroke: var(--c-bad) !important;
+  }
+  .seq-diagram text.seq-tampered {
+    fill: var(--c-bad) !important;
+    font-weight: 600;
+  }
+  .seq-diagram [data-exchange-id] {
+    cursor: pointer;
+  }
+  .seq-diagram text[data-exchange-id]:hover,
+  .seq-diagram text[data-exchange-id]:focus-visible {
+    text-decoration: underline;
+    outline: none;
+  }
+  .seq-diagram text.seq-selected {
+    fill: var(--c-accent) !important;
+    font-weight: 600;
+  }
+  .seq-diagram .seq-selected:is(line, path) {
+    stroke: var(--c-accent) !important;
+    stroke-width: 2.5px;
+  }
+  .seq-diagram .seq-hit {
+    stroke: transparent !important;
+    stroke-width: 14px;
+    fill: none;
+    pointer-events: stroke;
+  }
+  /* A new captured arrow draws from sender to receiver, then its label fades in; an inferred one only fades
+     in (its dashes stay dashed). The global reduced-motion rule makes both instant. */
+  .seq-diagram line.seq-new {
+    stroke-dasharray: 1200;
+    stroke-dashoffset: 1200;
+    animation: seq-draw 550ms ease-out forwards;
+  }
+  .seq-diagram text.seq-new {
+    opacity: 0;
+    animation: seq-fade 300ms 300ms ease-out forwards;
+  }
+  .seq-diagram .seq-new-fade {
+    opacity: 0;
+    animation: seq-fade 400ms ease-out forwards;
+  }
+}
+
+@keyframes seq-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes seq-fade {
+  to {
+    opacity: 1;
+  }
+}

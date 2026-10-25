@@ -21,9 +21,11 @@ export async function startRun(
     scenario?: string;
     /** Tamper picker option, e.g. 'Edited claim (T-CLAIM-EDIT)'. */
     tamper?: string;
+    /** How much faster than real time the mock run plays (default 4). */
+    simSpeed?: number;
   },
 ) {
-  const qs = new URLSearchParams({ simSpeed: '4', ...(opts.scenario ? { scenario: opts.scenario } : {}) });
+  const qs = new URLSearchParams({ simSpeed: String(opts.simSpeed ?? 4), ...(opts.scenario ? { scenario: opts.scenario } : {}) });
   await page.goto(`/?${qs}`);
   await pickImplementation(page, 'Issuer', 'Inji Certify');
   await pickImplementation(page, 'Wallet', opts.wallet);

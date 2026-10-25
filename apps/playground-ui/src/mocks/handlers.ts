@@ -1,11 +1,14 @@
 // MSW handlers for the BFF REST API (plan §11.2), backed by the mock db and simulator.
 import {
+  buildSequence,
   canReplayFrom,
   CreateRunRequestSchema,
   ManualEvidenceRequestSchema,
   planTamper,
   PredictRequestSchema,
   renderReportMarkdown,
+  SequenceViewSchema,
+  toMermaid,
   stepTemplateFor,
   SUPPORTED_RUN_MODES,
   TamperPlanError,
@@ -137,6 +140,24 @@ export const handlers = [
   http.get(api('/runs/:id'), ({ params }) => {
     const record = db.get(String(params.id));
     return record ? HttpResponse.json(record.run) : error(404, 'Run not found');
+  }),
+
+  http.get(api('/runs/:id/sequence'), ({ params, request }) => {
+    const record = db.get(String(params.id));
+    if (!record) return error(404, 'Run not found');
+    const view = SequenceViewSchema.catch('full').parse(new URL(request.url).searchParams.get('view') ?? 'full');
+    const { run } = record;
+    const model = buildSequence(
+      {
+        config: run.config,
+        exchanges: record.exchanges,
+        steps: run.steps,
+        catalog: mockCatalog,
+        ...(run.tamper ? { tamper: run.tamper } : {}),
+      },
+      view,
+    );
+    return HttpResponse.json({ view, source: toMermaid(model), model });
   }),
 
   http.get(api('/runs/:id/exchanges'), ({ params }) => {

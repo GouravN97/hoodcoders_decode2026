@@ -907,7 +907,7 @@ A headless wallet that exercises **Inji's own wallet-side libraries** (`inji-vci
 | `PhaseStepper` | Issue → Hold → Present → Verify with per-step status, durations and evidence type icons |
 | `DeliveryPanel` | `QrDisplay` (with byte size and QR version), `DeepLinkButton`, `OpenUrlButton`, `CountdownTimer`, instructions for human-in-the-loop wallets, "I can see the credential" confirmation |
 | `CredentialCard` | Renders the held credential from claims plus issuer `display` metadata |
-| `SequenceDiagramView` | Renders Mermaid incrementally, animates the newest arrow, highlights failures in red; click an arrow → inspector jumps to that exchange |
+| `SequenceDiagramView` | Renders Mermaid incrementally, animates the newest arrow, highlights failures in red; click an arrow → inspector jumps to that exchange. **Implemented**: `OpenID4VP` view (Verifier ↔ Wallet ↔ Library, as the problem statement asks) and `Full run` view; uncaptured steps (library hand-off, external-issuer traffic) are dashed and labelled inferred. Builder: `packages/shared/src/sequence.ts` |
 | `ProtocolInspector` | `ExchangeList` + `ExchangeDetail` tabs: Raw, Decoded, Headers, Checks |
 | `JwtView`, `SdJwtView`, `JsonLdView`, `CborView` | Format-specific decoded views (SD-JWT shows a disclosures table with digest match status) |
 | `DiffView` | Original vs tampered payload |
@@ -1195,7 +1195,7 @@ Raw exchanges can get large; a retention job keeps full bodies for 30 days and t
 | GET | `/api/runs` | History with filters: issuer, wallet, verifier, format, verdict, moduleVersion, from, to |
 | GET | `/api/runs/:id` | Run with steps, verdict and prediction |
 | GET | `/api/runs/:id/exchanges?decode=true` | Captured exchanges, optionally decoded |
-| GET | `/api/runs/:id/sequence` | Mermaid source for the sequence diagram |
+| GET | `/api/runs/:id/sequence` | Mermaid source for the sequence diagram (`?view=openid4vp\|full`, implemented) |
 | POST | `/api/runs/:id/manual-evidence` | User confirmations for human-in-the-loop steps |
 | POST | `/api/runs/:id/sdk-callback` | Forwarded `onVpReceived(txnId)` / `onVpProcessed` from the SDK embed |
 | POST | `/api/runs/:id/cancel` | Cancel |

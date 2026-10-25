@@ -1,6 +1,6 @@
 import {
   planTamper,
-  RUN_STEP_TEMPLATE,
+  stepTemplateFor,
   type RunConfig,
   type RunDetail,
   type RunEvent,
@@ -8,7 +8,7 @@ import {
 import { beforeAll, describe, expect, it } from 'vitest';
 import { mockCatalog } from '../mocks/catalog';
 import { db } from '../mocks/db';
-import { startSimulation } from '../mocks/simulator';
+import { confirmManualEvidence, startSimulation } from '../mocks/simulator';
 import { simulatedEvents } from './index';
 import { applyRunEvent } from './runReducer';
 
@@ -32,7 +32,7 @@ function newRun(config: RunConfig): RunDetail {
     config,
     state: 'Configured',
     correlation: 'exact',
-    steps: RUN_STEP_TEMPLATE.map((t) => ({ phase: t.phase, step: t.step, status: 'pending' as const })),
+    steps: stepTemplateFor(config.mode).map((t) => ({ phase: t.phase, step: t.step, status: 'pending' as const })),
     versions: [],
     artifacts: [],
   };
@@ -125,6 +125,33 @@ describe('applyRunEvent over simulated runs', () => {
     expect(server.run.config.credentialConfigurationId).toBe('FarmerCredentialExpired');
     expect(folded.observedOutcome).toBe('EXPIRED');
     expect(folded.verdict).toBe('PASS');
+  });
+
+  it('never fakes captured traffic for an external issuer', async () => {
+    const config: RunConfig = {
+      ...baseConfig,
+      mode: 'issue-only',
+      issuerId: 'hovi-playground',
+      walletId: 'inji-wallet-mobile',
+      format: 'dc+sd-jwt',
+      credentialConfigurationId: 'pid-sdjwt',
+    };
+    const playing = play(config);
+    // The holder confirms on the run page once the wallet shows the credential.
+    let confirmed = false;
+    for (let i = 0; i < 200 && !confirmed; i++) {
+      await new Promise((r) => setTimeout(r, 5));
+      const waiting = db.all().find((r) => r.run.config.issuerId === 'hovi-playground' && r.manualWaiters.has('credential_held'));
+      if (waiting) confirmed = confirmManualEvidence(waiting.run.id, 'credential_held');
+    }
+    const { folded, server } = await playing;
+    expect(confirmed).toBe(true);
+    expect(server.exchanges.map((e) => `${e.method} ${e.step}`)).toEqual(['OOB oid4vci.credential_offer']);
+    for (const step of ['oid4vci.token', 'oid4vci.credential', 'credential_held']) {
+      expect(folded.steps.find((s) => s.step === step)).toMatchObject({ status: 'done', evidenceKind: 'manual' });
+    }
+    expect(server.findings.map((f) => f.checkId)).toContain('EXTERNAL-ISSUER-MANUAL-EVIDENCE');
+    expect(folded.verdict).toBe('PASS_WITH_WARNINGS');
   });
 
   it('ignores events for other runs', () => {

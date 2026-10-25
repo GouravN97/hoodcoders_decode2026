@@ -94,6 +94,8 @@ export const RunReportSchema = z.object({
   correlation: z.enum(['exact', 'heuristic']),
   findings: z.array(CheckFindingSchema),
   tamper: ReportTamperSchema.optional(),
+  /** Mermaid sequence diagram of the whole run (see sequence.ts); GitHub renders it in Markdown. */
+  sequence: z.string().optional(),
   inspectorUrl: z.string(),
 });
 export type RunReport = z.infer<typeof RunReportSchema>;
@@ -176,6 +178,19 @@ export function renderReportMarkdown(r: RunReport): string {
     lines.push('## Compliance findings', '', '| Check | Severity | Message |', '| --- | --- | --- |');
     for (const f of r.findings) lines.push(`| ${f.checkId} | ${f.severity} | ${cell(f.message)} |`);
     lines.push('');
+  }
+
+  if (r.sequence) {
+    lines.push(
+      '## Message sequence',
+      '',
+      'Solid arrows were captured by the Protocol Tap; dashed arrows were not captured and are inferred.',
+      '',
+      '```mermaid',
+      r.sequence,
+      '```',
+      '',
+    );
   }
 
   lines.push(`Protocol messages: ${r.inspectorUrl}`, '');

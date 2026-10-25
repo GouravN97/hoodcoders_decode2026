@@ -83,3 +83,21 @@ test('SD-JWT with an edited claim: the inspector shows the change and Inji Verif
   await inspector.getByText('Tampered · T-CLAIM-EDIT').click();
   await expect(inspector.getByRole('table', { name: 'Tampered fields' })).toContainText('(edited)');
 });
+
+test('the sequence diagram of a live run is drawn from captured messages, and the report embeds it', async ({ page, request }) => {
+  await liveRun(page, { format: 'vc+sd-jwt' });
+  await expect(page.getByTestId('verification-result')).toHaveAttribute('data-outcome', 'VALID', { timeout: 90_000 });
+  await openSection(page, 'Protocol inspector');
+  const inspector = page.getByRole('region', { name: 'Protocol inspector' });
+  await inspector.getByRole('tablist', { name: 'Show messages as' }).getByRole('tab', { name: 'Sequence' }).click();
+  const arrows = inspector.locator('.seq-diagram svg text.messageText');
+  await expect(arrows.filter({ hasText: /^Presentation response · 200$/ })).toHaveCount(1);
+  await expect(arrows.filter({ hasText: 'Request to library (inferred)' })).toHaveCount(1);
+  await arrows.filter({ hasText: /^Request object · 200$/ }).click();
+  await expect(inspector.getByText(/\/vp-request\/req_/).first()).toBeVisible();
+
+  const runId = page.url().match(/runs\/([0-9a-f-]+)/)![1];
+  const md = await (await request.get(`/api/runs/${runId}/report?format=md`)).text();
+  expect(md).toContain('```mermaid\nsequenceDiagram');
+  expect(md).toContain('W--)L: Request to library (inferred)');
+});

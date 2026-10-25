@@ -1,6 +1,8 @@
 // Mock RunReportBuilder: assembles the Task 7 report from the stored run.
 import {
+  buildSequence,
   reportTamper,
+  toMermaid,
   type CatalogEntry,
   type ReportParticipant,
   type Role,
@@ -40,6 +42,18 @@ export function buildRunReport(record: MockRunRecord, catalog: CatalogEntry[]): 
         : undefined;
   const proofType = proofTypeOf(credential?.raw) ?? run.config.proofSuite;
   const tamper = reportTamper(run);
+  const sequence = toMermaid(
+    buildSequence(
+      {
+        config: run.config,
+        exchanges: record.exchanges,
+        steps: run.steps,
+        catalog,
+        ...(run.tamper ? { tamper: run.tamper } : {}),
+      },
+      'full',
+    ),
+  );
 
   return {
     runId: run.id,
@@ -74,6 +88,7 @@ export function buildRunReport(record: MockRunRecord, catalog: CatalogEntry[]): 
     correlation: run.correlation,
     findings: record.findings,
     ...(tamper ? { tamper } : {}),
+    sequence,
     inspectorUrl: `${location.origin}/runs/${run.id}#inspector`,
   };
 }
