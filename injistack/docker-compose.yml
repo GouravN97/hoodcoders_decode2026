@@ -405,6 +405,10 @@ services:
       # health probes then stall every other lookup, including the tap's calls upstream.
       UV_THREADPOOL_SIZE: "64"
       DATA_DIR: /data
+      # Run events in Obsrv's telemetry envelope go to /data/telemetry/*.jsonl, and to Obsrv when set,
+      # e.g. https://<obsrv>/data/v1/in/inji-interop-runs (see apps/playground-bff/src/telemetry/obsrv.ts).
+      OBSRV_INGEST_URL: ${OBSRV_INGEST_URL:-}
+      OBSRV_AUTHORIZATION: ${OBSRV_AUTHORIZATION:-}
       PUBLIC_UI_URL: ${PLAYGROUND_UI_URL:-http://localhost:8100}
       TAP_UPSTREAM_CERTIFY: http://certify:8090
       TAP_UPSTREAM_VERIFY: http://verify-service:8080
@@ -501,6 +505,43 @@ services:
     networks:
       - injistack
 
+  # ---------- Telemetry (profile telemetry) ----------
+  # Prometheus scrapes the BFF's /metrics (every saved run); Grafana shows the "Inji interoperability"
+  # dashboard (success rate per combination, step and message latency) on http://localhost:8106.
+  prometheus:
+    profiles:
+      - telemetry
+    image: prom/prometheus:v3.5.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=30d"]
+    ports:
+      - "8107:9090"
+    volumes:
+      - ./telemetry/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      - playground-bff
+    networks:
+      - injistack
+
+  grafana:
+    profiles:
+      - telemetry
+    image: grafana/grafana:12.1.0
+    environment:
+      # Local only: anonymous viewers, admin/admin for editing.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/interop.json
+    ports:
+      - "8106:3000"
+    volumes:
+      - ./telemetry/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./telemetry/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - injistack
+
 networks:
   injistack:
     name: injistack
@@ -512,3 +553,4 @@ volumes:
   certify-mdoc-key:
   local-certs:
   playground-data:
+  prometheus-data:

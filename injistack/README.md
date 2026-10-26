@@ -14,6 +14,8 @@ This directory runs the core Inji services and the playground locally with Docke
 | Gateway, plain HTTP | <http://localhost:8091> |
 | **Inji Verify UI** | <http://localhost:3000> |
 | PostgreSQL | `localhost:5433`, user and password `postgres` |
+| Grafana, profile `telemetry` | <http://localhost:8106> (the Inji interoperability dashboard) |
+| Prometheus, profile `telemetry` | <http://localhost:8107> |
 | **Inji Wallet** | React Native mobile app, run separately on Android or iOS |
 
 Certify issues two credentials from the same farmer data:

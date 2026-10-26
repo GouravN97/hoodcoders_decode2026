@@ -36,6 +36,7 @@ Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji V
 | Digital Credentials API | The mock verifier accepts an unsigned OpenID4VP 1.0 / DCQL request over `navigator.credentials.get`. **No wallet in the catalog advertises it** (Inji Wallet `1.0.0-alpha.1` has no Credential Manager provider), so it is tested only with a stubbed browser API in the UI, and live on the server side with a script standing in for the browser's wallet: a real Certify SD-JWT bound to the page origin is Valid, one bound to another origin fails holder binding |
 | Second opinion (`VER-002`) | After each verification the other verifier checks the presented credential on its own. Inji Verify and the mock verifier agreed on every comparable live run (valid, broken signature, edited claim, expired) |
 | Interop suite and nightly CI | `make interop` runs [`matrices/nightly.yaml`](matrices/nightly.yaml) through the playground with [`interop-cli`](packages/interop-cli/README.md): 24 headless lanes across Inji Verify, the mock verifier and mDoc. On 26 October 2026 against the local stack: 21 pass and 3 known gaps (gaps 1 and 2) ([summary](reports/interop-suite.md)). A nightly GitHub Actions workflow runs the same suite and publishes the matrix |
+| Telemetry | `make up-telemetry` adds Prometheus and a provisioned Grafana dashboard (<http://localhost:8106>): success rate per issuer × wallet × verifier × format and version, the share of negative tests caught, mean step and message latency, and protocol errors. Each finished run is also written as an event in the Sunbird telemetry envelope Inji Wallet sends to Obsrv, and posted to Obsrv when `OBSRV_INGEST_URL` is set. Checked 26 October 2026 against the local stack's 210 saved runs |
 | Replay & tamper (mock wallet → Inji Verify 0.18.2) | Run live for both formats. Broken signature and edited claim are rejected (**INVALID**). Inji Verify **accepts** a wrong credential type for both formats, and, for SD-JWT only, a replayed `vp_token` or one bound to an old nonce ([results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182)) |
 
 The reproducible passing demonstrations are SD-JWT and JSON-LD with the mock
@@ -116,6 +117,20 @@ With `pnpm dev` the history starts with a few runs marked **sample**, generated 
 
 [`.github/workflows/nightly-interop.yml`](.github/workflows/nightly-interop.yml) runs it every night: `make up PROFILES=mdoc`, `make interop`, then the summary as the job summary, the JUnit report, the matrix and the stack logs as an artifact, and on `main` the summary and matrix pushed to the `interop-reports` branch. [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs typecheck, lint and unit tests on every pull request. The latest local results are in [`reports/`](reports/README.md).
 
+### Telemetry
+
+`make up-telemetry` (or `PROFILES=telemetry` with any `make up` target) adds Prometheus (<http://localhost:8107>) and Grafana (<http://localhost:8106>, opens on the **Inji interoperability** dashboard). The BFF serves `GET /metrics` in the Prometheus text format, computed from every saved run on each scrape, so the dashboard covers the whole history and survives restarts:
+
+| Metric | Labels | What it is |
+| --- | --- | --- |
+| `interop_runs`, `interop_runs_passed` | issuer, wallet, verifier and their versions, format, mode, verdict, `negative` | Finished runs, and those that passed. `negative="true"` marks tampers and runs that expect Invalid or Expired |
+| `interop_run_duration_seconds_sum` / `_count` | as above | Run duration, creation to report |
+| `interop_step_duration_seconds_sum` / `_count` | phase, step, status, format | Duration of each run step (offer, token, credential, request, response, result) |
+| `interop_exchange_latency_seconds_sum` / `_count` | component, step | Latency of each protocol message through the Protocol Tap |
+| `interop_exchange_errors` | component, step, status | Messages answered with HTTP 4xx/5xx or not at all |
+
+**Obsrv.** Inji Wallet reports telemetry to an Obsrv host, which stores it in Druid. The BFF writes each finished run as one `INTEROP_RUN` event in the same Sunbird telemetry v3 envelope (`eid`, `ets`, `mid`, `actor`, `context.pdata`/`cdata`, `object`, `edata` with the participants, versions, format, verdict, step durations and error). The events go to `/data/telemetry/interop-runs-<date>.jsonl` in the `playground-data` volume (a Druid batch-ingestion source). When `OBSRV_INGEST_URL` is set in `injistack/.env` (an Obsrv dataset endpoint, `…/data/v1/in/<dataset>`), each event is also posted there; `OBSRV_AUTHORIZATION` is sent as the `Authorization` header. The plan's OpenTelemetry traces (plan §16.3) are not implemented: the Protocol Tap already records every message with its timing per run.
+
 ### Test Hovi or Animo issuance in Inji Wallet
 
 1. Start the live Compose stack and open <http://localhost:8100>.
@@ -150,6 +165,7 @@ For live runs, one command starts the whole stack (Docker with Compose v2; the f
 make up           # Inji Certify, Inji Verify, the playground, mock wallet and mock verifier; waits until healthy
 make up-mdoc      # the same, plus Certify's mock mDoc issuer
 make up-phone     # the same, behind Cloudflare tunnels, for Inji Wallet on a phone or emulator
+make up-telemetry # the same, plus Prometheus and Grafana (http://localhost:8106)
 make health       # what is up
 make down         # stop (saved runs are kept)
 make help         # every target
