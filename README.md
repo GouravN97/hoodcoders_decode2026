@@ -77,19 +77,19 @@ Run the headless interop suite against the running stack with `pnpm install && m
 
 The local Certify issues the credential. The mock wallet then fetches Collab's signed request object, checks it against Collab's `did:web`, answers with a DCQL `vp_token`, and the playground reads Collab's verdict and each of its checks. The BFF's calls to Collab and the mock wallet's calls both pass through a Protocol Tap listener (`TAP_UPSTREAM_VERIFY_COLLAB`; the wallet is routed there with `WALLET_ROUTES`), so the inspector shows every message as for the local stack. The local Inji Verify gives the second opinion. Collab is never asked for one on other runs, so local credentials are only sent to Collab when you pick it.
 
-**Results, 26 October 2026** (Certify 0.14.0 → mock wallet → Collab Inji Verify, `vc+sd-jwt`):
+**Results, 26 October 2026** (Certify 0.14.0 → mock wallet → Collab's Inji Verify; JSON-LD with the stack behind tunnels):
 
-| Lane | Collab's answer | Inji Verify 0.18.2 (local) |
-| --- | --- | --- |
-| Valid | **Valid**: signature, holder proof (nonce, audience, key binding) and validity all pass | Valid |
-| Broken signature, edited claim | **Invalid** | Invalid |
-| Expired copy | **Valid but expired** | Valid but expired |
-| Wrong credential type | **Refused** at `direct_post`, HTTP 400: `vct claim does not match any of the vct_values in the DCQL query` | **Accepted** (gap 1) |
-| Replayed presentation | **Refused** at `direct_post`, HTTP 400: `Nonce validation failed` | **Accepted** (gap 2) |
+| Lane | Collab, `vc+sd-jwt` | Collab, `ldp_vc` | Inji Verify 0.18.2 (local) |
+| --- | --- | --- | --- |
+| Valid | **Valid**: signature, holder proof (nonce, audience, key binding) and validity all pass | **Valid**: same three checks | Valid |
+| Broken signature, edited claim | **Invalid** | **Invalid** (signature check) | Invalid |
+| Expired copy | **Valid but expired** | **Valid but expired** | Valid but expired |
+| Wrong credential type | **Refused** at `direct_post`, HTTP 400: `vct claim does not match any of the vct_values in the DCQL query` | **Refused**, HTTP 400: `credential type values do not satisfy any of the type_values options` | **Accepted** (gap 1) |
+| Replayed presentation | **Refused** at `direct_post`, HTTP 400: `Nonce validation failed` | **Refused**, HTTP 400: `Nonce validation failed` | **Accepted** for SD-JWT (gap 2) |
 
 So gaps 1 and 2 are fixed in the 1.0 API that Collab runs. A refusal at submission is reported as *Rejected*, which passes with a warning when the run expected Invalid.
 
-**JSON-LD (`ldp_vc`) needs the tunnels.** Collab checks a JSON-LD credential's signature by resolving the issuer's `did:web` over the internet, and `did:web:certify.localhost` is not on the internet (`certify.localhost: Name has no usable address`). The presentation itself is accepted (the holder proof passes). With `make up-phone` the issuer DID is the tunnel's public hostname. SD-JWT works without tunnels, because Collab checks it with the `x5c` certificate in the credential.
+**JSON-LD (`ldp_vc`) needs the tunnels.** Collab checks a JSON-LD credential's signature by resolving the issuer's `did:web` over the internet. On a localhost stack that is `did:web:certify.localhost`, which fails (`certify.localhost: Name has no usable address`), so the run is Invalid although the holder proof passes. Behind tunnels the issuer DID is the tunnel's public hostname, and every JSON-LD lane above passes. Start them with `make up-phone` (or `PROFILES="mdoc telemetry" ./scripts/tunnel-up.sh` in `injistack/` without the wallet profile), and go back with `make tunnel-down`. SD-JWT works without tunnels, because Collab checks it with the `x5c` certificate in the credential.
 
 **Other wallets.** Inji Wallet on a phone has not been tried against Collab: its catalog entry declares draft 23 with Presentation Exchange, so the selector warns. It would also need the stack behind tunnels to receive the local Certify's offer. Collab's own issuers use the authorization-code flow, which the playground cannot start yet; use Inji's [Try it out](https://docs.inji.io/readme/try-it-out) guide to download their credentials into Inji Web or Inji Wallet.
 
@@ -117,7 +117,7 @@ Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji V
 | Second opinion (`VER-002`) | After each verification the other verifier checks the presented credential on its own. Inji Verify and the mock verifier agreed on every comparable live run (valid, broken signature, edited claim, expired) |
 | Interop suite and nightly CI | `make interop` runs [`matrices/nightly.yaml`](matrices/nightly.yaml) through the playground with [`interop-cli`](packages/interop-cli/README.md): 30 headless lanes across Inji Verify (local 0.18.2 and MOSIP Collab), the mock verifier and mDoc. On 26 October 2026: 27 pass and 3 known gaps (gaps 1 and 2, local Inji Verify only) ([summary](reports/interop-suite.md)). A nightly GitHub Actions workflow runs the same suite and publishes the matrix |
 | Telemetry | `make up-telemetry` adds Prometheus and a provisioned Grafana dashboard (<http://localhost:8106>): success rate per issuer × wallet × verifier × format and version, the share of negative tests caught, mean step and message latency, and protocol errors. Each finished run is also written as an event in the Sunbird telemetry envelope Inji Wallet sends to Obsrv, and posted to Obsrv when `OBSRV_INGEST_URL` is set. Checked 26 October 2026 against the local stack's 210 saved runs |
-| **MOSIP Collab Inji Verify** (OpenID4VP 1.0, DCQL) | Certify → mock wallet → Collab's Inji Verify, `vc+sd-jwt`, run live on 26 October 2026: valid passes, and every tamper is caught, including the wrong type and the replay that Inji Verify 0.18.2 accepts (gaps 1 and 2). `ldp_vc` needs the tunnels ([MOSIP Collab sandbox](#mosip-collab-sandbox)) |
+| **MOSIP Collab Inji Verify** (OpenID4VP 1.0, DCQL) | Certify → mock wallet → Collab's Inji Verify, run live on 26 October 2026 for `vc+sd-jwt` and for `ldp_vc` (behind tunnels): valid passes, and every tamper is caught, including the wrong type and the replay that Inji Verify 0.18.2 accepts (gaps 1 and 2) ([MOSIP Collab sandbox](#mosip-collab-sandbox)) |
 | Replay & tamper (mock wallet → Inji Verify 0.18.2) | Run live for both formats. Broken signature and edited claim are rejected (**INVALID**). Inji Verify **accepts** a wrong credential type for both formats, and, for SD-JWT only, a replayed `vp_token` or one bound to an old nonce ([results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182)) |
 
 The reproducible passing demonstrations are SD-JWT and JSON-LD with the mock

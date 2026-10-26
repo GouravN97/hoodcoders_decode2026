@@ -42,7 +42,7 @@ include:
 | fail | The verifier answered something other than expected, or a step failed | **yes** |
 | known gap | Failed, and the lane names that gap | no |
 | gap fixed? | A known-gap lane passed | no |
-| skipped | An implementation is not in the catalog or is down (e.g. the mDoc issuer without `make up-mdoc`), the issuer has no configuration of that format, or `--headless-only` and the wallet needs a person | no |
+| skipped | An implementation is not in the catalog or is down (e.g. the mDoc issuer without `make up-mdoc`; the suite first waits up to 30 s, because the BFF refreshes catalog health every 15 s), the issuer has no configuration of that format, or `--headless-only` and the wallet needs a person | no |
 | error | The BFF refused the run, or it had no result within `--lane-timeout` (the run is then cancelled) | **yes** |
 
 Lanes run one at a time, in file order: the mock wallet is shared, and a `T-NONCE-REPLAY` lane replays an earlier lane's presentation.
