@@ -59,6 +59,34 @@ Run the headless interop suite against the running stack with `pnpm install && m
 
 **If something is not up.** `make health` or <http://localhost:8101/api/health> names the service that is down, and `make logs S=certify` follows its logs. Certify and Verify need a minute or two after their containers start. The stack publishes ports 8100, 8101, 8104, 8105, 8443, 8080, 8090, 8091, 3000 and 5433, so stop anything else using them. For a database created before 26 October 2026, apply the [issuer DID update](injistack/README.md#upgrading-an-existing-database).
 
+## MOSIP Collab sandbox
+
+[MOSIP Collab](https://docs.inji.io/readme/try-it-out) is MOSIP's hosted copy of the Inji stack. It is a reference environment for trying the Inji products: you cannot deploy the playground into it. The playground runs on your machine (above) or on any Docker host. These are the Collab services and what they run, as checked on 26 October 2026:
+
+| Service | Address | What it runs |
+| --- | --- | --- |
+| Inji Web | <https://injiweb.collab.mosip.net> | Browser wallet, backed by Collab's Mimoto |
+| Mimoto | <https://api.collab.mosip.net> | Wallet backend; lists Collab's issuers (Farmer, Land, Mosip ID, Mock mDL, …) at `/v1/mimoto/issuers` |
+| Inji Certify (mock) | <https://injicertify-mock.collab.mosip.net> | Issuer of `MockVerifiableCredential` (`ldp_vc`, also VCDM 2.0), `MockVerifiableCredential_SD_JWT` (`dc+sd-jwt`) and `LandStatementCredential`; **authorization code only**, login through eSignet mock |
+| eSignet | <https://esignet.collab.mosip.net> | Login for the authorization-code flow (mock identities) |
+| Inji Verify | <https://injiverify.collab.mosip.net> | Inji Verify with the 1.0 API: OpenID4VP 1.0 with DCQL (`/v1/verify/v2/vp-session-request`), client ID `decentralized_identifier:did:web:injiverify.collab.mosip.net:v1:verify` |
+
+**Try the reference flow on Collab.** Follow Inji's [Try it out](https://docs.inji.io/readme/try-it-out) guide. In Inji Web (or the Inji Wallet app), pick an issuer, log in with a mock identity from the guide, and download the credential. Then present it to Collab's Inji Verify, or upload its QR code there. This shows how the Inji products behave together. It is a useful baseline for the playground's own runs, which use the pinned versions in [`injistack/`](injistack) (Certify 0.14.0, Verify 0.18.2).
+
+**Pointing the playground at Collab does not work yet.** No playground lane can target Collab today:
+
+- **Issuer.** Collab's Certify advertises only the `authorization_code` grant. The playground's Certify adapter creates pre-authorized offers (`/v1/certify/pre-authorized-data`), so it cannot start issuance there.
+- **Verifier.** Collab's Inji Verify has the 1.0 API, which takes DCQL requests at `/v2/vp-session-request`. The playground's Inji Verify adapter speaks 0.18.x (Presentation Exchange, `/v1/verify/vp-request`), which answers `404` on Collab.
+- **Credentials from the playground's Certify.** For Collab's Verify to check them, it has to resolve the issuer's `did:web` over the internet. That needs the stack behind tunnels (`make up-phone`).
+
+A Collab lane needs three things:
+
+1. A verifier adapter for Inji Verify 1.0, using DCQL, `/v2/vp-session-request` and `/vp-session-results` (plan §3 calls this the DCQL lane).
+2. A catalog entry, for example `catalog/inji-verify-collab.yaml`, with `publicUrl: https://injiverify.collab.mosip.net`.
+3. For issuance from Collab, the authorization-code flow through Inji Web, observed as manual evidence as for the Hovi and Animo issuers.
+
+The rest of the playground needs no change: see [Adding an implementation](docs/adding-an-implementation.md). Collab's traffic does not pass the Protocol Tap, so the inspector would only show the playground's own calls to Collab.
+
 ## Status
 
 Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji Verify, the playground UI, the BFF with its Protocol Tap and a headless mock wallet with Docker Compose. A run issues a real credential from Certify (pre-authorized code), the wallet presents it to Inji Verify over OpenID4VP, every message passes through the tap and shows in the inspector, and the run ends with a pass/fail report.
