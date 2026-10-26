@@ -3,6 +3,7 @@
 # still works the same way.
 #
 #   make up         Inji Certify, Inji Verify, the playground, mock wallet and mock verifier
+#   make up-telemetry  the same, plus Prometheus and Grafana
 #   make up-phone   the same, plus Cloudflare tunnels so Inji Wallet on a phone or emulator can reach it
 #   make interop    run the headless interop suite against the running stack (matrices/nightly.yaml)
 #   make matrix     save the interoperability matrix of every saved run to reports/
@@ -50,7 +51,7 @@ e2e: ## Playwright against the mocks; E2E_LIVE=1 runs it against the running sta
 check: typecheck lint test ## typecheck + lint + test, as CI runs them
 
 # ── Stack ────────────────────────────────────────────────────────────────────
-.PHONY: up up-mdoc up-web up-phone down tunnel-down ps logs health wait
+.PHONY: up up-mdoc up-web up-telemetry up-phone down tunnel-down ps logs health wait
 up: ## Start the stack (PROFILES="mdoc wallet esignet" for the optional parts) and wait until healthy
 	$(COMPOSE) $(PROFILE_ARGS) up -d --build
 	@$(MAKE) --no-print-directory wait
@@ -62,6 +63,10 @@ up-mdoc: ## make up with Certify's mock mDoc issuer
 up-web: ## make up with Mimoto, eSignet and Inji Web
 	@$(MAKE) --no-print-directory up PROFILES="wallet esignet $(PROFILES)"
 
+up-telemetry: ## make up with Prometheus and Grafana (dashboard on http://localhost:8106)
+	@$(MAKE) --no-print-directory up PROFILES="telemetry $(PROFILES)"
+	@echo "Grafana: http://localhost:8106 · Prometheus: http://localhost:8107"
+
 up-phone: ## make up behind Cloudflare quick tunnels, for Inji Wallet on a phone or emulator
 	$(COMPOSE) $(PROFILE_ARGS) up -d --build
 	PROFILES="$(or $(PROFILES),wallet)" $(STACK_DIR)/scripts/tunnel-up.sh
@@ -72,7 +77,7 @@ tunnel-down: ## Stop the tunnels and switch the stack back to localhost hostname
 	PROFILES="$(PROFILES)" $(STACK_DIR)/scripts/tunnel-up.sh reset
 
 down: ## Stop the stack (keeps volumes, so saved runs survive)
-	$(COMPOSE) --profile mdoc --profile wallet --profile esignet down
+	$(COMPOSE) --profile mdoc --profile wallet --profile esignet --profile telemetry down
 
 ps: ## Container status
 	$(COMPOSE) ps

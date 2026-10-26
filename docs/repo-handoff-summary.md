@@ -1,5 +1,7 @@
 # Inji Interoperability Playground — Repository Handoff
 
+> **Stale since 26 October 2026.** Sections 3 and 10 predate the good-to-have and bonus work. The historical dashboard, Mermaid sequence diagram, mDoc lane, mock verifier, nightly CI suite, gap drafts and telemetry now exist. For current status see the [README](../README.md#status).
+>
 > Prepared 25 October 2026 from a survey of the repository, its implementation notes, and the supplied Problem Statement 02 PDF. Use this as an agent handoff; confirm details against source before changing behavior because this document can become stale.
 
 ## 1. Request vs supplied requirements

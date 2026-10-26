@@ -23,6 +23,7 @@ import {
   toMermaid,
   type HeldCredentialsResponse,
   type RunConfig,
+  type RunEvent,
 } from '@playground/shared';
 import { z } from 'zod';
 import { AdapterError } from './adapters/http.ts';
@@ -31,10 +32,12 @@ import { decodeExchange } from './decoder/payload-decoder.ts';
 import { attachGateway, broadcastHealth } from './realtime/gateway.ts';
 import { RunConfigError, RunOrchestrator } from './runs/orchestrator.ts';
 import { buildRunReport } from './runs/report.ts';
-import { RunStore } from './runs/store.ts';
+import { RunStore, runEvents } from './runs/store.ts';
 import { register } from './tap/correlator.ts';
 import { createTapServer, onHeuristicBinding } from './tap/proxy.ts';
 import { getExchangeById, getExchangesByRun } from './store/exchange-store.ts';
+import { renderMetrics } from './telemetry/metrics.ts';
+import { ObsrvExporter, toObsrvEvent } from './telemetry/obsrv.ts';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const env = process.env;
@@ -106,6 +109,25 @@ const orchestrator = new RunOrchestrator(registry, runs, {
   manualTimeoutMs: Number(env.MANUAL_EVIDENCE_TIMEOUT_MS ?? 600_000),
 });
 onHeuristicBinding((runId) => orchestrator.markHeuristic(runId));
+
+// Telemetry (plan §16.3): one Obsrv-style event per finished run, to JSONL files and optionally Obsrv.
+const obsrv = new ObsrvExporter({
+  dir: env.TELEMETRY_DIR || (DATA_DIR ? `${DATA_DIR}/telemetry` : undefined),
+  ingestUrl: env.OBSRV_INGEST_URL || undefined,
+  authorization: env.OBSRV_AUTHORIZATION || undefined,
+});
+if (obsrv.enabled)
+  runEvents.on('event', (event: RunEvent) => {
+    if (event.type !== 'run.completed') return;
+    const record = runs.get(event.runId);
+    if (!record) return;
+    void registry
+      .list(60_000)
+      .then((catalog) =>
+        obsrv.export(toObsrvEvent(record.run, buildRunReport(record, catalog, UI_ORIGIN), catalog)),
+      )
+      .catch((e: unknown) => console.warn(`[telemetry] ${(e as Error).message}`));
+  });
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 class HttpError extends Error {
@@ -417,6 +439,13 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     );
     register(body.runId, ...body.keys);
     return send(res, 200, { registered: body.keys.length });
+  }
+
+  // Prometheus metrics over every saved run (plan §16.3); scraped by the telemetry profile.
+  if (method === 'GET' && path === '/metrics') {
+    res.writeHead(200, { 'content-type': 'text/plain; version=0.0.4; charset=utf-8' });
+    res.end(renderMetrics(runs.list(), getExchangesByRun, await registry.list(60_000)));
+    return;
   }
 
   if (path.startsWith('/api/')) throw new HttpError(404, `No route for ${method} ${path}`);

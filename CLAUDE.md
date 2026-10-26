@@ -10,6 +10,8 @@ Inji products per role: **Inji Certify** (issuer), **Inji Wallet** mobile app / 
 
 | Doc | Contents |
 | --- | --- |
+| [`docs/gaps/README.md`](docs/gaps/README.md) | Every interop gap found, upstream status, issue drafts (none filed yet) |
+| [`docs/adding-an-implementation.md`](docs/adding-an-implementation.md) | New issuer / wallet / verifier: catalog YAML, adapter, Protocol Tap |
 | [`docs/mandatory-tasks.md`](docs/mandatory-tasks.md) | Plain-language explanation of the seven mandatory tasks, glossary, done-criteria, order of work, open team questions |
 | [`docs/implementation-plan.md`](docs/implementation-plan.md) | Full design: architecture, Protocol Tap, repo layout, domain model, class catalogue, flows, data model and APIs, compliance checks, tamper catalogue, test matrix, infra/networking, CI, schedule, risks |
 
@@ -25,7 +27,7 @@ Inji products per role: **Inji Certify** (issuer), **Inji Wallet** mobile app / 
 | 6 | Two formats end-to-end: `ldp_vc` and SD-JWT (`vc+sd-jwt`) | §7.1 formats |
 | 7 | Pass/fail report per run (issuer, wallet, verifier, format, proof type, outcome, error) | §6, §8.2 |
 
-Task 1 is the critical path. Tasks 2, 5 and 7 can be built against mocks/fake data. All seven lanes work (the mobile `ldp_vc` `#0#0` gap is worked around in Certify's template; Inji Web `invalid_client` is a documented finding), so good-to-have work started on 25 October 2026, one PR per item: tamper mode, sequence diagram, history, mock verifier, mDoc, same-device / DC API.
+Task 1 is the critical path. Tasks 2, 5 and 7 can be built against mocks/fake data. All seven lanes work (the mobile `ldp_vc` `#0#0` gap is worked around in Certify's template; Inji Web `invalid_client` is a documented finding), so good-to-have work started on 25 October 2026, one PR per item: tamper mode, sequence diagram, history, mock verifier, mDoc, same-device / DC API. All six were merged by 26 October 2026. The bonus tasks followed the same day: one-command `make up`, the nightly interop suite (`packages/interop-cli`, `matrices/`, `.github/workflows/`), gap issue drafts (`docs/gaps/`) and telemetry (BFF `/metrics`, `telemetry` Compose profile, Obsrv events).
 
 ## Key design decisions (summary of plan §1)
 
