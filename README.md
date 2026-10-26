@@ -137,7 +137,18 @@ pnpm test         # unit tests (Vitest)
 pnpm e2e          # browser tests against the mocks (Playwright; run `pnpm exec playwright install chromium` once)
 ```
 
-For live runs start the Compose stack ([`injistack/README.md`](injistack/README.md)) and open <http://localhost:8100>. With the stack up, `PLAYGROUND_LIVE_URL=http://localhost:8100 pnpm e2e` runs the browser tests against it.
+For live runs, one command starts the whole stack (Docker with Compose v2; the first start pulls about 3.5 GB):
+
+```sh
+make up           # Inji Certify, Inji Verify, the playground, mock wallet and mock verifier; waits until healthy
+make up-mdoc      # the same, plus Certify's mock mDoc issuer
+make up-phone     # the same, behind Cloudflare tunnels, for Inji Wallet on a phone or emulator
+make health       # what is up
+make down         # stop (saved runs are kept)
+make help         # every target
+```
+
+Then open <http://localhost:8100>. The targets wrap `docker compose` in [`injistack/`](injistack/README.md), which still works on its own. With the stack up, `make e2e E2E_LIVE=1` runs the browser tests against it.
 
 | Path                                         | What it is                                                                                                                                  |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -169,7 +180,7 @@ Gaps found while running the playground against the pinned stack (Inji Certify `
 | --- | --- | --- | --- |
 | 1 | **Wrong credential type accepted.** The presentation definition asks for one type (`$.vct` / `$.type`); a credential of another type is returned `SUCCESS`. Verify checks the signature but not the input descriptor it asked for. Both `vc+sd-jwt` and `ldp_vc`. | Confirmed (`T-WRONG-TYPE`) | [results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182) |
 | 2 | **SD-JWT key-binding nonce not checked.** A resubmitted `vp_token`, or a new one whose key-binding JWT is signed over an earlier request's nonce, is accepted. For `ldp_vc` the same tampers are refused at `direct_post` with a nonce error, so only SD-JWT is affected. | Confirmed (`T-NONCE-REPLAY`) | [results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182) |
-| 3 | **did:web with a port does not resolve.** `did:web:verify.localhost%3A8443:…` fails with `Invalid URL host: <host>%3A8443`; the resolver does not decode the percent-encoded port that the did:web spec requires. Worked around with portless DIDs behind tunnels. | Confirmed | [injistack](injistack/README.md#3-start-the-stack-and-the-tunnels-every-session) |
+| 3 | **did:web with a port does not resolve.** `did:web:certify.localhost%3A8443` fails with `Invalid URL host: "certify.localhost%3A8443"`; the resolver does not decode the percent-encoded port that the did:web spec requires, so every `ldp_vc` signature check fails. Worked around with a portless issuer DID: `did:web:certify.localhost` locally (resolved inside Docker through the gateway's port 443) and the tunnel hostname behind tunnels. | Confirmed, worked around | [injistack](injistack/README.md#3-start-the-stack-and-the-tunnels-every-session) |
 
 For 1 and 2 it is not yet known whether the cause is Inji Verify or the `vc-verifier` library it uses, or whether Inji Verify `1.0.x` (DCQL) behaves the same. Both need checking before filing issues.
 

@@ -8,6 +8,7 @@
 # Usage (from injistack/):
 #   ./scripts/tunnel-up.sh          # start (replaces any tunnels this script started before)
 #   ./scripts/tunnel-up.sh stop     # stop the tunnels
+#   ./scripts/tunnel-up.sh reset    # stop them and go back to localhost hostnames and DIDs
 #
 # Profiles to bring up default to "wallet"; override with PROFILES="wallet esignet".
 # Tunnels use HTTP/2 to Cloudflare by default: QUIC needs outbound UDP 7844, which some networks
@@ -37,6 +38,29 @@ stop_tunnels() {
 if [[ "${1:-}" == "stop" ]]; then
   stop_tunnels
   info "Tunnels stopped."
+  exit 0
+fi
+
+# Back to localhost: the tunnel hostnames stay in .env and in Certify's credential configurations
+# after the tunnels stop, so headless runs on localhost would sign and resolve with dead hostnames.
+if [[ "${1:-}" == "reset" ]]; then
+  stop_tunnels
+  if [[ -f .env ]]; then
+    cp .env .env.bak
+    sed -i -E '/^(CERTIFY_PUBLIC_HOST|CERTIFY_DID|VERIFY_PUBLIC_HOST|VERIFY_PUBLIC_URL|VERIFY_DID|MOCK_VERIFIER_DID)=/d' .env
+    info ".env: tunnel hostnames removed (previous copy in .env.bak)."
+  fi
+  profile_args=()
+  for p in $PROFILES; do profile_args+=(--profile "$p"); done
+  docker compose "${profile_args[@]}" up -d
+  for (( i=0; i<60; i++ )); do
+    docker compose exec -T database psql -U postgres -d inji_certify -tAc 'SELECT 1' >/dev/null 2>&1 && break
+    sleep 2
+  done
+  # The mock mDoc configuration keeps its own placeholder DID (db/certify-mdoc-config.sql).
+  rows="$(docker compose exec -T database psql -U postgres -d inji_certify -tAc \
+    "UPDATE certify.credential_config SET did_url='did:web:certify.localhost' WHERE credential_format <> 'mso_mdoc' RETURNING 1;" | grep -c 1 || true)"
+  info "Issuer DID set back to did:web:certify.localhost ($rows credential configurations)."
   exit 0
 fi
 
