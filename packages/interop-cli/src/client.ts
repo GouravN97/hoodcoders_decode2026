@@ -3,13 +3,17 @@
 import {
   CatalogEntrySchema,
   CredentialConfigurationSummarySchema,
+  ExchangeSchema,
   RunDetailSchema,
   RunReportSchema,
+  RunSummarySchema,
   type CatalogEntry,
   type CredentialConfigurationSummary,
+  type Exchange,
   type RunConfig,
   type RunDetail,
   type RunReport,
+  type RunSummary,
 } from '@playground/shared';
 import { z } from 'zod';
 
@@ -85,6 +89,17 @@ export class BffClient {
 
   report(id: string): Promise<RunReport> {
     return this.call(RunReportSchema, `/api/runs/${encodeURIComponent(id)}/report`);
+  }
+
+  /** Saved runs, filtered as GET /api/runs filters them (e.g. { verdict: 'FAIL' }). */
+  runs(query: Record<string, string> = {}): Promise<RunSummary[]> {
+    const qs = new URLSearchParams(query).toString();
+    return this.call(z.array(RunSummarySchema), `/api/runs${qs ? `?${qs}` : ''}`);
+  }
+
+  /** The run's captured messages, as the tap stored them (secrets masked). */
+  exchanges(id: string): Promise<Exchange[]> {
+    return this.call(z.array(ExchangeSchema), `/api/runs/${encodeURIComponent(id)}/exchanges`);
   }
 
   async cancel(id: string): Promise<void> {

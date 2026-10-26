@@ -47,6 +47,20 @@ include:
 
 Lanes run one at a time, in file order: the mock wallet is shared, and a `T-NONCE-REPLAY` lane replays an earlier lane's presentation.
 
+## Gap drafts
+
+```sh
+pnpm --filter @playground/interop-cli start gaps --bff http://localhost:8101 --out ../../out/gaps
+```
+
+`gaps` reads every saved run with verdict Fail and groups the runs by gap signature (plan §16.2):
+
+- a tamper the verifier accepted: that verifier version plus the tamper, across formats
+- a wrong verdict: that verifier version plus the format and the expected and observed results
+- any other failure: the failing step plus the error, with hosts, ids and numbers normalized
+
+Signatures that point at tunnels, DNS or timeouts are **infrastructure**, and a holder who declined is **holder**. Both are listed in `README.md` but get no draft. Every **interop** signature gets a GitHub issue draft: environment, a one-lane matrix that reproduces it with `make interop`, expected and actual results, and evidence from the Protocol Tap. The evidence includes the decoded request object, the presentation with its key-binding JWT payload, and the verifier's answer. The tap has already masked secrets. Nothing is sent to GitHub: a person reviews each draft, checks the target repository for duplicates and files it. [`docs/gaps`](../../docs/gaps/README.md) has the reviewed results.
+
 ## Nightly
 
 [`.github/workflows/nightly-interop.yml`](../../.github/workflows/nightly-interop.yml) runs `make up PROFILES=mdoc` and then `make interop TRIGGER=nightly` every night at 02:00 IST, and on demand. It posts `summary.md` as the job summary and uploads the three files with the matrix and the stack logs. On `main` it also pushes the summary and matrix to the `interop-reports` branch. The suite runs against the pinned local stack. To run it against another deployment of the playground, for example one wired to the MOSIP Collab environment, pass that BFF with `--bff`.

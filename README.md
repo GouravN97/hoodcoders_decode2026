@@ -174,6 +174,8 @@ Then open <http://localhost:8100>. The targets wrap `docker compose` in [`injist
 
 - [Mandatory tasks explained](docs/mandatory-tasks.md) — what we are building, task by task, in plain language
 - [Implementation plan](docs/implementation-plan.md) — architecture, components, flows, infrastructure and schedule
+- [Interoperability gaps](docs/gaps/README.md) — every gap found, what is already known upstream, and issue drafts to file
+- [Reports](reports/README.md) — the nightly interop suite and the interoperability matrix from a live run
 
 ## License
 
@@ -181,7 +183,7 @@ Then open <http://localhost:8100>. The targets wrap `docker compose` in [`injist
 
 ## Interoperability gaps found
 
-Gaps found while running the playground against the pinned stack (Inji Certify `0.14.0`, Inji Verify `0.18.2`, Inji Wallet `1.0.0-alpha.1`, Mimoto `0.21.0`, eSignet `2.0.0`). **Confirmed** means reproduced in a live run, with the messages captured. **Open** means seen but not yet root-caused, or predicted but not yet tested. None has been filed upstream yet.
+Gaps found while running the playground against the pinned stack (Inji Certify `0.14.0`, Inji Verify `0.18.2`, Inji Wallet `1.0.0-alpha.1`, Mimoto `0.21.0`, eSignet `2.0.0`). **Confirmed** means reproduced in a live run, with the messages captured. **Open** means seen but not yet root-caused, or predicted but not yet tested. None has been filed upstream yet: [docs/gaps](docs/gaps/README.md) lists what is already known upstream (gaps 1, 2, 10 and 12 are) and has an issue draft for each new one.
 
 ### Inji Verify `0.18.2`
 

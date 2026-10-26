@@ -92,13 +92,16 @@ wait: ## Wait until the BFF reports every required service up
 	done; echo "Stack is up."
 
 # ── Interop suite and reports ────────────────────────────────────────────────
-.PHONY: interop matrix
+.PHONY: interop gaps matrix
 MATRIX  ?= matrices/nightly.yaml
 OUT     ?= out/interop
 TRIGGER ?= cli
 interop: ## Run the headless interop suite (MATRIX=…) against the running stack; writes $(OUT)/summary.md, junit.xml, results.json
 	pnpm --filter @playground/interop-cli start run --headless-only --matrix $(abspath $(MATRIX)) \
 	  --bff $(BFF_URL) --out $(abspath $(OUT)) --trigger $(TRIGGER)
+
+gaps: ## Group the saved failed runs into gap signatures and draft GitHub issues in out/gaps/ (nothing is filed)
+	pnpm --filter @playground/interop-cli start gaps --bff $(BFF_URL) --out $(abspath out/gaps)
 
 matrix: ## Save the interoperability matrix of every saved run to reports/interop-matrix.md
 	@mkdir -p reports

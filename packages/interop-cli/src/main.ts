@@ -6,10 +6,12 @@
 //   interop run --matrix matrices/nightly.yaml [--bff http://localhost:8101] [--out reports]
 //               [--headless-only] [--trigger cli|nightly] [--lane-timeout 300] [--only <text>]
 //   interop list --matrix matrices/nightly.yaml
+//   interop gaps [--bff …] [--out out/gaps]   GitHub issue drafts for the saved failed runs (plan §16.2)
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { BffClient, type RunTrigger } from './client.ts';
+import { clusterFailures, renderGapIndex, renderIssueDraft, slug } from './gaps.ts';
 import { expandMatrix, loadMatrix } from './matrix.ts';
 import { renderJunit, renderMarkdown, suitePassed, tally } from './render.ts';
 import { runMatrix } from './runner.ts';
@@ -17,7 +19,8 @@ import { runMatrix } from './runner.ts';
 const USAGE = `Usage:
   interop run  --matrix <file> [--bff <url>] [--out <dir>] [--headless-only] [--trigger cli|nightly]
                [--lane-timeout <seconds>] [--only <text>]
-  interop list --matrix <file> [--only <text>]`;
+  interop list --matrix <file> [--only <text>]
+  interop gaps [--bff <url>] [--out <dir>]`;
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
@@ -34,16 +37,35 @@ const { positionals, values } = parseArgs({
 });
 
 const command = positionals[0];
-if (values.help || !command || !values.matrix || !['run', 'list'].includes(command)) {
+if (values.help || !command || !['run', 'list', 'gaps'].includes(command) || (command !== 'gaps' && !values.matrix)) {
   console.log(USAGE);
   process.exit(values.help ? 0 : 2);
+}
+
+if (command === 'gaps') {
+  const bff = new BffClient(values.bff);
+  const failed = await bff.runs({ verdict: 'FAIL' });
+  const reports = [];
+  for (const r of failed) reports.push(await bff.report(r.id));
+  const clusters = clusterFailures(reports);
+  const out = values.out === 'reports' ? 'out/gaps' : values.out;
+  await mkdir(out, { recursive: true });
+  await writeFile(join(out, 'README.md'), renderGapIndex(clusters, new Date().toISOString()));
+  for (const c of clusters.filter((x) => x.category === 'interop')) {
+    const exchanges = await bff.exchanges(c.runs[0]!.runId).catch(() => []);
+    await writeFile(join(out, `${slug(c)}.md`), renderIssueDraft(c, exchanges));
+    console.log(`${String(c.runs.length).padStart(3)} run(s)  ${c.target.padEnd(18)} ${c.title}`);
+  }
+  const other = clusters.filter((x) => x.category !== 'interop');
+  console.log(`\n${clusters.length - other.length} interop gap drafts, ${other.length} infrastructure / holder signatures (listed only). Wrote ${join(out, 'README.md')}`);
+  process.exit(0);
 }
 if (values.trigger !== 'cli' && values.trigger !== 'nightly') {
   console.error('--trigger must be cli or nightly');
   process.exit(2);
 }
 
-const file = loadMatrix(await readFile(values.matrix, 'utf8'));
+const file = loadMatrix(await readFile(values.matrix!, 'utf8'));
 let lanes = expandMatrix(file);
 if (values.only) lanes = lanes.filter((l) => l.key.includes(values.only!));
 
@@ -73,7 +95,7 @@ await writeFile(join(values.out, 'summary.md'), renderMarkdown(results, meta));
 await writeFile(join(values.out, 'junit.xml'), renderJunit(results, meta));
 await writeFile(
   join(values.out, 'results.json'),
-  `${JSON.stringify({ ...meta, matrixFile: basename(values.matrix), lanes: results }, null, 2)}\n`,
+  `${JSON.stringify({ ...meta, matrixFile: basename(values.matrix!), lanes: results }, null, 2)}\n`,
 );
 
 const t = tally(results);
