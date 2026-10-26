@@ -35,6 +35,7 @@ Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji V
 | Same-device link | On a phone-sized or touch screen the delivery panel shows **Open in wallet** for `openid4vp://` and `openid-credential-offer://` links, with the QR code behind a toggle. Checked on the Android emulator (25 October 2026): from emulator Chrome, the button opened Inji Wallet `1.0.0-alpha.1` with the offer. An emulator result, not a physical phone; the rest of that run was not completed (it needs the tunnels) |
 | Digital Credentials API | The mock verifier accepts an unsigned OpenID4VP 1.0 / DCQL request over `navigator.credentials.get`. **No wallet in the catalog advertises it** (Inji Wallet `1.0.0-alpha.1` has no Credential Manager provider), so it is tested only with a stubbed browser API in the UI, and live on the server side with a script standing in for the browser's wallet: a real Certify SD-JWT bound to the page origin is Valid, one bound to another origin fails holder binding |
 | Second opinion (`VER-002`) | After each verification the other verifier checks the presented credential on its own. Inji Verify and the mock verifier agreed on every comparable live run (valid, broken signature, edited claim, expired) |
+| Interop suite and nightly CI | `make interop` runs [`matrices/nightly.yaml`](matrices/nightly.yaml) through the playground with [`interop-cli`](packages/interop-cli/README.md): 24 headless lanes across Inji Verify, the mock verifier and mDoc. On 26 October 2026 against the local stack: 21 pass and 3 known gaps (gaps 1 and 2) ([summary](reports/interop-suite.md)). A nightly GitHub Actions workflow runs the same suite and publishes the matrix |
 | Replay & tamper (mock wallet → Inji Verify 0.18.2) | Run live for both formats. Broken signature and edited claim are rejected (**INVALID**). Inji Verify **accepts** a wrong credential type for both formats, and, for SD-JWT only, a replayed `vp_token` or one bound to an old nonce ([results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182)) |
 
 The reproducible passing demonstrations are SD-JWT and JSON-LD with the mock
@@ -109,6 +110,12 @@ The **Matrix** tab is the interoperability matrix deliverable: the latest run of
 
 With `pnpm dev` the history starts with a few runs marked **sample**, generated in the browser so the page is not empty; they are labelled everywhere and are not results.
 
+### Interop suite and nightly CI
+
+`make interop` runs the playground as a test suite: [`interop-cli`](packages/interop-cli/README.md) reads a matrix file ([`matrices/nightly.yaml`](matrices/nightly.yaml), [`matrices/demo.yaml`](matrices/demo.yaml)), starts one run per issuer → wallet → verifier × format lane through the BFF, and writes a Markdown summary, JUnit XML and every run report to `out/interop/`. Suite runs are ordinary runs, so they show in History and the matrix with their protocol messages. A lane can name a documented gap (`knownGap`): it is reported but does not fail the suite, and if it starts passing it is flagged so the gap can be closed.
+
+[`.github/workflows/nightly-interop.yml`](.github/workflows/nightly-interop.yml) runs it every night: `make up PROFILES=mdoc`, `make interop`, then the summary as the job summary, the JUnit report, the matrix and the stack logs as an artifact, and on `main` the summary and matrix pushed to the `interop-reports` branch. [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs typecheck, lint and unit tests on every pull request. The latest local results are in [`reports/`](reports/README.md).
+
 ### Test Hovi or Animo issuance in Inji Wallet
 
 1. Start the live Compose stack and open <http://localhost:8100>.
@@ -158,6 +165,8 @@ Then open <http://localhost:8100>. The targets wrap `docker compose` in [`injist
 | [`apps/mock-verifier`](apps/mock-verifier)   | Non-Inji OpenID4VP draft-23 verifier that reports every check it makes ([details](apps/mock-verifier/README.md))                           |
 | [`packages/protocol-core`](packages/protocol-core) | SD-JWT VC verification, `did:web` / `did:jwk` resolution and Presentation Exchange matching, shared by the mock wallet and mock verifier |
 | [`injistack/`](injistack)                    | Docker Compose sandbox with the Inji stack and the playground ([details](injistack/README.md))                                              |
+| [`packages/interop-cli`](packages/interop-cli) | Runs a matrix of lanes through the BFF as a test suite; Markdown, JUnit and JSON results ([details](packages/interop-cli/README.md)) |
+| [`matrices/`](matrices)                      | Lane matrices for `make interop`: `nightly.yaml` (every headless lane), `demo.yaml`                                                         |
 | [`packages/shared`](packages/shared)         | Domain types, zod schemas, REST and WebSocket contracts shared with the BFF                                                                 |
 | [`catalog/`](catalog)                        | One YAML file per issuer / wallet / verifier; adding a product = adding a file                                                              |
 

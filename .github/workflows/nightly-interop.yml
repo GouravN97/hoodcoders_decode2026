@@ -1,0 +1,93 @@
+# Nightly interop suite (bonus B1, plan §16.1): brings up the pinned Inji stack with `make up`,
+# runs matrices/nightly.yaml through the playground with interop-cli, and posts the results as the
+# job summary, a JUnit report and an artifact. On main, the matrix is also pushed to the
+# `interop-reports` branch so there is one stable link to the latest compatibility matrix.
+name: nightly-interop
+on:
+  schedule:
+    - cron: "30 20 * * *" # 02:00 IST
+  workflow_dispatch:
+    inputs:
+      matrix:
+        description: Matrix file
+        default: matrices/nightly.yaml
+      profiles:
+        description: Extra Compose profiles (mdoc runs the mock mDoc lanes)
+        default: mdoc
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly-interop
+  cancel-in-progress: false
+
+jobs:
+  interop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      MATRIX: ${{ inputs.matrix || 'matrices/nightly.yaml' }}
+      PROFILES: ${{ inputs.profiles || 'mdoc' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Start the stack
+        run: make up PROFILES="$PROFILES" WAIT_SECS=900
+
+      - name: Run the interop suite
+        run: make interop MATRIX="$MATRIX" OUT=out/interop TRIGGER=nightly
+
+      - name: Interoperability matrix
+        if: always()
+        run: |
+          mkdir -p out/interop
+          curl -fsS http://localhost:8101/api/matrix.md -o out/interop/interop-matrix.md || true
+          curl -fsS "http://localhost:8101/api/matrix.md?includeNegative=true" -o out/interop/interop-matrix-with-negative.md || true
+          cat out/interop/summary.md >> "$GITHUB_STEP_SUMMARY" || echo "No suite summary (the suite did not run)." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Stack logs
+        if: always()
+        run: |
+          make health > out/interop/health.txt 2>&1 || true
+          docker compose --project-directory injistack -f injistack/docker-compose.yml --profile mdoc logs --no-color > out/interop/compose.log 2>&1 || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: interop-results
+          path: out/interop/
+          retention-days: 30
+
+      - name: Publish to the interop-reports branch
+        if: always() && github.ref == 'refs/heads/main' && hashFiles('out/interop/summary.md') != ''
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          src="$PWD/out/interop"
+          dir=$(mktemp -d) && cd "$dir"
+          git init -q
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git fetch -q --depth=1 origin interop-reports; then
+            git checkout -q -b interop-reports FETCH_HEAD
+          else
+            git checkout -q --orphan interop-reports
+          fi
+          cp "$src/summary.md" "$src/interop-matrix.md" "$src/results.json" .
+          printf '# Nightly interop results\n\nLatest run: %s ([workflow run](%s))\n\n- [Suite summary](summary.md)\n- [Interoperability matrix](interop-matrix.md)\n- [Every run report](results.json)\n' \
+            "$(date -u +%FT%TZ)" "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" > README.md
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -qm "Nightly interop results $(date -u +%F)" || exit 0
+          git push -q origin HEAD:interop-reports
+
+      - name: Stop the stack
+        if: always()
+        run: make down

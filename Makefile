@@ -4,6 +4,7 @@
 #
 #   make up         Inji Certify, Inji Verify, the playground, mock wallet and mock verifier
 #   make up-phone   the same, plus Cloudflare tunnels so Inji Wallet on a phone or emulator can reach it
+#   make interop    run the headless interop suite against the running stack (matrices/nightly.yaml)
 #   make matrix     save the interoperability matrix of every saved run to reports/
 #   make help       every target
 
@@ -90,8 +91,15 @@ wait: ## Wait until the BFF reports every required service up
 	  sleep 5; \
 	done; echo "Stack is up."
 
-# ── Reports ──────────────────────────────────────────────────────────────────
-.PHONY: matrix
+# ── Interop suite and reports ────────────────────────────────────────────────
+.PHONY: interop matrix
+MATRIX  ?= matrices/nightly.yaml
+OUT     ?= out/interop
+TRIGGER ?= cli
+interop: ## Run the headless interop suite (MATRIX=…) against the running stack; writes $(OUT)/summary.md, junit.xml, results.json
+	pnpm --filter @playground/interop-cli start run --headless-only --matrix $(abspath $(MATRIX)) \
+	  --bff $(BFF_URL) --out $(abspath $(OUT)) --trigger $(TRIGGER)
+
 matrix: ## Save the interoperability matrix of every saved run to reports/interop-matrix.md
 	@mkdir -p reports
 	curl -fsS "$(BFF_URL)/api/matrix.md" -o reports/interop-matrix.md

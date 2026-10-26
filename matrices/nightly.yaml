@@ -1,0 +1,51 @@
+# Nightly interop suite (bonus B1): every headless lane of the local stack, run by
+# .github/workflows/nightly-interop.yml and `make interop`. Format: plan §14.3, parsed by
+# packages/interop-cli/src/matrix.ts. Lanes run in this order; a T-NONCE-REPLAY lane replays the
+# presentation of an earlier valid lane of the same format, so keep the valid lanes first.
+name: nightly
+description: Inji Certify and the mock mDoc issuer, through the mock wallet, to Inji Verify and the mock verifier.
+defaults:
+  mode: full
+  grantType: pre-authorized_code
+  presentationFlow: cross-device-qr
+  expectedOutcome: VALID
+  labels: { suite: nightly }
+
+axes:
+  issuer: [inji-certify]
+  wallet: [mock-wallet]
+  verifier: [inji-verify, mock-verifier]
+  format: [vc+sd-jwt, ldp_vc]
+exclude:
+  # The mock verifier checks SD-JWT and mDoc only.
+  - { verifier: mock-verifier, format: ldp_vc }
+
+include:
+  # ── Issue only and present only ──
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: vc+sd-jwt, mode: issue-only }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: ldp_vc, mode: issue-only }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: vc+sd-jwt, mode: present-only }
+
+  # ── Tampers against Inji Verify ──
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: vc+sd-jwt, tamper: { id: T-SIG-FLIP }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: ldp_vc, tamper: { id: T-SIG-FLIP }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: vc+sd-jwt, tamper: { id: T-CLAIM-EDIT }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: ldp_vc, tamper: { id: T-CLAIM-EDIT }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: vc+sd-jwt, tamper: { id: T-EXPIRED }, expectedOutcome: EXPIRED }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: ldp_vc, tamper: { id: T-EXPIRED }, expectedOutcome: EXPIRED }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: vc+sd-jwt, tamper: { id: T-WRONG-TYPE }, expectedOutcome: INVALID, knownGap: "gap 1: Inji Verify accepts a wrong credential type" }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: ldp_vc, tamper: { id: T-WRONG-TYPE }, expectedOutcome: INVALID, knownGap: "gap 1: Inji Verify accepts a wrong credential type" }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: vc+sd-jwt, tamper: { id: T-NONCE-REPLAY }, expectedOutcome: INVALID, knownGap: "gap 2: Inji Verify does not check the SD-JWT key-binding nonce" }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: ldp_vc, tamper: { id: T-NONCE-REPLAY }, expectedOutcome: INVALID }
+
+  # ── Tampers against the mock verifier (SD-JWT) ──
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: mock-verifier, format: vc+sd-jwt, tamper: { id: T-SIG-FLIP }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: mock-verifier, format: vc+sd-jwt, tamper: { id: T-CLAIM-EDIT }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: mock-verifier, format: vc+sd-jwt, tamper: { id: T-WRONG-TYPE }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: mock-verifier, format: vc+sd-jwt, tamper: { id: T-NONCE-REPLAY }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: mock-verifier, format: vc+sd-jwt, tamper: { id: T-EXPIRED }, expectedOutcome: EXPIRED }
+
+  # ── mDoc (needs `make up-mdoc`; skipped when the mock mDoc issuer is not running) ──
+  - { issuer: inji-certify-mdoc, wallet: mock-wallet, verifier: mock-verifier, format: mso_mdoc }
+  - { issuer: inji-certify-mdoc, wallet: mock-wallet, verifier: mock-verifier, format: mso_mdoc, tamper: { id: T-SIG-FLIP }, expectedOutcome: INVALID }
+  - { issuer: inji-certify-mdoc, wallet: mock-wallet, verifier: mock-verifier, format: mso_mdoc, tamper: { id: T-CLAIM-EDIT }, expectedOutcome: INVALID }

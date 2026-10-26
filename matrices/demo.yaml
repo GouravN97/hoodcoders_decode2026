@@ -1,0 +1,14 @@
+# The headless lanes of the demo script (plan §19.2): both formats valid, one tamper, one expired.
+# `make interop MATRIX=matrices/demo.yaml`
+name: demo
+defaults:
+  mode: full
+  grantType: pre-authorized_code
+  presentationFlow: cross-device-qr
+  expectedOutcome: VALID
+  labels: { suite: demo }
+include:
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: vc+sd-jwt }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: ldp_vc }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: vc+sd-jwt, tamper: { id: T-SIG-FLIP }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify, format: ldp_vc, tamper: { id: T-EXPIRED }, expectedOutcome: EXPIRED }
