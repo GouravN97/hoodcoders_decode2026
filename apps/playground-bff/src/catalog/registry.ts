@@ -16,6 +16,7 @@ import {
 import { parse } from 'yaml';
 import { InjiCertifyIssuerAdapter } from '../adapters/inji-certify.ts';
 import { InjiVerifyServiceAdapter } from '../adapters/inji-verify.ts';
+import { InjiVerifyDcqlAdapter } from '../adapters/inji-verify-dcql.ts';
 import { MockVerifierAdapter } from '../adapters/mock-verifier.ts';
 import {
   AnimoPlaygroundIssuerAdapter,
@@ -53,6 +54,7 @@ const FACTORIES: Record<string, Factory> = {
   InjiCertifyIssuerAdapter: (d, s) => new InjiCertifyIssuerAdapter(d, apiUrl(d, s)),
   InjiVerifyServiceAdapter: (d, s) =>
     new InjiVerifyServiceAdapter(d, apiUrl(d, s), s.verifyClientId),
+  InjiVerifyDcqlAdapter: (d, s) => new InjiVerifyDcqlAdapter(d, apiUrl(d, s)),
   MockVerifierAdapter: (d, s) => new MockVerifierAdapter(d, apiUrl(d, s)),
   HoviPlaygroundIssuerAdapter: (d, s) =>
     new HoviPlaygroundIssuerAdapter(d, {

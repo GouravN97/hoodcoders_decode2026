@@ -1,6 +1,8 @@
-// OpenID4VP holder (Presentation Exchange, response_mode direct_post): parse the authorization
-// request, fetch and check the request object, pick a matching credential, build the vp_token and
-// post it to response_uri.
+// OpenID4VP holder (response_mode direct_post): parse the authorization request, fetch and check
+// the request object, pick a matching credential, build the vp_token and post it to response_uri.
+// Two dialects: draft 23 with Presentation Exchange (Inji Verify 0.18, the mock verifier) and 1.0
+// with DCQL (Inji Verify 1.0): a `dcql_query` instead of a `presentation_definition`, a vp_token
+// keyed by credential query id, and no presentation_submission.
 import { randomUUID } from 'node:crypto';
 import {
   describeTamper,
@@ -24,10 +26,19 @@ import {
   type PresentationDefinition,
 } from '@playground/protocol-core';
 import { decodeJwt, decodeProtectedHeader, importJWK, jwtVerify } from 'jose';
-import { call, form, parseJson, USER_AGENT, WalletError } from './http.ts';
+import { call, form, parseJson, routed, USER_AGENT, WalletError } from './http.ts';
 import type { HolderKey } from './keys.ts';
 import { signPresentation } from './ldp.ts';
 import { forgeDisclosure, presentSdJwt, sdJwtClaims, splitSdJwt } from './sdjwt.ts';
+
+/** A DCQL credential query (OpenID4VP 1.0 §6), the parts this wallet reads. */
+export interface DcqlCredentialQuery {
+  id: string;
+  format: string;
+  meta?: { vct_values?: string[]; type_values?: string[][]; doctype_value?: string };
+  claims?: Array<{ id?: string; path: Array<string | number | null>; values?: unknown[] }>;
+  require_cryptographic_holder_binding?: boolean;
+}
 
 export interface AuthorizationRequest {
   client_id: string;
@@ -35,8 +46,12 @@ export interface AuthorizationRequest {
   response_mode?: string;
   nonce: string;
   state?: string;
-  presentation_definition: PresentationDefinition;
+  presentation_definition?: PresentationDefinition;
+  dcql_query?: { credentials: DcqlCredentialQuery[] };
 }
+
+/** OpenID4VP 1.0 client identifier prefix for a DID: `decentralized_identifier:did:web:…`. */
+export const didOfClientId = (clientId: string) => clientId.replace(/^decentralized_identifier:/, '');
 
 const SD_JWT_FORMATS = ['vc+sd-jwt', 'dc+sd-jwt'];
 
@@ -52,16 +67,17 @@ async function checkRequestObject(
   clientId: string,
   warnings: string[],
 ): Promise<void> {
-  if (!clientId.startsWith('did:web:')) {
+  const did = didOfClientId(clientId);
+  if (!did.startsWith('did:web:')) {
     warnings.push(`Request object signature not checked: client_id ${clientId} is not did:web`);
     return;
   }
   const { kid, alg } = decodeProtectedHeader(jwt);
-  if (kid && !kid.startsWith(`${clientId}#`)) {
+  if (kid && !kid.startsWith(`${did}#`)) {
     warnings.push(`Request object kid ${kid} is not a key of client_id ${clientId}`);
   }
   try {
-    const res = await fetch(didWebUrl(clientId), {
+    const res = await fetch(routed(didWebUrl(did)), {
       headers: { 'user-agent': USER_AGENT },
       signal: AbortSignal.timeout(10_000),
     });
@@ -83,7 +99,7 @@ async function checkRequestObject(
     await jwtVerify(jwt, await importJWK(jwk as never, alg ?? 'EdDSA'));
   } catch (e) {
     warnings.push(
-      `Request object signature not verified via ${didWebUrl(clientId)}: ${(e as Error).message}`,
+      `Request object signature not verified via ${didWebUrl(did)}: ${(e as Error).message}`,
     );
   }
 }
@@ -131,13 +147,15 @@ export async function resolveAuthorizationRequest(
     return request;
   }
   const pd = params.get('presentation_definition');
+  const dcql = params.get('dcql_query');
   return {
     client_id: params.get('client_id') ?? '',
     response_uri: params.get('response_uri') ?? '',
     response_mode: params.get('response_mode') ?? undefined,
     nonce: params.get('nonce') ?? '',
     state: params.get('state') ?? undefined,
-    presentation_definition: pd ? (JSON.parse(pd) as PresentationDefinition) : (undefined as never),
+    ...(pd ? { presentation_definition: JSON.parse(pd) as PresentationDefinition } : {}),
+    ...(dcql ? { dcql_query: JSON.parse(dcql) as AuthorizationRequest['dcql_query'] } : {}),
   };
 }
 
@@ -156,6 +174,34 @@ export function matches(c: HeldCredential, d: InputDescriptor): boolean {
   if (c.format === 'mso_mdoc' && claims.docType !== d.id) return false;
   return formatAllowed(d, c.format) && unmetFields(claims, d).length === 0;
 }
+
+/** DCQL type match: exact, or a compact type against an expanded IRI's fragment (as Inji Verify 1.0 does). */
+const typeMatches = (held: string, wanted: string) =>
+  held === wanted || wanted.endsWith(`#${held}`) || held.endsWith(`#${wanted}`);
+
+const typesOf = (claims: Record<string, unknown>) =>
+  (Array.isArray(claims.type) ? claims.type : [claims.type]).filter((t): t is string => typeof t === 'string');
+
+/** Whether a held credential satisfies a DCQL credential query: format, vct / type values, claim paths. */
+export function dcqlMatches(c: HeldCredential, q: DcqlCredentialQuery): boolean {
+  const sameFormat = q.format === c.format || (SD_JWT_FORMATS.includes(q.format) && SD_JWT_FORMATS.includes(c.format));
+  if (!sameFormat) return false;
+  const claims = claimsOf(c);
+  if (q.meta?.vct_values && !q.meta.vct_values.includes(String(claims.vct))) return false;
+  if (q.meta?.type_values) {
+    const held = typesOf(claims);
+    if (!q.meta.type_values.some((option) => option.every((t) => held.some((h) => typeMatches(h, t))))) return false;
+  }
+  const subject = c.format === 'ldp_vc' ? ((claims.credentialSubject ?? {}) as Record<string, unknown>) : claims;
+  return (q.claims ?? []).every((cl) => {
+    const first = cl.path[0];
+    return typeof first === 'string' && first in subject;
+  });
+}
+
+/** Claim names a DCQL query asks for (top-level SD-JWT claims); all of them when it names none. */
+const dcqlRequestedClaims = (q: DcqlCredentialQuery) =>
+  q.claims?.length ? q.claims.map((cl) => String(cl.path[0])) : undefined;
 
 /** Claim names a `limit_disclosure: required` descriptor asks for (top-level SD-JWT claims). */
 function requestedClaims(d: InputDescriptor): string[] | undefined {
@@ -249,13 +295,16 @@ export async function respond(
       400,
     );
   }
+  const dcqlQuery = request.dcql_query?.credentials?.[0];
   const descriptor = request.presentation_definition?.input_descriptors?.[0];
-  if (!descriptor)
+  if (!descriptor && !dcqlQuery)
     throw new WalletError(
       ProtocolStep.VP_REQUEST_OBJECT,
-      'Request has no presentation_definition input descriptor',
+      'Request has neither a presentation_definition input descriptor nor a dcql_query',
       400,
     );
+  const queryName = dcqlQuery ? `DCQL credential query ${dcqlQuery.id}` : `input descriptor ${descriptor!.id}`;
+  const satisfies = (c: HeldCredential) => (dcqlQuery ? dcqlMatches(c, dcqlQuery) : matches(c, descriptor!));
 
   const candidates = req.credentialId
     ? credentials.filter((c) => c.id === req.credentialId)
@@ -264,7 +313,7 @@ export async function respond(
   const credential =
     req.tamper === 'T-WRONG-TYPE'
       ? candidates.at(-1)
-      : [...candidates].reverse().find((c) => matches(c, descriptor));
+      : [...candidates].reverse().find(satisfies);
   const state: Record<string, string> = request.state ? { state: request.state } : {};
   if (req.tamper === 'T-NONCE-REPLAY' && !req.replay) {
     throw new WalletError('tamper', 'T-NONCE-REPLAY needs an earlier vp_token or nonce to replay', 400);
@@ -316,14 +365,16 @@ export async function respond(
     ).catch((e: unknown) => e);
     throw new WalletError(
       'oid4vp.match',
-      `No held credential matches input descriptor ${descriptor.id}${res instanceof Error ? '' : ' (error sent to the verifier)'}`,
+      `No held credential matches ${queryName}${res instanceof Error ? '' : ' (error sent to the verifier)'}`,
       409,
     );
   }
 
   // mDoc elements the presentation discloses (all when the request does not limit disclosure).
+  if (dcqlQuery && credential.format === 'mso_mdoc')
+    throw new WalletError(step, 'mso_mdoc over DCQL is not implemented in this wallet', 501);
   const mdocDisclosed =
-    credential.format === 'mso_mdoc' && descriptor.constraints?.limit_disclosure === 'required'
+    credential.format === 'mso_mdoc' && descriptor?.constraints?.limit_disclosure === 'required'
       ? requestedElements(descriptor.constraints.fields ?? [])
       : undefined;
   let raw = credential.raw;
@@ -350,7 +401,7 @@ export async function respond(
       changes: [
         {
           path: 'credential type',
-          before: `${requestedType(descriptor) ?? 'see input descriptor'} (asked for)`,
+          before: `${(dcqlQuery ? dcqlRequestedType(dcqlQuery) : requestedType(descriptor!)) ?? 'see the request'} (asked for)`,
           after: `${presentedType(credential) ?? credential.credentialConfigurationId} (presented)`,
         },
       ],
@@ -383,7 +434,7 @@ export async function respond(
           holder,
           nonce,
           audience: request.client_id,
-          disclose: requestedClaims(descriptor),
+          disclose: dcqlQuery ? dcqlRequestedClaims(dcqlQuery) : requestedClaims(descriptor!),
         })
       : JSON.stringify(
           await signPresentation({
@@ -397,25 +448,31 @@ export async function respond(
     throw new WalletError(step, `Could not build the vp_token: ${(e as Error).message}`, 500);
   }
 
-  const submission = {
-    id: randomUUID(),
-    definition_id: request.presentation_definition.id,
-    descriptor_map: [
-      isSdJwt || isMdoc
-        ? { id: descriptor.id, format: credential.format, path: '$' }
-        : {
-            id: descriptor.id,
-            format: 'ldp_vp',
-            path: '$',
-            path_nested: { id: descriptor.id, format: 'ldp_vc', path: '$.verifiableCredential[0]' },
-          },
-    ],
-  };
-  const res = await submit(
-    request.response_uri,
-    { vp_token: vpToken, presentation_submission: JSON.stringify(submission), ...state },
-    Boolean(req.tamper),
-  );
+  let fields: Record<string, string>;
+  if (dcqlQuery) {
+    // OpenID4VP 1.0: one array of presentations per credential query id, no presentation_submission.
+    fields = {
+      vp_token: JSON.stringify({ [dcqlQuery.id]: [isSdJwt ? vpToken : (JSON.parse(vpToken) as object)] }),
+      ...state,
+    };
+  } else {
+    const submission = {
+      id: randomUUID(),
+      definition_id: request.presentation_definition!.id,
+      descriptor_map: [
+        isSdJwt || isMdoc
+          ? { id: descriptor!.id, format: credential.format, path: '$' }
+          : {
+              id: descriptor!.id,
+              format: 'ldp_vp',
+              path: '$',
+              path_nested: { id: descriptor!.id, format: 'ldp_vc', path: '$.verifiableCredential[0]' },
+            },
+      ],
+    };
+    fields = { vp_token: vpToken, presentation_submission: JSON.stringify(submission), ...state };
+  }
+  const res = await submit(request.response_uri, fields, Boolean(req.tamper));
   return {
     credentialId: credential.id,
     responseUri: request.response_uri,
@@ -442,6 +499,11 @@ export function requestedType(d: InputDescriptor): string | undefined {
     if (v !== undefined) return String(v);
   }
   return undefined;
+}
+
+/** The type a DCQL credential query asks for (`vct_values` or the last of the first `type_values`). */
+export function dcqlRequestedType(q: DcqlCredentialQuery): string | undefined {
+  return q.meta?.vct_values?.[0] ?? q.meta?.type_values?.[0]?.at(-1) ?? q.meta?.doctype_value;
 }
 
 /** `vct` of an SD-JWT, or the most specific `type` of a JSON-LD credential. */

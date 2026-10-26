@@ -75,6 +75,14 @@ const TAPS = [
     upstream: env.TAP_UPSTREAM_MOCK_VERIFIER ?? '',
     publicOrigin: env.VERIFY_PUBLIC_URL,
   },
+  // A remote Inji Verify 1.0 (the MOSIP Collab sandbox): the BFF's calls and, with the mock wallet's
+  // WALLET_ROUTES, the wallet's calls pass through this listener on their way to the public service.
+  {
+    component: 'inji-verify-collab',
+    port: Number(env.TAP_VERIFY_COLLAB_PORT ?? 3006),
+    upstream: env.TAP_UPSTREAM_VERIFY_COLLAB ?? '',
+    publicOrigin: env.TAP_UPSTREAM_VERIFY_COLLAB,
+  },
   // Certify mock mDoc (second Certify) is published as /mdoc/… on the Certify host.
   {
     component: 'certify-mdoc',
@@ -95,6 +103,7 @@ const registry = new ImplementationRegistry(CATALOG_DIR, {
     'inji-certify-mdoc': tapUrl('certify-mdoc'),
     'inji-verify': env.VERIFY_API_URL || tapUrl('verify'),
     'mock-verifier': env.MOCK_VERIFIER_API_URL || tapUrl('mock-verifier'),
+    'inji-verify-collab': tapUrl('inji-verify-collab'),
   },
   verifyClientId: env.VERIFY_CLIENT_ID ?? 'did:web:verify.localhost%3A8443:v1:verify',
   // Optional stable overrides. Without them the Hovi adapter discovers the public browser-client

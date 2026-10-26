@@ -18,6 +18,7 @@ describe('selector rules', () => {
       'inji-certify',
       'inji-certify-mdoc',
       'inji-verify',
+      'inji-verify-collab',
       'inji-wallet-mobile',
       'inji-web',
       'mock-verifier',

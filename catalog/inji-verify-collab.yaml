@@ -1,0 +1,34 @@
+# Inji Verify in the MOSIP Collab sandbox: the 1.0 API (OpenID4VP 1.0 with DCQL), on the internet.
+# The BFF reaches it through its Protocol Tap listener (TAP_UPSTREAM_VERIFY_COLLAB); the mock wallet
+# too, with WALLET_ROUTES. Collab's Verify must resolve the issuer: SD-JWT from the local Certify
+# verifies through its x5c certificate, ldp_vc needs a public did:web (make up-phone).
+id: inji-verify-collab
+role: verifier
+displayName: Inji Verify (MOSIP Collab)
+description: "MOSIP's hosted Inji Verify sandbox. OpenID4VP 1.0 with DCQL requests; needs internet access."
+vendor: inji
+adapter: InjiVerifyDcqlAdapter
+publicUrl: ${VERIFY_COLLAB_URL:-https://injiverify.collab.mosip.net}
+internalUrl: ${VERIFY_COLLAB_URL:-https://injiverify.collab.mosip.net}
+clientId: ${VERIFY_COLLAB_CLIENT_ID:-decentralized_identifier:did:web:injiverify.collab.mosip.net:v1:verify}
+# A remote sandbox: never sent other verifiers' credentials for a second opinion.
+secondOpinion: false
+# Collab does not publish its version; the API is the 1.0 one (/v2/vp-request, DCQL).
+versionProbe:
+  kind: static
+  value: collab
+capabilities:
+  formats: [vc+sd-jwt, dc+sd-jwt, ldp_vc]
+  proofSuites: [Ed25519Signature2020, ES256, RsaSignature2018]
+  vpProfiles: [oid4vp-1.0]
+  queryLanguages: [dcql]
+  responseModes: [direct_post]
+  clientIdSchemes: [did]
+  presentationFlows: [cross-device-qr, same-device-deeplink]
+  deliveryChannels: [qr, deeplink]
+  automation: headless
+  supportsTamper: false
+notes: >-
+  The MOSIP Collab sandbox, a shared public service. Credentials presented to it leave this machine;
+  the playground only uses mock identity data. ldp_vc from the local Certify needs the stack behind
+  tunnels (make up-phone), because Collab's Verify resolves the issuer's did:web over the internet.

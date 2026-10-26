@@ -933,7 +933,12 @@ class RunSimulation {
   private async secondOpinion(outcome: VerificationOutcome, stages: VerificationStage[] | undefined): Promise<SecondOpinion | undefined> {
     const { fx, run } = this;
     const other = mockCatalog.find(
-      (c) => c.role === 'verifier' && c.id !== run.config.verifierId && c.health === 'up' && c.capabilities.formats.includes(run.config.format),
+      (c) =>
+        c.role === 'verifier' &&
+        c.id !== run.config.verifierId &&
+        c.health === 'up' &&
+        c.secondOpinion !== false &&
+        c.capabilities.formats.includes(run.config.format),
     );
     const credential = credentialFromVpToken(fx.vpToken);
     if (!other || !credential || outcome === 'ERROR') return undefined;

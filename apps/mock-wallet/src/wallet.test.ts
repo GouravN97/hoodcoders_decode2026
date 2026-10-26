@@ -16,6 +16,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createHolderKey, type HolderKey } from './keys.ts';
 import { signPresentation } from './ldp.ts';
 import {
+  dcqlMatches,
+  dcqlRequestedType,
   didWebUrl,
   matches,
   readPath,
@@ -364,5 +366,84 @@ describe('respond with a tamper', () => {
         constraints: { fields: [{ path: ['$.type'], filter: { pattern: 'FarmerCredential' } }] },
       }),
     ).toBe('FarmerCredential');
+  });
+});
+
+describe('OpenID4VP 1.0 with DCQL (Inji Verify 1.0)', () => {
+  const posted: URLSearchParams[] = [];
+  let server: Server;
+  let responseUri = '';
+  beforeAll(async () => {
+    server = createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on('data', (c: Buffer) => chunks.push(c));
+      req.on('end', () => {
+        posted.push(new URLSearchParams(Buffer.concat(chunks).toString('utf8')));
+        res.writeHead(200, { 'content-type': 'application/json' }).end('{}');
+      });
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    responseUri = `http://127.0.0.1:${(server.address() as AddressInfo).port}/v2/vp-submission/direct-post`;
+  });
+  afterAll(() => new Promise<void>((r) => server.close(() => r())));
+
+  const clientId = 'decentralized_identifier:did:web:verify.test:v1:verify';
+  const request = (meta: object, format = 'vc+sd-jwt') =>
+    `openid4vp://authorize?${new URLSearchParams({
+      client_id: clientId,
+      response_type: 'vp_token',
+      response_mode: 'direct_post',
+      response_uri: responseUri,
+      nonce: 'nonce-0123456789abcdef',
+      state: 'req_1',
+      dcql_query: JSON.stringify({ credentials: [{ id: 'farmer', format, meta }] }),
+    })}`;
+
+  it('answers with a vp_token keyed by the credential query id, bound to the prefixed client_id', async () => {
+    const raw = await issueSdJwt({ fullName: 'A', district: 'B' });
+    await respond(
+      { authorizationRequestUri: request({ vct_values: ['FarmerCredentialSdJwt'] }) },
+      holder,
+      [held('vc+sd-jwt', raw)],
+    );
+    const form = posted.at(-1)!;
+    expect(form.get('presentation_submission')).toBeNull();
+    expect(form.get('state')).toBe('req_1');
+    const token = JSON.parse(form.get('vp_token')!) as Record<string, string[]>;
+    expect(Object.keys(token)).toEqual(['farmer']);
+    const kb = decodeJwt(token.farmer![0]!.split('~').at(-1)!);
+    expect(kb).toMatchObject({ aud: clientId, nonce: 'nonce-0123456789abcdef' });
+    expect(nonceOfVpToken(form.get('vp_token')!)).toBe('nonce-0123456789abcdef');
+  });
+
+  it('matches vct_values and type_values (compact or expanded IRI)', async () => {
+    const sd = held('vc+sd-jwt', await issueSdJwt({ fullName: 'A' }));
+    expect(dcqlMatches(sd, { id: 'q', format: 'vc+sd-jwt', meta: { vct_values: ['FarmerCredentialSdJwt'] } })).toBe(true);
+    expect(dcqlMatches(sd, { id: 'q', format: 'dc+sd-jwt', meta: { vct_values: ['FarmerCredentialSdJwt'] } })).toBe(true);
+    expect(dcqlMatches(sd, { id: 'q', format: 'vc+sd-jwt', meta: { vct_values: ['Other'] } })).toBe(false);
+    const ld = held('ldp_vc', JSON.stringify({ type: ['VerifiableCredential', 'FarmerCredential'], credentialSubject: { fullName: 'A' } }));
+    expect(dcqlMatches(ld, { id: 'q', format: 'ldp_vc', meta: { type_values: [['FarmerCredential']] } })).toBe(true);
+    expect(dcqlMatches(ld, { id: 'q', format: 'ldp_vc', meta: { type_values: [['https://x.test/ctx.json#FarmerCredential']] } })).toBe(true);
+    expect(dcqlMatches(ld, { id: 'q', format: 'ldp_vc', meta: { type_values: [['LandCredential']] } })).toBe(false);
+    expect(dcqlMatches(ld, { id: 'q', format: 'ldp_vc', claims: [{ path: ['fullName'] }] })).toBe(true);
+    expect(dcqlMatches(ld, { id: 'q', format: 'ldp_vc', claims: [{ path: ['landArea'] }] })).toBe(false);
+  });
+
+  it('T-WRONG-TYPE presents a credential the DCQL query did not ask for', async () => {
+    const raw = await issueSdJwt({ fullName: 'A' });
+    const res = await respond(
+      { authorizationRequestUri: request({ vct_values: ['PlaygroundWrongTypeCredential'] }), tamper: 'T-WRONG-TYPE' },
+      holder,
+      [held('vc+sd-jwt', raw)],
+    );
+    expect(res.tamperEvidence?.changes[0]).toMatchObject({
+      before: 'PlaygroundWrongTypeCredential (asked for)',
+      after: 'FarmerCredentialSdJwt (presented)',
+    });
+  });
+
+  it('reads the requested type of a DCQL query', () => {
+    expect(dcqlRequestedType({ id: 'q', format: 'vc+sd-jwt', meta: { vct_values: ['A'] } })).toBe('A');
+    expect(dcqlRequestedType({ id: 'q', format: 'ldp_vc', meta: { type_values: [['VerifiableCredential', 'B']] } })).toBe('B');
   });
 });

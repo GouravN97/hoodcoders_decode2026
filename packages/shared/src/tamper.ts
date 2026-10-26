@@ -12,6 +12,7 @@ import {
   type TamperMechanism,
   type VerificationOutcome,
 } from './domain';
+import { firstPresentation } from './vpToken';
 
 export const TamperIdSchema = z.enum([
   'T-SIG-FLIP',
@@ -309,7 +310,7 @@ export function tamperDiffText(evidence: Pick<TamperEvidence, 'summary' | 'chang
  * `challenge` for a JSON-LD presentation.
  */
 export function nonceOfVpToken(vpToken: string): string | undefined {
-  const token = vpToken.trim();
+  const token = firstPresentation(vpToken).trim();
   if (token.startsWith('{')) {
     try {
       const vp = JSON.parse(token) as { proof?: { challenge?: unknown } | Array<{ challenge?: unknown }> };

@@ -52,6 +52,7 @@ Task 1 is the critical path. Tasks 2, 5 and 7 can be built against mocks/fake da
 - Inji repos moved from `github.com/mosip/*` to `github.com/inji/*`.
 - Inji Verify ≤ 0.18.x uses Presentation Exchange; 1.0.x uses DCQL. Inji Wallet's `inji-openid4vp` is documented against draft 23 / `presentation_definition` — test this pairing early.
 - Certify issues SD-JWT as `vc+sd-jwt` only; newer systems use `dc+sd-jwt`.
+- MOSIP Collab's Inji Verify speaks the 1.0 API (DCQL, `/v2/vp-request`, `decentralized_identifier:` client ID): `InjiVerifyDcqlAdapter`, catalog `inji-verify-collab`. It checks SD-JWT via `x5c`, but `ldp_vc` needs a public issuer `did:web` (tunnels).
 - `mosip.certify.domain.url` must equal the tap's public hostname, or signatures, `aud` and did:web break.
 - The phone cannot reach `localhost`: use tunnel mode with stable hostnames. `MIMOTO_HOST` is baked into the Inji Wallet build.
 - Never commit `.env`, `infra/rendered/`, `infra/certs/` or Mimoto key files.

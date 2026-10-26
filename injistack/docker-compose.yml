@@ -13,6 +13,8 @@
 #                        (default did:web:verify.localhost%3A8443:v1:verify)
 #   MOCK_VERIFIER_DID    the mock verifier's did:web client id; must resolve to ${VERIFY_PUBLIC_URL}/mock-verifier/did.json
 #                        (default derived from VERIFY_PUBLIC_URL; tunnel-up.sh sets a portless one)
+#   VERIFY_COLLAB_URL    MOSIP Collab's Inji Verify for the inji-verify-collab verifier (default
+#                        https://injiverify.collab.mosip.net)
 #   PLAYGROUND_UI_MOCKS  true builds the UI with in-browser mocks instead of the BFF (default false)
 # Java services trust the local CA made by the certs service through this truststore.
 x-local-ca-java: &local-ca-java "-Djavax.net.ssl.trustStore=/certs/truststore.p12 -Djavax.net.ssl.trustStorePassword=changeit -Djavax.net.ssl.trustStoreType=PKCS12"
@@ -414,6 +416,10 @@ services:
       TAP_UPSTREAM_VERIFY: http://verify-service:8080
       TAP_UPSTREAM_MOCK_VERIFIER: http://mock-verifier:7004
       TAP_UPSTREAM_CERTIFY_MDOC: http://certify-mdoc:8090
+      # Inji Verify in the MOSIP Collab sandbox (catalog/inji-verify-collab.yaml), on the internet.
+      # Empty: the tap listener is off and the BFF calls Collab directly.
+      TAP_UPSTREAM_VERIFY_COLLAB: ${VERIFY_COLLAB_URL-https://injiverify.collab.mosip.net}
+      VERIFY_COLLAB_URL: ${VERIFY_COLLAB_URL-https://injiverify.collab.mosip.net}
       CERTIFY_PUBLIC_URL: https://${CERTIFY_PUBLIC_HOST:-certify.localhost}:8443
       VERIFY_PUBLIC_URL: ${VERIFY_PUBLIC_URL:-https://verify.localhost:8443}
       VERIFY_CLIENT_ID: ${VERIFY_DID:-did:web:verify.localhost%3A8443:v1:verify}
@@ -436,6 +442,7 @@ services:
           {"name": "mock-wallet", "url": "http://mock-wallet:7003/health"},
           {"name": "mock-verifier", "url": "http://mock-verifier:7004/mock-verifier/health", "optional": true},
           {"name": "certify-mdoc", "url": "http://certify-mdoc:8090/v1/certify/actuator/health", "optional": true},
+          {"name": "verify-collab", "url": "${VERIFY_COLLAB_URL-https://injiverify.collab.mosip.net}/v1/verify/did.json", "optional": true},
           {"name": "esignet", "url": "http://esignet:8080/health", "optional": true},
           {"name": "mimoto", "url": "http://mimoto-service:8099/v1/mimoto/issuers", "optional": true},
           {"name": "inji-web", "url": "http://inji-web:3004/", "optional": true}
@@ -459,6 +466,9 @@ services:
       dockerfile: apps/mock-wallet/Dockerfile
     environment:
       NODE_EXTRA_CA_CERTS: /certs/ca.crt
+      # Calls to Collab's Inji Verify go through the BFF's Protocol Tap listener for it (port 3006),
+      # so they show in the inspector; the tap forwards them to Collab unchanged.
+      WALLET_ROUTES: ${VERIFY_COLLAB_URL-https://injiverify.collab.mosip.net}=http://playground-bff:3006
     ports:
       - "8104:7003"
     volumes:
