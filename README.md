@@ -15,6 +15,86 @@ Pick an issuer, a wallet and a verifier, choose a credential format, press **Run
 Supported credential formats include W3C VC JSON-LD (`ldp_vc`), SD-JWT VC (`vc+sd-jwt`
 and `dc+sd-jwt`) and mDoc (`mso_mdoc`).
 
+## Quick start (Docker)
+
+You need Docker with Compose v2 (Docker Desktop, or Docker Engine on Linux), `git`, `make` and `curl`, and at least 4 GB of memory for Docker (the running stack uses about 1.6 GB). Node and pnpm are only needed to run the interop suite or to develop.
+
+```sh
+git clone https://github.com/GouravN97/hoodcoders_decode2026.git
+cd hoodcoders_decode2026
+make up
+```
+
+`make up` builds the playground images, starts Inji Certify, Inji Verify, the playground, the mock wallet and the mock verifier, and waits until every required service is healthy. The first start downloads about 3.5 GB of images and takes several minutes; later starts take a minute or two, mostly for Certify and Verify to boot. Without `make` (for example in PowerShell), run the same stack with Compose:
+
+```sh
+cd injistack
+docker compose up -d --build
+docker compose ps        # wait until certify and verify-service are running; then check http://localhost:8101/api/health
+```
+
+When it is up:
+
+| What | Where |
+| --- | --- |
+| **Playground** | <http://localhost:8100> |
+| Health of every service | <http://localhost:8101/api/health>, or `make health` (needs Node) |
+| Inji Verify UI | <http://localhost:3000> |
+| Inji Certify and Inji Verify, public addresses | <https://certify.localhost:8443>, <https://verify.localhost:8443> (local CA in `injistack/certs/local-ca.crt`) |
+
+**First run.** Open the playground and choose **Inji Certify** → **Mock wallet** → **Inji Verify**. Pick **SD-JWT** (`vc+sd-jwt`) or **JSON-LD** (`ldp_vc`) and press **Run**. The run issues a real credential, presents it, and ends with **Valid** and a pass/fail report. Open the protocol inspector to see every message. Then try a **Tamper** (for example *Broken signature*, expected **Invalid**) or the **Expired credential** tamper (expected **Valid but expired**).
+
+**More of the stack.** Each of these is `make up` plus a Compose profile:
+
+| Command | Adds |
+| --- | --- |
+| `make up-mdoc` | Certify's mock mDoc issuer (`mso_mdoc` lanes with the mock wallet and mock verifier) |
+| `make up-telemetry` | Prometheus and Grafana: the interoperability dashboard at <http://localhost:8106> |
+| `make up-web` | Mimoto, eSignet and Inji Web (see [the Inji Web setup](injistack/README.md#esignet-and-the-wallet-profile)) |
+| `make up-phone` | Cloudflare tunnels so Inji Wallet on a phone or emulator can reach the stack ([how to test](injistack/README.md#test-with-inji-wallet-on-an-android-emulator)) |
+
+Run the headless interop suite against the running stack with `pnpm install && make interop` (30 lanes, about a minute; results in `out/interop/`). Six of them use MOSIP Collab's Inji Verify, see below.
+
+**Stop.** `make down` stops everything and keeps saved runs. `docker compose down -v` in `injistack/` also deletes the database, the saved runs and the local certificates.
+
+**If something is not up.** `make health` or <http://localhost:8101/api/health> names the service that is down, and `make logs S=certify` follows its logs. Certify and Verify need a minute or two after their containers start. The stack publishes ports 8100, 8101, 8104, 8105, 8443, 8080, 8090, 8091, 3000 and 5433, so stop anything else using them. For a database created before 26 October 2026, apply the [issuer DID update](injistack/README.md#upgrading-an-existing-database).
+
+## MOSIP Collab sandbox
+
+[MOSIP Collab](https://docs.inji.io/readme/try-it-out) is MOSIP's hosted copy of the Inji stack. You cannot deploy the playground into it, but the playground can use **Collab's Inji Verify as a verifier**: it is in the selector as **Inji Verify (MOSIP Collab)**. These are the Collab services, as checked on 26 October 2026:
+
+| Service | Address | What it runs |
+| --- | --- | --- |
+| Inji Verify | <https://injiverify.collab.mosip.net> | Inji Verify with the 1.0 API: OpenID4VP 1.0 with DCQL (`/v1/verify/v2/vp-request`), client ID `decentralized_identifier:did:web:injiverify.collab.mosip.net:v1:verify`. **Usable from the playground** |
+| Inji Certify (mock) | <https://injicertify-mock.collab.mosip.net> | `MockVerifiableCredential` (`ldp_vc`, also VCDM 2.0), `MockVerifiableCredential_SD_JWT` (`dc+sd-jwt`), `LandStatementCredential`; authorization code only (eSignet mock login) |
+| Inji Web, Mimoto, eSignet | <https://injiweb.collab.mosip.net>, <https://api.collab.mosip.net>, <https://esignet.collab.mosip.net> | The reference wallet flow: Collab's issuers (Farmer, Land, Mosip ID, Mock mDL, …) behind a mock-identity login |
+
+### Run a lane against Collab
+
+1. `make up` (the machine needs internet access).
+2. In the playground, choose **Inji Certify** → **Mock wallet** → **Inji Verify (MOSIP Collab)**, pick **SD-JWT** (`vc+sd-jwt`) and press **Run**. Every tamper works as with the local Verify.
+3. Or run every Collab lane at once: `make interop MATRIX=matrices/collab.yaml`. The nightly suite includes them, and skips them when Collab is unreachable.
+
+The local Certify issues the credential. The mock wallet then fetches Collab's signed request object, checks it against Collab's `did:web`, answers with a DCQL `vp_token`, and the playground reads Collab's verdict and each of its checks. The BFF's calls to Collab and the mock wallet's calls both pass through a Protocol Tap listener (`TAP_UPSTREAM_VERIFY_COLLAB`; the wallet is routed there with `WALLET_ROUTES`), so the inspector shows every message as for the local stack. The local Inji Verify gives the second opinion. Collab is never asked for one on other runs, so local credentials are only sent to Collab when you pick it.
+
+**Results, 26 October 2026** (Certify 0.14.0 → mock wallet → Collab's Inji Verify; JSON-LD with the stack behind tunnels):
+
+| Lane | Collab, `vc+sd-jwt` | Collab, `ldp_vc` | Inji Verify 0.18.2 (local) |
+| --- | --- | --- | --- |
+| Valid | **Valid**: signature, holder proof (nonce, audience, key binding) and validity all pass | **Valid**: same three checks | Valid |
+| Broken signature, edited claim | **Invalid** | **Invalid** (signature check) | Invalid |
+| Expired copy | **Valid but expired** | **Valid but expired** | Valid but expired |
+| Wrong credential type | **Refused** at `direct_post`, HTTP 400: `vct claim does not match any of the vct_values in the DCQL query` | **Refused**, HTTP 400: `credential type values do not satisfy any of the type_values options` | **Accepted** (gap 1) |
+| Replayed presentation | **Refused** at `direct_post`, HTTP 400: `Nonce validation failed` | **Refused**, HTTP 400: `Nonce validation failed` | **Accepted** for SD-JWT (gap 2) |
+
+So gaps 1 and 2 are fixed in the 1.0 API that Collab runs. A refusal at submission is reported as *Rejected*, which passes with a warning when the run expected Invalid.
+
+**JSON-LD (`ldp_vc`) needs the tunnels.** Collab checks a JSON-LD credential's signature by resolving the issuer's `did:web` over the internet. On a localhost stack that is `did:web:certify.localhost`, which fails (`certify.localhost: Name has no usable address`), so the run is Invalid although the holder proof passes. Behind tunnels the issuer DID is the tunnel's public hostname, and every JSON-LD lane above passes. Start them with `make up-phone` (or `PROFILES="mdoc telemetry" ./scripts/tunnel-up.sh` in `injistack/` without the wallet profile), and go back with `make tunnel-down`. SD-JWT works without tunnels, because Collab checks it with the `x5c` certificate in the credential.
+
+**Other wallets.** Inji Wallet on a phone has not been tried against Collab: its catalog entry declares draft 23 with Presentation Exchange, so the selector warns. It would also need the stack behind tunnels to receive the local Certify's offer. Collab's own issuers use the authorization-code flow, which the playground cannot start yet; use Inji's [Try it out](https://docs.inji.io/readme/try-it-out) guide to download their credentials into Inji Web or Inji Wallet.
+
+Offline, Collab's health check fails: the verifier shows as offline in the selector and the suite skips its lanes. Credentials only go to Collab in runs that pick it.
+
 ## Status
 
 Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji Verify, the playground UI, the BFF with its Protocol Tap and a headless mock wallet with Docker Compose. A run issues a real credential from Certify (pre-authorized code), the wallet presents it to Inji Verify over OpenID4VP, every message passes through the tap and shows in the inspector, and the run ends with a pass/fail report.
@@ -35,8 +115,9 @@ Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji V
 | Same-device link | On a phone-sized or touch screen the delivery panel shows **Open in wallet** for `openid4vp://` and `openid-credential-offer://` links, with the QR code behind a toggle. Checked on the Android emulator (25 October 2026): from emulator Chrome, the button opened Inji Wallet `1.0.0-alpha.1` with the offer. An emulator result, not a physical phone; the rest of that run was not completed (it needs the tunnels) |
 | Digital Credentials API | The mock verifier accepts an unsigned OpenID4VP 1.0 / DCQL request over `navigator.credentials.get`. **No wallet in the catalog advertises it** (Inji Wallet `1.0.0-alpha.1` has no Credential Manager provider), so it is tested only with a stubbed browser API in the UI, and live on the server side with a script standing in for the browser's wallet: a real Certify SD-JWT bound to the page origin is Valid, one bound to another origin fails holder binding |
 | Second opinion (`VER-002`) | After each verification the other verifier checks the presented credential on its own. Inji Verify and the mock verifier agreed on every comparable live run (valid, broken signature, edited claim, expired) |
-| Interop suite and nightly CI | `make interop` runs [`matrices/nightly.yaml`](matrices/nightly.yaml) through the playground with [`interop-cli`](packages/interop-cli/README.md): 24 headless lanes across Inji Verify, the mock verifier and mDoc. On 26 October 2026 against the local stack: 21 pass and 3 known gaps (gaps 1 and 2) ([summary](reports/interop-suite.md)). A nightly GitHub Actions workflow runs the same suite and publishes the matrix |
+| Interop suite and nightly CI | `make interop` runs [`matrices/nightly.yaml`](matrices/nightly.yaml) through the playground with [`interop-cli`](packages/interop-cli/README.md): 30 headless lanes across Inji Verify (local 0.18.2 and MOSIP Collab), the mock verifier and mDoc. On 26 October 2026: 27 pass and 3 known gaps (gaps 1 and 2, local Inji Verify only) ([summary](reports/interop-suite.md)). A nightly GitHub Actions workflow runs the same suite and publishes the matrix |
 | Telemetry | `make up-telemetry` adds Prometheus and a provisioned Grafana dashboard (<http://localhost:8106>): success rate per issuer × wallet × verifier × format and version, the share of negative tests caught, mean step and message latency, and protocol errors. Each finished run is also written as an event in the Sunbird telemetry envelope Inji Wallet sends to Obsrv, and posted to Obsrv when `OBSRV_INGEST_URL` is set. Checked 26 October 2026 against the local stack's 210 saved runs |
+| **MOSIP Collab Inji Verify** (OpenID4VP 1.0, DCQL) | Certify → mock wallet → Collab's Inji Verify, run live on 26 October 2026 for `vc+sd-jwt` and for `ldp_vc` (behind tunnels): valid passes, and every tamper is caught, including the wrong type and the replay that Inji Verify 0.18.2 accepts (gaps 1 and 2) ([MOSIP Collab sandbox](#mosip-collab-sandbox)) |
 | Replay & tamper (mock wallet → Inji Verify 0.18.2) | Run live for both formats. Broken signature and edited claim are rejected (**INVALID**). Inji Verify **accepts** a wrong credential type for both formats, and, for SD-JWT only, a replayed `vp_token` or one bound to an old nonce ([results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182)) |
 
 The reproducible passing demonstrations are SD-JWT and JSON-LD with the mock
@@ -241,7 +322,26 @@ Then open <http://localhost:8100>. The targets wrap `docker compose` in [`injist
 
 ## Interoperability gaps found
 
-Gaps found while running the playground against the pinned stack (Inji Certify `0.14.0`, Inji Verify `0.18.2`, Inji Wallet `1.0.0-alpha.1`, Mimoto `0.21.0`, eSignet `2.0.0`). **Confirmed** means reproduced in a live run, with the messages captured. **Open** means seen but not yet root-caused, or predicted but not yet tested. None has been filed upstream yet: [docs/gaps](docs/gaps/README.md) lists what is already known upstream (gaps 1, 2, 10 and 12 are) and has an issue draft for each new one.
+Gaps found while running the playground against the pinned stack (Inji Certify `0.14.0`, Inji Verify `0.18.2`, Inji Wallet `1.0.0-alpha.1`, Mimoto `0.21.0`, eSignet `2.0.0`). **Confirmed** means reproduced in a live run, with the messages captured. **Open** means seen but not yet root-caused, or predicted but not yet tested.
+
+### Summary
+
+| # | Module | Gap | Status | Upstream |
+| --- | --- | --- | --- | --- |
+| 1 | Inji Verify 0.18.2 | Accepts a credential of a different type from the one the presentation definition asks for (both formats) | Confirmed; reproduced every night (`T-WRONG-TYPE`). **Fixed in the 1.0 API**: Collab's Inji Verify refuses it | Known: [inji-verify#1790](https://github.com/inji/inji-verify/issues/1790), [#1807](https://github.com/inji/inji-verify/issues/1807) (open) |
+| 2 | Inji Verify 0.18.2 | Does not check the SD-JWT key-binding nonce, so a replayed or stale presentation is accepted | Confirmed; reproduced every night (`T-NONCE-REPLAY`). **Fixed in the 1.0 API**: Collab's Inji Verify refuses it | Known and fixed after 0.18.x: [inji-verify#2043](https://github.com/inji/inji-verify/issues/2043) |
+| 3 | Inji Verify 0.18.2 (`vc-verifier`) | A `did:web` with a port (`%3A8443`) does not resolve, so every `ldp_vc` from such an issuer is Invalid | Confirmed; worked around with a portless DID | New: [draft](docs/gaps/drafts/03-vc-verifier-did-web-port.md) |
+| 4 | Inji Wallet 1.0.0-alpha.1 | The `ldp_vc` presentation holder becomes `…#0#0` when the subject id already has a fragment | Confirmed; worked around in Certify's template | New: [draft](docs/gaps/drafts/04-inji-wallet-holder-fragment.md) |
+| 5 | Inji Wallet 1.0.0-alpha.1 | A `did:web` with a port does not resolve (same as 3) | Confirmed | Covered by the gap 3 draft |
+| 6 | Inji Wallet 1.0.0-alpha.1 | An expired `ldp_vc` is stored and shown as Valid | Confirmed | New: [draft](docs/gaps/drafts/05-inji-wallet-expired-shown-valid.md) |
+| 7 | Inji Wallet 1.0.0-alpha.1 | An empty `face` claim forces a selfie match before sharing | Confirmed | New: [draft](docs/gaps/drafts/06-inji-wallet-empty-face-selfie.md) |
+| 8 | Inji Wallet 1.0.0-alpha.1 | OpenID4VCI 1.0 issuers (Hovi, Animo) may not be accepted | Open, predicted; needs a phone test | — |
+| 9 | Inji Wallet 1.0.0-alpha.1 | Hangs on an emulator without a hardware-backed keystore | Confirmed | Likely deliberate; not filed |
+| 10 | Inji Certify 0.14.0 | Issues SD-JWT only as `vc+sd-jwt`; current issuers and wallets use `dc+sd-jwt` | Confirmed | Known: [inji-certify#901](https://github.com/inji/inji-certify/issues/901) |
+| 11 | Mimoto 0.21.0 / eSignet 2.0.0 | Inji Web's credential download fails with `invalid_client` | Open; root cause unknown, may be local setup | Not filed |
+| 12 | Inji Certify 0.14.0 (mock mDoc) | Cannot read Inji Wallet's `did:jwk…#0` proof `kid`, so mDoc cannot be issued to Inji Wallet | Confirmed (emulator) | Related: [inji-certify#999](https://github.com/inji/inji-certify/issues/999) |
+
+Nothing has been filed upstream yet. [docs/gaps](docs/gaps/README.md) has the evidence, the duplicate search (26 October 2026) and the issue drafts. The tables below give the details per module.
 
 ### Inji Verify `0.18.2`
 
@@ -251,7 +351,7 @@ Gaps found while running the playground against the pinned stack (Inji Certify `
 | 2 | **SD-JWT key-binding nonce not checked.** A resubmitted `vp_token`, or a new one whose key-binding JWT is signed over an earlier request's nonce, is accepted. For `ldp_vc` the same tampers are refused at `direct_post` with a nonce error, so only SD-JWT is affected. | Confirmed (`T-NONCE-REPLAY`) | [results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182) |
 | 3 | **did:web with a port does not resolve.** `did:web:certify.localhost%3A8443` fails with `Invalid URL host: "certify.localhost%3A8443"`; the resolver does not decode the percent-encoded port that the did:web spec requires, so every `ldp_vc` signature check fails. Worked around with a portless issuer DID: `did:web:certify.localhost` locally (resolved inside Docker through the gateway's port 443) and the tunnel hostname behind tunnels. | Confirmed, worked around | [injistack](injistack/README.md#3-start-the-stack-and-the-tunnels-every-session) |
 
-For 1 and 2 it is not yet known whether the cause is Inji Verify or the `vc-verifier` library it uses, or whether Inji Verify `1.0.x` (DCQL) behaves the same. Both need checking before filing issues.
+Both 1 and 2 are already known upstream, and both are fixed in Inji Verify's 1.0 API. On 26 October 2026 the MOSIP Collab sandbox's Inji Verify refused both tampers at `direct_post`: the wrong type with `vct claim does not match any of the vct_values in the DCQL query`, and the replay with `Nonce validation failed` (see [MOSIP Collab sandbox](#mosip-collab-sandbox)). For 2, the fix ([inji-verify#2051](https://github.com/inji/inji-verify/pull/2051)) went into `develop` on 18 June 2026. They remain gaps of Inji Verify 0.18.x, the version this stack pins.
 
 ### Inji Wallet mobile `1.0.0-alpha.1`
 

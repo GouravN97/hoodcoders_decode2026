@@ -23,10 +23,26 @@ export interface HttpResult {
   text: string;
 }
 
+/**
+ * WALLET_ROUTES="https://public.example=http://tap:3006,…": requests to a public origin go to another
+ * origin instead, path unchanged. The BFF's Protocol Tap listener for a remote verifier forwards them
+ * there, so the wallet's traffic shows in the inspector like traffic to the local stack does.
+ */
+const ROUTES: Array<[string, string]> = (process.env.WALLET_ROUTES ?? '')
+  .split(',')
+  .map((r) => r.trim().split('='))
+  .filter((r): r is [string, string] => r.length === 2 && Boolean(r[0]) && Boolean(r[1]))
+  .map(([from, to]) => [from.replace(/\/$/, ''), to.replace(/\/$/, '')]);
+
+export function routed(url: string): string {
+  for (const [from, to] of ROUTES) if (url === from || url.startsWith(`${from}/`)) return `${to}${url.slice(from.length)}`;
+  return url;
+}
+
 export async function call(step: string, url: string, init: RequestInit = {}): Promise<HttpResult> {
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await fetch(routed(url), {
       ...init,
       headers: { 'user-agent': USER_AGENT, ...init.headers },
       signal: AbortSignal.timeout(TIMEOUT_MS),

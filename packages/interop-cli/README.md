@@ -42,7 +42,7 @@ include:
 | fail | The verifier answered something other than expected, or a step failed | **yes** |
 | known gap | Failed, and the lane names that gap | no |
 | gap fixed? | A known-gap lane passed | no |
-| skipped | An implementation is not in the catalog or is down (e.g. the mDoc issuer without `make up-mdoc`), the issuer has no configuration of that format, or `--headless-only` and the wallet needs a person | no |
+| skipped | An implementation is not in the catalog or is down (e.g. the mDoc issuer without `make up-mdoc`; the suite first waits up to 30 s, because the BFF refreshes catalog health every 15 s), the issuer has no configuration of that format, or `--headless-only` and the wallet needs a person | no |
 | error | The BFF refused the run, or it had no result within `--lane-timeout` (the run is then cancelled) | **yes** |
 
 Lanes run one at a time, in file order: the mock wallet is shared, and a `T-NONCE-REPLAY` lane replays an earlier lane's presentation.
@@ -63,4 +63,4 @@ Signatures that point at tunnels, DNS or timeouts are **infrastructure**, and a 
 
 ## Nightly
 
-[`.github/workflows/nightly-interop.yml`](../../.github/workflows/nightly-interop.yml) runs `make up PROFILES=mdoc` and then `make interop TRIGGER=nightly` every night at 02:00 IST, and on demand. It posts `summary.md` as the job summary and uploads the three files with the matrix and the stack logs. On `main` it also pushes the summary and matrix to the `interop-reports` branch. The suite runs against the pinned local stack. To run it against another deployment of the playground, for example one wired to the MOSIP Collab environment, pass that BFF with `--bff`.
+[`.github/workflows/nightly-interop.yml`](../../.github/workflows/nightly-interop.yml) runs `make up PROFILES=mdoc` and then `make interop TRIGGER=nightly` every night at 02:00 IST, and on demand. It posts `summary.md` as the job summary and uploads the three files with the matrix and the stack logs. On `main` it also pushes the summary and matrix to the `interop-reports` branch. The suite runs against the pinned local stack; `--bff` points it at another deployment of the playground. The lanes that use MOSIP Collab's Inji Verify ([`matrices/collab.yaml`](../../matrices/collab.yaml), also in the nightly matrix) need internet access and are skipped when Collab is unreachable (see [MOSIP Collab sandbox](../../README.md#mosip-collab-sandbox)).

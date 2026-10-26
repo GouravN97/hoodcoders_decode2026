@@ -101,6 +101,13 @@ export const ImplementationDescriptorSchema = z.object({
     .object({ kind: z.enum(['actuator', 'static', 'header']), value: z.string() })
     .optional(),
   capabilities: CapabilitiesSchema,
+  /** Verifiers: the client_id the playground puts in its presentation requests (adapter default otherwise). */
+  clientId: z.string().optional(),
+  /**
+   * Verifiers: false keeps this one from being asked for second opinions (VER-002) on other
+   * verifiers' runs, e.g. a remote sandbox that would receive every local credential.
+   */
+  secondOpinion: z.boolean().optional(),
   notes: z.string().optional(),
 });
 export type ImplementationDescriptor = z.infer<typeof ImplementationDescriptorSchema>;

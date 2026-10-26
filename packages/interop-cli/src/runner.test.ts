@@ -88,7 +88,7 @@ describe('runMatrix', () => {
   it('runs lanes in order and classifies pass, fail, known gap and skips', async () => {
     // The verifier misses the wrong type (the known gap) and the broken signature (a new failure).
     const { bff, created } = fakeBff(() => 'VALID');
-    const results = await runMatrix(bff, lanes, { trigger: 'nightly', headlessOnly: true, laneTimeoutMs: 1000, pollMs: 1 });
+    const results = await runMatrix(bff, lanes, { trigger: 'nightly', headlessOnly: true, laneTimeoutMs: 1000, pollMs: 1, catalogWaitMs: 0 });
 
     expect(results.map((r) => [r.status, r.reason])).toEqual([
       ['pass', undefined],
@@ -136,6 +136,22 @@ describe('runMatrix', () => {
     expect(r).toMatchObject({ status: 'error', runId: 'run-1' });
     expect(r!.reason).toMatch(/no result after/);
     expect(cancelled).toBe('run-1');
+  });
+});
+
+describe('catalog health right after start-up', () => {
+  it('waits for an implementation that still shows as down before skipping its lanes', async () => {
+    const { bff } = fakeBff(() => 'VALID');
+    let calls = 0;
+    Object.assign(bff, {
+      catalog: async () => {
+        calls++;
+        return CATALOG.map((c) => (c.id === 'certify' && calls === 1 ? { ...c, health: 'down' } : c));
+      },
+    });
+    const results = await runMatrix(bff, lanes.slice(0, 1), { trigger: 'cli', headlessOnly: false, laneTimeoutMs: 1000, pollMs: 1, catalogWaitMs: 5000 });
+    expect(calls).toBe(2);
+    expect(results[0]!.status).toBe('pass');
   });
 });
 

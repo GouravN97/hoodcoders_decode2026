@@ -13,3 +13,4 @@ export * from './sequence';
 export * from './history';
 export * from './mockVerifier';
 export * from './secondOpinion';
+export * from './vpToken';

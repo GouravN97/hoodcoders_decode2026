@@ -56,6 +56,7 @@ The existing adapters:
 | `InjiWebWalletAdapter` | wallet | A browser wallet where issuance starts inside the wallet (authorization code) |
 | `MockWalletAdapter` | wallet | `apps/mock-wallet`, headless |
 | `InjiVerifyServiceAdapter` | verifier | Inji Verify's verify-service API (`/vp-request`, status long poll, `/vp-result`), Presentation Exchange |
+| `InjiVerifyDcqlAdapter` | verifier | Inji Verify's 1.0 API (OpenID4VP 1.0, DCQL, `/v2/vp-request`, `/v2/vp-results`), such as the MOSIP Collab sandbox; set the descriptor's `clientId` |
 | `MockVerifierAdapter` | verifier | `apps/mock-verifier` |
 
 ## 2. A new adapter

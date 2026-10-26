@@ -36,6 +36,11 @@ export interface RunOptions {
   headlessOnly: boolean;
   laneTimeoutMs: number;
   pollMs?: number;
+  /**
+   * How long to wait for an implementation the lanes use to stop showing as down before skipping
+   * its lanes. The BFF refreshes catalog health every 15 s, so right after `make up` it can lag.
+   */
+  catalogWaitMs?: number;
   /** Called once per lane as it finishes, for progress output. */
   onLane?: (result: LaneResult, index: number, total: number) => void;
 }
@@ -83,12 +88,24 @@ function statusFor(lane: Lane, report: RunReport): LaneStatus {
   return report.passed ? 'pass' : 'fail';
 }
 
+/** The catalog, once no implementation the lanes use shows as down (or the wait is over). */
+async function settledCatalog(bff: BffClient, lanes: Lane[], waitMs: number, pollMs: number): Promise<CatalogEntry[]> {
+  const used = new Set(lanes.flatMap((l) => [l.config.issuerId, l.config.walletId, l.config.verifierId]));
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    const catalog = await bff.catalog();
+    const down = catalog.some((c) => used.has(c.id) && c.health === 'down');
+    if (!down || Date.now() >= deadline) return catalog;
+    await sleep(pollMs);
+  }
+}
+
 export async function runMatrix(
   bff: BffClient,
   lanes: Lane[],
   opts: RunOptions,
 ): Promise<LaneResult[]> {
-  const catalog = await bff.catalog();
+  const catalog = await settledCatalog(bff, lanes, opts.catalogWaitMs ?? 30_000, Math.max(opts.pollMs ?? 1000, 1000));
   const configCache = new Map<string, CredentialConfigurationSummary[]>();
   const results: LaneResult[] = [];
 

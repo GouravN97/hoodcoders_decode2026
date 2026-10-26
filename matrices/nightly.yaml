@@ -3,7 +3,7 @@
 # packages/interop-cli/src/matrix.ts. Lanes run in this order; a T-NONCE-REPLAY lane replays the
 # presentation of an earlier valid lane of the same format, so keep the valid lanes first.
 name: nightly
-description: Inji Certify and the mock mDoc issuer, through the mock wallet, to Inji Verify and the mock verifier.
+description: Inji Certify and the mock mDoc issuer, through the mock wallet, to Inji Verify (local 0.18.2 and MOSIP Collab) and the mock verifier.
 defaults:
   mode: full
   grantType: pre-authorized_code
@@ -49,3 +49,12 @@ include:
   - { issuer: inji-certify-mdoc, wallet: mock-wallet, verifier: mock-verifier, format: mso_mdoc }
   - { issuer: inji-certify-mdoc, wallet: mock-wallet, verifier: mock-verifier, format: mso_mdoc, tamper: { id: T-SIG-FLIP }, expectedOutcome: INVALID }
   - { issuer: inji-certify-mdoc, wallet: mock-wallet, verifier: mock-verifier, format: mso_mdoc, tamper: { id: T-CLAIM-EDIT }, expectedOutcome: INVALID }
+
+  # ── Inji Verify in the MOSIP Collab sandbox (OpenID4VP 1.0 with DCQL, on the internet; skipped
+  #    when Collab is unreachable). Same lanes as matrices/collab.yaml. ──
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify-collab, format: vc+sd-jwt }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify-collab, format: vc+sd-jwt, tamper: { id: T-SIG-FLIP }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify-collab, format: vc+sd-jwt, tamper: { id: T-CLAIM-EDIT }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify-collab, format: vc+sd-jwt, tamper: { id: T-WRONG-TYPE }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify-collab, format: vc+sd-jwt, tamper: { id: T-NONCE-REPLAY }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify-collab, format: vc+sd-jwt, tamper: { id: T-EXPIRED }, expectedOutcome: EXPIRED }

@@ -4,6 +4,7 @@
 // verdicts are only compared when the run's verdict rests on the credential.
 import type { SecondOpinion, VerificationOutcome, VerificationStage } from './domain';
 import { outcomeLabel } from './labels';
+import { firstPresentation } from './vpToken';
 
 /** Tampers that break the presentation, not the credential. */
 const PRESENTATION_TAMPERS = ['T-WRONG-TYPE', 'T-NONCE-REPLAY'];
@@ -60,7 +61,7 @@ export function unwrapVpToken(raw: string): { token: string; jsonEncoded: boolea
 
 /** The credential inside a vp_token, as a verifier would check it on its own. */
 export function credentialFromVpToken(vpToken: string): string | undefined {
-  const token = unwrapVpToken(vpToken).token;
+  const token = firstPresentation(unwrapVpToken(vpToken).token);
   if (!token.startsWith('{') && !token.startsWith('[')) {
     // SD-JWT: drop the key-binding JWT, keep the issuer JWT and disclosures.
     return token.includes('~') ? token.replace(/~[^~]*$/, '~') : undefined;

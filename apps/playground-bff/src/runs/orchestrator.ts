@@ -204,6 +204,7 @@ export class RunOrchestrator {
     if (!runUsesPhase(config.mode, 'verifying')) return undefined;
     for (const entry of catalog) {
       if (entry.role !== 'verifier' || entry.id === config.verifierId || entry.health !== 'up') continue;
+      if (entry.secondOpinion === false) continue;
       if (!entry.capabilities.formats.includes(config.format)) continue;
       const adapter = this.registry.verifier(entry.id);
       if (adapter?.verifyCredential) return adapter;

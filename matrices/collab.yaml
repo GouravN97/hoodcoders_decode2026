@@ -1,0 +1,19 @@
+# Lanes against Inji Verify in the MOSIP Collab sandbox (OpenID4VP 1.0 with DCQL), a public service
+# on the internet. `make interop MATRIX=matrices/collab.yaml`. The lanes are skipped when Collab is
+# unreachable. SD-JWT only: Collab's Verify checks the local Certify's SD-JWT through its x5c
+# certificate, but cannot resolve the local issuer's did:web for ldp_vc (that needs make up-phone).
+name: collab
+description: Inji Certify (local) → mock wallet → Inji Verify (MOSIP Collab), SD-JWT, valid and every tamper.
+defaults:
+  mode: full
+  grantType: pre-authorized_code
+  presentationFlow: cross-device-qr
+  expectedOutcome: VALID
+  labels: { suite: collab }
+include:
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify-collab, format: vc+sd-jwt }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify-collab, format: vc+sd-jwt, tamper: { id: T-SIG-FLIP }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify-collab, format: vc+sd-jwt, tamper: { id: T-CLAIM-EDIT }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify-collab, format: vc+sd-jwt, tamper: { id: T-WRONG-TYPE }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify-collab, format: vc+sd-jwt, tamper: { id: T-NONCE-REPLAY }, expectedOutcome: INVALID }
+  - { issuer: inji-certify, wallet: mock-wallet, verifier: inji-verify-collab, format: vc+sd-jwt, tamper: { id: T-EXPIRED }, expectedOutcome: EXPIRED }
