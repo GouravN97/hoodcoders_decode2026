@@ -148,6 +148,47 @@ warnings** so it does not pretend that the unobserved third-party traffic was ca
 OpenID4VCI-profile mismatches remain selectable on purpose: the compatibility panel predicts the
 risk, while the run lets the team test whether the wallet actually accepts the offer.
 
+## Architecture
+
+```mermaid
+flowchart LR
+  UI["Playground UI<br/>selector · run · inspector · history · matrix"]
+  CLI["interop-cli<br/>make interop · nightly CI"]
+  subgraph BFF ["playground-bff (one Node process)"]
+    REG["Catalog + adapters<br/>catalog/*.yaml"]
+    ORCH["Run orchestrator<br/>evidence-driven steps"]
+    TAP["Protocol Tap<br/>recording reverse proxy"]
+    STORE[("Run store<br/>runs + messages")]
+    TEL["metrics + Obsrv events"]
+  end
+  W["Inji Wallet (phone)<br/>Inji Web · mock wallet"]
+  GW["Gateway (nginx)<br/>certify.localhost · verify.localhost"]
+  C["Inji Certify<br/>+ mock mDoc Certify"]
+  V["Inji Verify"]
+  MV["Mock verifier"]
+  G["Prometheus + Grafana"]
+
+  UI -- "REST + socket.io" --> ORCH
+  CLI -- REST --> ORCH
+  ORCH --> REG
+  ORCH -- "offers, VP requests, results" --> TAP
+  REG -. "drives the headless wallet" .-> W
+  W -- "OpenID4VCI / OpenID4VP" --> GW
+  GW --> TAP
+  TAP --> C
+  TAP --> V
+  TAP --> MV
+  TAP -- "every message" --> STORE
+  STORE --> TEL
+  G -- scrape --> TEL
+```
+
+- **Protocol Tap.** The gateway sends every protocol request for Certify, Verify and the mock verifier through a recording reverse proxy in the BFF. The proxy forwards each request unchanged, files it under its run by following identifiers (offer id → pre-authorized code → access token; request id → `state` → transaction id), and masks secrets in what it stores. The modules' own public URLs point at the gateway, so no response is rewritten. If the BFF is down, nginx falls back to the services directly. Details: [`PROTOCOL_TAP.md`](apps/playground-bff/PROTOCOL_TAP.md).
+- **Adapters.** Each implementation is one YAML file in [`catalog/`](catalog) naming an adapter class that implements the issuer, wallet or verifier interface. The orchestrator only knows those interfaces, so adding a product is a YAML file and at most one class: see [Adding an implementation](docs/adding-an-implementation.md).
+- **Evidence-driven runs.** A run is a fixed list of steps (offer → token → credential → held → request → response → result). Each step completes on evidence: an adapter call, a message seen by the tap, or the holder's confirmation for a phone. Every run ends with the expected and observed result, a verdict and a report.
+- **Checks beyond the verifier.** The tamper mode (mock wallet hooks), the second opinion from the other verifier (`VER-002`), and the mock verifier's per-stage checks show *why* a presentation passed or failed, not only Inji Verify's answer.
+- **One Compose stack.** [`injistack/`](injistack) pins every image: Certify 0.14.0, Verify 0.18.2, and Mimoto, eSignet and Inji Web in their own profiles. `make up` starts it and waits until it is healthy.
+
 ## Getting started
 
 Needs Node 20+ and pnpm.
@@ -190,6 +231,7 @@ Then open <http://localhost:8100>. The targets wrap `docker compose` in [`injist
 
 - [Mandatory tasks explained](docs/mandatory-tasks.md) — what we are building, task by task, in plain language
 - [Implementation plan](docs/implementation-plan.md) — architecture, components, flows, infrastructure and schedule
+- [Adding an implementation](docs/adding-an-implementation.md) — a new issuer, wallet or verifier: catalog YAML, adapter, Protocol Tap
 - [Interoperability gaps](docs/gaps/README.md) — every gap found, what is already known upstream, and issue drafts to file
 - [Reports](reports/README.md) — the nightly interop suite and the interoperability matrix from a live run
 
