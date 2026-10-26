@@ -185,7 +185,7 @@ VALUES (
     'https://www.w3.org/2018/credentials/v1',  -- context as comma-separated string
     'FarmerCredential,VerifiableCredential',  -- credential_type as comma-separated string
     'ldp_vc',  -- credential_format
-    'did:web:certify.localhost%3A8443',  -- did_url; 04-certify-public-host.sh sets it from CERTIFY_PUBLIC_HOST
+    'did:web:certify.localhost',  -- did_url; 04-certify-public-host.sh sets it from CERTIFY_PUBLIC_HOST
     'CERTIFY_VC_SIGN_ED25519',  -- key_manager_app_id
     'ED25519_SIGN',  -- key_manager_ref_id (optional)
     'EdDSA',  -- signature_algo (optional)
@@ -238,7 +238,7 @@ VALUES (
     'ewogICJpc3MiOiAiJHtfaXNzdWVyfSIsCiAgImZ1bGxOYW1lIjogIiQhe2Z1bGxOYW1lfSIsCiAgIm1vYmlsZU51bWJlciI6ICIkIXttb2JpbGVOdW1iZXJ9IiwKICAiZGF0ZU9mQmlydGgiOiAiJCF7ZGF0ZU9mQmlydGh9IiwKICAiZ2VuZGVyIjogIiQhe2dlbmRlcn0iLAogICJzdGF0ZSI6ICIkIXtzdGF0ZX0iLAogICJkaXN0cmljdCI6ICIkIXtkaXN0cmljdH0iLAogICJ2aWxsYWdlT3JUb3duIjogIiQhe3ZpbGxhZ2VPclRvd259IiwKICAicG9zdGFsQ29kZSI6ICIkIXtwb3N0YWxDb2RlfSIsCiAgImxhbmRBcmVhIjogIiQhe2xhbmRBcmVhfSIsCiAgImxhbmRPd25lcnNoaXBUeXBlIjogIiQhe2xhbmRPd25lcnNoaXBUeXBlfSIsCiAgInByaW1hcnlDcm9wVHlwZSI6ICIkIXtwcmltYXJ5Q3JvcFR5cGV9IiwKICAic2Vjb25kYXJ5Q3JvcFR5cGUiOiAiJCF7c2Vjb25kYXJ5Q3JvcFR5cGV9IiwKICAiZmFybWVySUQiOiAiJCF7ZmFybWVySUR9Igp9',  -- base64 of {"iss": "${_issuer}", "fullName": "$!{fullName}", "mobileNumber": "$!{mobileNumber}", "dateOfBirth": "$!{dateOfBirth}", "gender": "$!{gender}", "state": "$!{state}", "district": "$!{district}", "villageOrTown": "$!{villageOrTown}", "postalCode": "$!{postalCode}", "landArea": "$!{landArea}", "landOwnershipType": "$!{landOwnershipType}", "primaryCropType": "$!{primaryCropType}", "secondaryCropType": "$!{secondaryCropType}", "farmerID": "$!{farmerID}"}
     'FarmerCredentialSdJwt',  -- vct
     'vc+sd-jwt',
-    'did:web:certify.localhost%3A8443',  -- did_url; 04-certify-public-host.sh sets it from CERTIFY_PUBLIC_HOST
+    'did:web:certify.localhost',  -- did_url; 04-certify-public-host.sh sets it from CERTIFY_PUBLIC_HOST
     'CERTIFY_VC_SIGN_EC_R1',
     'EC_SECP256R1_SIGN',
     'ES256',

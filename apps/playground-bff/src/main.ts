@@ -16,6 +16,7 @@ import {
   PredictRequestSchema,
   renderMatrixMarkdown,
   renderReportMarkdown,
+  RunDetailSchema,
   RunsQuerySchema,
   SequenceViewSchema,
   summarizeRun,
@@ -282,8 +283,10 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   // ── Runs ──
   if (method === 'POST' && path === '/api/runs') {
     const config: RunConfig = await readJson(req, CreateRunRequestSchema, 'run config');
+    // ?trigger=cli|nightly from interop-cli, so history can tell suite runs from the UI's.
+    const trigger = RunDetailSchema.shape.trigger.catch('ui').parse(url.searchParams.get('trigger') ?? 'ui');
     try {
-      const run = await orchestrator.create(config, 'ui');
+      const run = await orchestrator.create(config, trigger);
       return send(res, 201, { id: run.id });
     } catch (e) {
       if (e instanceof RunConfigError) throw new HttpError(400, e.message);

@@ -1,7 +1,8 @@
 # Public address of the issuer. Override in injistack/.env (not committed), e.g. CERTIFY_PUBLIC_HOST=certify.example.test
 #   CERTIFY_PUBLIC_HOST  hostname in metadata, offers, token audiences and the did:web identifier (default certify.localhost)
-#   CERTIFY_DID          issuer did:web identifier (default did:web:${CERTIFY_PUBLIC_HOST}%3A8443). tunnel-up.sh sets
-#                        a portless DID: Inji Verify's and Inji Wallet's did:web resolvers do not decode "%3A<port>"
+#   CERTIFY_DID          issuer did:web identifier (default did:web:${CERTIFY_PUBLIC_HOST}, no port: Inji Verify's and
+#                        Inji Wallet's did:web resolvers do not decode "%3A<port>"). Inside Docker it resolves through
+#                        the gateway's port 443; tunnel-up.sh sets the tunnel's hostname
 #   CERTIFY_FLOW         preauth (default): Certify issues its own tokens for pre-authorized offers and builds
 #                        credentials from the offer's claims. esignet: Certify trusts eSignet tokens and reads the
 #                        farmer CSV, for the Mimoto / Inji Web flow (config/certify-<flow>.properties)
@@ -66,7 +67,7 @@ services:
       enable_certify_artifactory: "false"
       download_hsm_client: "false"
       mosip_certify_domain_url: https://${CERTIFY_PUBLIC_HOST:-certify.localhost}:8443
-      mosip_certify_data_provider_plugin_did_url: ${CERTIFY_DID:-did:web:${CERTIFY_PUBLIC_HOST:-certify.localhost}%3A8443}
+      mosip_certify_data_provider_plugin_did_url: ${CERTIFY_DID:-did:web:${CERTIFY_PUBLIC_HOST:-certify.localhost}}
       JAVA_TOOL_OPTIONS: *local-ca-java
     ports:
       - "8090:8090"
@@ -399,6 +400,10 @@ services:
       dockerfile: apps/playground-bff/Dockerfile
     environment:
       NODE_EXTRA_CA_CERTS: /certs/ca.crt
+      # Node resolves host names on a 4-thread pool. On some networks Docker's DNS takes 10 s to
+      # answer for a service whose profile is not running (certify-mdoc, mimoto, …); four such
+      # health probes then stall every other lookup, including the tap's calls upstream.
+      UV_THREADPOOL_SIZE: "64"
       DATA_DIR: /data
       PUBLIC_UI_URL: ${PLAYGROUND_UI_URL:-http://localhost:8100}
       TAP_UPSTREAM_CERTIFY: http://certify:8090

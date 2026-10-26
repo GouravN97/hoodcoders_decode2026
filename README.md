@@ -35,6 +35,7 @@ Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji V
 | Same-device link | On a phone-sized or touch screen the delivery panel shows **Open in wallet** for `openid4vp://` and `openid-credential-offer://` links, with the QR code behind a toggle. Checked on the Android emulator (25 October 2026): from emulator Chrome, the button opened Inji Wallet `1.0.0-alpha.1` with the offer. An emulator result, not a physical phone; the rest of that run was not completed (it needs the tunnels) |
 | Digital Credentials API | The mock verifier accepts an unsigned OpenID4VP 1.0 / DCQL request over `navigator.credentials.get`. **No wallet in the catalog advertises it** (Inji Wallet `1.0.0-alpha.1` has no Credential Manager provider), so it is tested only with a stubbed browser API in the UI, and live on the server side with a script standing in for the browser's wallet: a real Certify SD-JWT bound to the page origin is Valid, one bound to another origin fails holder binding |
 | Second opinion (`VER-002`) | After each verification the other verifier checks the presented credential on its own. Inji Verify and the mock verifier agreed on every comparable live run (valid, broken signature, edited claim, expired) |
+| Interop suite and nightly CI | `make interop` runs [`matrices/nightly.yaml`](matrices/nightly.yaml) through the playground with [`interop-cli`](packages/interop-cli/README.md): 24 headless lanes across Inji Verify, the mock verifier and mDoc. On 26 October 2026 against the local stack: 21 pass and 3 known gaps (gaps 1 and 2) ([summary](reports/interop-suite.md)). A nightly GitHub Actions workflow runs the same suite and publishes the matrix |
 | Replay & tamper (mock wallet → Inji Verify 0.18.2) | Run live for both formats. Broken signature and edited claim are rejected (**INVALID**). Inji Verify **accepts** a wrong credential type for both formats, and, for SD-JWT only, a replayed `vp_token` or one bound to an old nonce ([results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182)) |
 
 The reproducible passing demonstrations are SD-JWT and JSON-LD with the mock
@@ -109,6 +110,12 @@ The **Matrix** tab is the interoperability matrix deliverable: the latest run of
 
 With `pnpm dev` the history starts with a few runs marked **sample**, generated in the browser so the page is not empty; they are labelled everywhere and are not results.
 
+### Interop suite and nightly CI
+
+`make interop` runs the playground as a test suite: [`interop-cli`](packages/interop-cli/README.md) reads a matrix file ([`matrices/nightly.yaml`](matrices/nightly.yaml), [`matrices/demo.yaml`](matrices/demo.yaml)), starts one run per issuer → wallet → verifier × format lane through the BFF, and writes a Markdown summary, JUnit XML and every run report to `out/interop/`. Suite runs are ordinary runs, so they show in History and the matrix with their protocol messages. A lane can name a documented gap (`knownGap`): it is reported but does not fail the suite, and if it starts passing it is flagged so the gap can be closed.
+
+[`.github/workflows/nightly-interop.yml`](.github/workflows/nightly-interop.yml) runs it every night: `make up PROFILES=mdoc`, `make interop`, then the summary as the job summary, the JUnit report, the matrix and the stack logs as an artifact, and on `main` the summary and matrix pushed to the `interop-reports` branch. [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs typecheck, lint and unit tests on every pull request. The latest local results are in [`reports/`](reports/README.md).
+
 ### Test Hovi or Animo issuance in Inji Wallet
 
 1. Start the live Compose stack and open <http://localhost:8100>.
@@ -137,7 +144,18 @@ pnpm test         # unit tests (Vitest)
 pnpm e2e          # browser tests against the mocks (Playwright; run `pnpm exec playwright install chromium` once)
 ```
 
-For live runs start the Compose stack ([`injistack/README.md`](injistack/README.md)) and open <http://localhost:8100>. With the stack up, `PLAYGROUND_LIVE_URL=http://localhost:8100 pnpm e2e` runs the browser tests against it.
+For live runs, one command starts the whole stack (Docker with Compose v2; the first start pulls about 3.5 GB):
+
+```sh
+make up           # Inji Certify, Inji Verify, the playground, mock wallet and mock verifier; waits until healthy
+make up-mdoc      # the same, plus Certify's mock mDoc issuer
+make up-phone     # the same, behind Cloudflare tunnels, for Inji Wallet on a phone or emulator
+make health       # what is up
+make down         # stop (saved runs are kept)
+make help         # every target
+```
+
+Then open <http://localhost:8100>. The targets wrap `docker compose` in [`injistack/`](injistack/README.md), which still works on its own. With the stack up, `make e2e E2E_LIVE=1` runs the browser tests against it.
 
 | Path                                         | What it is                                                                                                                                  |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -147,6 +165,8 @@ For live runs start the Compose stack ([`injistack/README.md`](injistack/README.
 | [`apps/mock-verifier`](apps/mock-verifier)   | Non-Inji OpenID4VP draft-23 verifier that reports every check it makes ([details](apps/mock-verifier/README.md))                           |
 | [`packages/protocol-core`](packages/protocol-core) | SD-JWT VC verification, `did:web` / `did:jwk` resolution and Presentation Exchange matching, shared by the mock wallet and mock verifier |
 | [`injistack/`](injistack)                    | Docker Compose sandbox with the Inji stack and the playground ([details](injistack/README.md))                                              |
+| [`packages/interop-cli`](packages/interop-cli) | Runs a matrix of lanes through the BFF as a test suite; Markdown, JUnit and JSON results ([details](packages/interop-cli/README.md)) |
+| [`matrices/`](matrices)                      | Lane matrices for `make interop`: `nightly.yaml` (every headless lane), `demo.yaml`                                                         |
 | [`packages/shared`](packages/shared)         | Domain types, zod schemas, REST and WebSocket contracts shared with the BFF                                                                 |
 | [`catalog/`](catalog)                        | One YAML file per issuer / wallet / verifier; adding a product = adding a file                                                              |
 
@@ -154,6 +174,8 @@ For live runs start the Compose stack ([`injistack/README.md`](injistack/README.
 
 - [Mandatory tasks explained](docs/mandatory-tasks.md) — what we are building, task by task, in plain language
 - [Implementation plan](docs/implementation-plan.md) — architecture, components, flows, infrastructure and schedule
+- [Interoperability gaps](docs/gaps/README.md) — every gap found, what is already known upstream, and issue drafts to file
+- [Reports](reports/README.md) — the nightly interop suite and the interoperability matrix from a live run
 
 ## License
 
@@ -161,7 +183,7 @@ For live runs start the Compose stack ([`injistack/README.md`](injistack/README.
 
 ## Interoperability gaps found
 
-Gaps found while running the playground against the pinned stack (Inji Certify `0.14.0`, Inji Verify `0.18.2`, Inji Wallet `1.0.0-alpha.1`, Mimoto `0.21.0`, eSignet `2.0.0`). **Confirmed** means reproduced in a live run, with the messages captured. **Open** means seen but not yet root-caused, or predicted but not yet tested. None has been filed upstream yet.
+Gaps found while running the playground against the pinned stack (Inji Certify `0.14.0`, Inji Verify `0.18.2`, Inji Wallet `1.0.0-alpha.1`, Mimoto `0.21.0`, eSignet `2.0.0`). **Confirmed** means reproduced in a live run, with the messages captured. **Open** means seen but not yet root-caused, or predicted but not yet tested. None has been filed upstream yet: [docs/gaps](docs/gaps/README.md) lists what is already known upstream (gaps 1, 2, 10 and 12 are) and has an issue draft for each new one.
 
 ### Inji Verify `0.18.2`
 
@@ -169,7 +191,7 @@ Gaps found while running the playground against the pinned stack (Inji Certify `
 | --- | --- | --- | --- |
 | 1 | **Wrong credential type accepted.** The presentation definition asks for one type (`$.vct` / `$.type`); a credential of another type is returned `SUCCESS`. Verify checks the signature but not the input descriptor it asked for. Both `vc+sd-jwt` and `ldp_vc`. | Confirmed (`T-WRONG-TYPE`) | [results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182) |
 | 2 | **SD-JWT key-binding nonce not checked.** A resubmitted `vp_token`, or a new one whose key-binding JWT is signed over an earlier request's nonce, is accepted. For `ldp_vc` the same tampers are refused at `direct_post` with a nonce error, so only SD-JWT is affected. | Confirmed (`T-NONCE-REPLAY`) | [results](docs/external-credential-interoperability-results.md#replay-and-tamper-runs-against-inji-verify-0182) |
-| 3 | **did:web with a port does not resolve.** `did:web:verify.localhost%3A8443:…` fails with `Invalid URL host: <host>%3A8443`; the resolver does not decode the percent-encoded port that the did:web spec requires. Worked around with portless DIDs behind tunnels. | Confirmed | [injistack](injistack/README.md#3-start-the-stack-and-the-tunnels-every-session) |
+| 3 | **did:web with a port does not resolve.** `did:web:certify.localhost%3A8443` fails with `Invalid URL host: "certify.localhost%3A8443"`; the resolver does not decode the percent-encoded port that the did:web spec requires, so every `ldp_vc` signature check fails. Worked around with a portless issuer DID: `did:web:certify.localhost` locally (resolved inside Docker through the gateway's port 443) and the tunnel hostname behind tunnels. | Confirmed, worked around | [injistack](injistack/README.md#3-start-the-stack-and-the-tunnels-every-session) |
 
 For 1 and 2 it is not yet known whether the cause is Inji Verify or the `vc-verifier` library it uses, or whether Inji Verify `1.0.x` (DCQL) behaves the same. Both need checking before filing issues.
 

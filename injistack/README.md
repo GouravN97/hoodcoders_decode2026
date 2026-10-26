@@ -39,7 +39,9 @@ services for every Wallet flow.
 
 ## Start the server stack
 
-Run these commands from this directory:
+From the repository root, `make up` starts the stack and waits until the BFF's
+health report shows every required service up (`make help` lists the other
+targets). Or run these commands from this directory:
 
 ```powershell
 docker compose pull
@@ -96,8 +98,16 @@ Certify's public address is `https://certify.localhost:8443`. The same URL works
 from the host and from inside Docker: browsers and `curl` resolve any
 `*.localhost` name to the local machine, and inside the `injistack` network the
 name is an alias of the `certify-nginx` gateway. Issuer metadata, credential
-offers, token audiences and the issuer DID (`did:web:certify.localhost%3A8443`,
-resolved through `https://certify.localhost:8443/.well-known/did.json`) all use it.
+offers and token audiences all use it.
+
+The issuer DID is `did:web:certify.localhost`, without the port. The did:web
+resolvers in Inji Verify and Inji Wallet do not decode a percent-encoded port
+(`%3A8443`, gap 3 in the [README](../README.md#interoperability-gaps-found)), so
+with the spec-correct `did:web:certify.localhost%3A8443` every `ldp_vc` signature
+check fails. The portless DID resolves to `https://certify.localhost/.well-known/did.json`,
+which inside Docker is the gateway's port 443. Port 443 is not published on the
+host, so tools on the host resolve the DID document at
+`https://certify.localhost:8443/.well-known/did.json` instead.
 
 The one-shot `certs` service creates a local certificate authority and an HTTPS
 certificate for that hostname (`scripts/make-local-certs.sh`) on first start. The
@@ -293,6 +303,17 @@ docker compose exec -T database psql -U postgres -d inji_verify -c "
     ADD COLUMN IF NOT EXISTS response_code varchar(200) UNIQUE,
     ADD COLUMN IF NOT EXISTS response_code_expiry_at timestamptz,
     ADD COLUMN IF NOT EXISTS response_code_used boolean DEFAULT false;"
+```
+
+The issuer DID is now portless (see [Issuer address, HTTPS and did:web](#issuer-address-https-and-didweb)).
+A database created before that still has `did:web:certify.localhost%3A8443` in
+Certify's credential configurations; update it and restart Certify (or run
+`./scripts/tunnel-up.sh reset`, which does the same):
+
+```sh
+docker compose exec -T database psql -U postgres -d inji_certify -c "
+  UPDATE certify.credential_config SET did_url = 'did:web:certify.localhost' WHERE credential_format <> 'mso_mdoc';"
+docker compose up -d certify
 ```
 
 Changing `VERIFY_PUBLIC_HOST` also re-creates the local certificates (the `certs`
@@ -631,6 +652,14 @@ new ones. Stop the tunnels with:
 
 ```bash
 bash ./scripts/tunnel-up.sh stop
+```
+
+The tunnel hostnames stay in `.env` and in Certify's credential configurations
+after the tunnels stop, so localhost runs would still sign with them. To go back
+to localhost hostnames and DIDs (`make tunnel-down` from the repository root):
+
+```bash
+bash ./scripts/tunnel-up.sh reset
 ```
 
 Both DIDs are portless in tunnel mode (`did:web:<host>` and

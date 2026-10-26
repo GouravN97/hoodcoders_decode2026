@@ -353,6 +353,21 @@ importers:
         specifier: 7.3.6
         version: 7.3.6(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1)
 
+  packages/interop-cli:
+    dependencies:
+      '@playground/shared':
+        specifier: workspace:*
+        version: link:../shared
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
+
   packages/protocol-core:
     dependencies:
       cbor-x:
