@@ -1,41 +1,47 @@
 # Interop suite: nightly
 
-**Passed** — 30 lanes: 27 pass · 3 known gap.
+**Failed** — 30 lanes: 24 pass · 2 fail · 3 known gap · 1 error.
 
-Run from 2026-10-27T23:56:20.989Z to 2026-10-27T23:57:15.293Z against http://localhost:8101. Versions are the ones the catalog reported for each run.
+Run from 2026-10-29T00:09:22.606Z to 2026-10-29T00:10:07.057Z against http://localhost:8101. Versions are the ones the catalog reported for each run.
 
 | Issuer | Wallet | Verifier | Format | Proof | Test | Expected | Observed | Verdict | Result | Run |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | SD-JWT VC | ES256 | valid path | Valid | Valid | Pass | ✅ pass | [5e06d4d4](http://localhost:8100/runs/5e06d4d4-8c68-4b5f-ac08-24682d9def1e?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | JSON-LD VC | Ed25519Signature2020 | valid path | Valid | Valid | Pass | ✅ pass | [3bca7eac](http://localhost:8100/runs/3bca7eac-97ba-4dd5-895d-cc0f72418d8f?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | SD-JWT VC | ES256 | valid path | Valid | Valid | Pass | ✅ pass | [556419a0](http://localhost:8100/runs/556419a0-550b-471d-8bbc-3ff64dd8069a?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | — (issue-only) | SD-JWT VC | ES256 | issue-only | Valid | — | Pass | ✅ pass | [62b01575](http://localhost:8100/runs/62b01575-c3ae-4f02-b4ab-ec7a5514d2dd?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | — (issue-only) | JSON-LD VC | Ed25519Signature2020 | issue-only | Valid | — | Pass | ✅ pass | [0b108fd6](http://localhost:8100/runs/0b108fd6-e6c3-4537-bb56-3480b83372b5?view=inspector) |
-| — (present-only) | Mock wallet 0.1.0 | Inji Verify 0.18.2 | SD-JWT VC | ES256 | present-only | Valid | Valid | Pass | ✅ pass | [3b8eb3a3](http://localhost:8100/runs/3b8eb3a3-1314-44d9-9b4f-d42e7abd91fc?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | SD-JWT VC | ES256 | T-SIG-FLIP | Invalid | Invalid | Pass | ✅ pass | [3af554dd](http://localhost:8100/runs/3af554dd-0ed1-4aae-af2b-7be154a35232?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | JSON-LD VC | Ed25519Signature2020 | T-SIG-FLIP | Invalid | Invalid | Pass | ✅ pass | [cb476c94](http://localhost:8100/runs/cb476c94-a60d-4bf5-baf7-9461312a0cee?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | SD-JWT VC | ES256 | T-CLAIM-EDIT | Invalid | Invalid | Pass | ✅ pass | [7477bd67](http://localhost:8100/runs/7477bd67-764e-4664-9d4a-63e4708d180c?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | JSON-LD VC | Ed25519Signature2020 | T-CLAIM-EDIT | Invalid | Invalid | Pass | ✅ pass | [a08c66e5](http://localhost:8100/runs/a08c66e5-d9de-411c-90ac-74e1ed9699ea?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | SD-JWT VC | ES256 | T-EXPIRED | Valid but expired | Valid but expired | Pass | ✅ pass | [cb7e7354](http://localhost:8100/runs/cb7e7354-babf-4400-ae85-ecbbdfe18f95?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | JSON-LD VC | Ed25519Signature2020 | T-EXPIRED | Valid but expired | Valid but expired | Pass | ✅ pass | [8856f2e2](http://localhost:8100/runs/8856f2e2-ae68-4c93-9b5a-406cb248bc52?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | SD-JWT VC | ES256 | T-WRONG-TYPE | Invalid | Valid | Fail | 🟠 known gap | [fcffedd1](http://localhost:8100/runs/fcffedd1-eb1b-4458-b625-22654e773755?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | JSON-LD VC | Ed25519Signature2020 | T-WRONG-TYPE | Invalid | Valid | Fail | 🟠 known gap | [f551098d](http://localhost:8100/runs/f551098d-95d2-4f07-baa7-4d0d4b5ee7fc?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | SD-JWT VC | ES256 | T-NONCE-REPLAY | Invalid | Valid | Fail | 🟠 known gap | [5d85bef3](http://localhost:8100/runs/5d85bef3-06c1-4aa5-9687-959ef11dcfd5?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | JSON-LD VC | Ed25519Signature2020 | T-NONCE-REPLAY | Invalid | Rejected | Pass with warnings | ✅ pass | [c2ce6eb8](http://localhost:8100/runs/c2ce6eb8-2f95-451c-baed-f0c40972e023?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | SD-JWT VC | ES256 | T-SIG-FLIP | Invalid | Invalid | Pass | ✅ pass | [67a99cb8](http://localhost:8100/runs/67a99cb8-b3c1-4d56-9d5e-589d90f49783?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | SD-JWT VC | ES256 | T-CLAIM-EDIT | Invalid | Invalid | Pass | ✅ pass | [ee76e2dc](http://localhost:8100/runs/ee76e2dc-8c12-41a6-82be-909b047b7b40?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | SD-JWT VC | ES256 | T-WRONG-TYPE | Invalid | Invalid | Pass | ✅ pass | [3d658fc9](http://localhost:8100/runs/3d658fc9-5bf9-420b-b68a-512b09780840?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | SD-JWT VC | ES256 | T-NONCE-REPLAY | Invalid | Invalid | Pass | ✅ pass | [c122b4aa](http://localhost:8100/runs/c122b4aa-d025-4407-a48d-994bc236745d?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | SD-JWT VC | ES256 | T-EXPIRED | Valid but expired | Valid but expired | Pass | ✅ pass | [ed90cd09](http://localhost:8100/runs/ed90cd09-d9ec-422d-a10f-a4d0c846d23e?view=inspector) |
-| Inji Certify (mock mDoc) 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | mDoc / mDL | — | valid path | Valid | Valid | Pass | ✅ pass | [70a967be](http://localhost:8100/runs/70a967be-1dc3-467e-9be7-689f11e22401?view=inspector) |
-| Inji Certify (mock mDoc) 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | mDoc / mDL | — | T-SIG-FLIP | Invalid | Invalid | Pass | ✅ pass | [e54b12b5](http://localhost:8100/runs/e54b12b5-9ef5-4133-aead-366f14da1487?view=inspector) |
-| Inji Certify (mock mDoc) 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | mDoc / mDL | — | T-CLAIM-EDIT | Invalid | Invalid | Pass | ✅ pass | [09edb0c6](http://localhost:8100/runs/09edb0c6-365c-4af1-b11f-f0e4e419f4d9?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify (MOSIP Collab) collab | SD-JWT VC | ES256 | valid path | Valid | Valid | Pass | ✅ pass | [594cb6fc](http://localhost:8100/runs/594cb6fc-d230-4aff-ab7c-804c7c536396?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify (MOSIP Collab) collab | SD-JWT VC | ES256 | T-SIG-FLIP | Invalid | Invalid | Pass | ✅ pass | [22aa0dd4](http://localhost:8100/runs/22aa0dd4-d27c-455c-a3ed-c23415811f8a?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify (MOSIP Collab) collab | SD-JWT VC | ES256 | T-CLAIM-EDIT | Invalid | Invalid | Pass | ✅ pass | [ecf37608](http://localhost:8100/runs/ecf37608-0d7a-4960-a9a7-0edceb204505?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify (MOSIP Collab) collab | SD-JWT VC | ES256 | T-WRONG-TYPE | Invalid | Rejected | Pass with warnings | ✅ pass | [0d3e66a2](http://localhost:8100/runs/0d3e66a2-bd1e-4045-9f1d-0ebd81ce6276?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify (MOSIP Collab) collab | SD-JWT VC | ES256 | T-NONCE-REPLAY | Invalid | Rejected | Pass with warnings | ✅ pass | [b8dcc4ae](http://localhost:8100/runs/b8dcc4ae-d41f-4188-b6f5-b4c511811fd6?view=inspector) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify (MOSIP Collab) collab | SD-JWT VC | ES256 | T-EXPIRED | Valid but expired | Valid but expired | Pass | ✅ pass | [94d8c427](http://localhost:8100/runs/94d8c427-df82-4934-8345-05f2dc6a5bb7?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | SD-JWT VC | — | valid path | Valid | — | Fail | ❌ fail | [7f0cbbc6](http://localhost:8100/runs/7f0cbbc6-395a-4b53-8f8a-ca44602764e4?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | JSON-LD VC | — | valid path | Valid | — | Fail | ❌ fail | [6f71f154](http://localhost:8100/runs/6f71f154-78f2-4f05-8e21-81b43273320b?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | SD-JWT VC | ES256 | valid path | Valid | Valid | Pass | ✅ pass | [afde6cb6](http://localhost:8100/runs/afde6cb6-8978-476d-9010-fdfe07159661?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | — (issue-only) | SD-JWT VC | ES256 | issue-only | Valid | — | Pass | ✅ pass | [f82cbe77](http://localhost:8100/runs/f82cbe77-e4f3-4537-8966-cd4baf81bb1d?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | — (issue-only) | JSON-LD VC | Ed25519Signature2020 | issue-only | Valid | — | Pass | ✅ pass | [013b0ea7](http://localhost:8100/runs/013b0ea7-4b4b-4a4f-91a9-0b077b13e58d?view=inspector) |
+| — (present-only) | Mock wallet 0.1.0 | Inji Verify 0.18.2 | SD-JWT VC | ES256 | present-only | Valid | Valid | Pass | ✅ pass | [b28e3de8](http://localhost:8100/runs/b28e3de8-3d33-4edc-ab95-b51eed7ccbf0?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | SD-JWT VC | ES256 | T-SIG-FLIP | Invalid | Invalid | Pass | ✅ pass | [469a15fe](http://localhost:8100/runs/469a15fe-82d3-413f-a857-64887ca31b69?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | JSON-LD VC | Ed25519Signature2020 | T-SIG-FLIP | Invalid | Invalid | Pass | ✅ pass | [e8f58da3](http://localhost:8100/runs/e8f58da3-68b5-4ba6-b586-8314e02cd1ef?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | SD-JWT VC | ES256 | T-CLAIM-EDIT | Invalid | Invalid | Pass | ✅ pass | [71f67ca9](http://localhost:8100/runs/71f67ca9-b717-4b60-b9ff-fd7ae2bf01b1?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | JSON-LD VC | Ed25519Signature2020 | T-CLAIM-EDIT | Invalid | Invalid | Pass | ✅ pass | [fa309dd9](http://localhost:8100/runs/fa309dd9-9093-4b42-bc7d-41dfe99bf6df?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | SD-JWT VC | ES256 | T-EXPIRED | Valid but expired | Valid but expired | Pass | ✅ pass | [a5d9e11e](http://localhost:8100/runs/a5d9e11e-c051-41e5-bf0a-b40042529f28?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | JSON-LD VC | Ed25519Signature2020 | T-EXPIRED | Valid but expired | Valid but expired | Pass | ✅ pass | [2b6c1577](http://localhost:8100/runs/2b6c1577-cbf0-48aa-8d3f-c1c0bc08579f?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | SD-JWT VC | ES256 | T-WRONG-TYPE | Invalid | Valid | Fail | 🟠 known gap | [c5e9b837](http://localhost:8100/runs/c5e9b837-c563-4b67-9669-ceaee57ad418?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | JSON-LD VC | Ed25519Signature2020 | T-WRONG-TYPE | Invalid | Valid | Fail | 🟠 known gap | [11660712](http://localhost:8100/runs/11660712-7763-4ccf-84c4-471cf79deadc?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | SD-JWT VC | ES256 | T-NONCE-REPLAY | Invalid | Valid | Fail | 🟠 known gap | [f595bd58](http://localhost:8100/runs/f595bd58-dbaa-4952-b14a-5fd398b847f5?view=inspector) |
+| inji-certify | mock-wallet | inji-verify | JSON-LD VC | — | T-NONCE-REPLAY | Invalid | — | — | 💥 error | — |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | SD-JWT VC | ES256 | T-SIG-FLIP | Invalid | Invalid | Pass | ✅ pass | [b1339cbf](http://localhost:8100/runs/b1339cbf-0270-4a47-8c2c-cac74d0571ad?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | SD-JWT VC | ES256 | T-CLAIM-EDIT | Invalid | Invalid | Pass | ✅ pass | [ae706349](http://localhost:8100/runs/ae706349-3e08-4bbe-a574-7110826cb120?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | SD-JWT VC | ES256 | T-WRONG-TYPE | Invalid | Invalid | Pass | ✅ pass | [a3fe92e5](http://localhost:8100/runs/a3fe92e5-c57f-4b2b-8246-06615a9db7c4?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | SD-JWT VC | ES256 | T-NONCE-REPLAY | Invalid | Invalid | Pass | ✅ pass | [c720ed21](http://localhost:8100/runs/c720ed21-0523-417c-9120-b160ca97d939?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | SD-JWT VC | ES256 | T-EXPIRED | Valid but expired | Valid but expired | Pass | ✅ pass | [01e98a3e](http://localhost:8100/runs/01e98a3e-fea7-4ec2-a728-b20c23d17fb2?view=inspector) |
+| Inji Certify (mock mDoc) 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | mDoc / mDL | — | valid path | Valid | Valid | Pass | ✅ pass | [345b92a8](http://localhost:8100/runs/345b92a8-1860-427d-9370-4f443b6ea91c?view=inspector) |
+| Inji Certify (mock mDoc) 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | mDoc / mDL | — | T-SIG-FLIP | Invalid | Invalid | Pass | ✅ pass | [1aa66db7](http://localhost:8100/runs/1aa66db7-2a58-48e1-a76b-b08add0b6076?view=inspector) |
+| Inji Certify (mock mDoc) 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 | mDoc / mDL | — | T-CLAIM-EDIT | Invalid | Invalid | Pass | ✅ pass | [cd9cad78](http://localhost:8100/runs/cd9cad78-430c-498b-91aa-643c0bb294ae?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify (MOSIP Collab) collab | SD-JWT VC | ES256 | valid path | Valid | Valid | Pass | ✅ pass | [4d917ba0](http://localhost:8100/runs/4d917ba0-1e1a-4077-a1b6-8fae0ebb14ff?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify (MOSIP Collab) collab | SD-JWT VC | ES256 | T-SIG-FLIP | Invalid | Invalid | Pass | ✅ pass | [085b3710](http://localhost:8100/runs/085b3710-3a58-4705-b3b6-efed38e1e30d?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify (MOSIP Collab) collab | SD-JWT VC | ES256 | T-CLAIM-EDIT | Invalid | Invalid | Pass | ✅ pass | [31278751](http://localhost:8100/runs/31278751-2d84-48ae-908a-9c1f2c8afe78?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify (MOSIP Collab) collab | SD-JWT VC | ES256 | T-WRONG-TYPE | Invalid | Rejected | Pass with warnings | ✅ pass | [1e89a2c9](http://localhost:8100/runs/1e89a2c9-362c-47e4-bf5b-0e086ef4ec84?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify (MOSIP Collab) collab | SD-JWT VC | ES256 | T-NONCE-REPLAY | Invalid | Rejected | Pass with warnings | ✅ pass | [0df18eeb](http://localhost:8100/runs/0df18eeb-29bb-42e3-b440-ed07b10c23a5?view=inspector) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify (MOSIP Collab) collab | SD-JWT VC | ES256 | T-EXPIRED | Valid but expired | Valid but expired | Pass | ✅ pass | [9b872527](http://localhost:8100/runs/9b872527-a636-4760-a4d4-ae14db484416?view=inspector) |
+
+## Failures
+
+- **inji-certify → mock-wallet → inji-verify · vc+sd-jwt**: observed no result, expected Valid; at oid4vci.credential: Credential issued failed: POST https://certify.localhost:8443/v1/certify/issuance/credential answered HTTP 500 (HTTP 500)
+- **inji-certify → mock-wallet → inji-verify · ldp_vc**: observed no result, expected Valid; at oid4vci.credential: Credential issued failed: POST https://certify.localhost:8443/v1/certify/issuance/credential answered HTTP 400 (HTTP 400)
+- **inji-certify → mock-wallet → inji-verify · ldp_vc · T-NONCE-REPLAY · expect INVALID**: POST /api/runs?trigger=nightly: 400 No earlier untampered JSON-LD VC run passed this verifier, so there is no vp_token to replay. Run a normal full run first.
 
 ## Known gaps
 
