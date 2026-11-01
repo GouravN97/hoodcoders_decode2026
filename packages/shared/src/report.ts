@@ -12,6 +12,7 @@ import {
   VerificationOutcomeSchema,
   type SecondOpinion,
 } from './domain';
+import { PredictionSchema, type Prediction } from './catalog';
 import { CheckFindingSchema } from './events';
 import {
   formatLabel,
@@ -98,6 +99,8 @@ export const RunReportSchema = z.object({
   tamper: ReportTamperSchema.optional(),
   /** The other verifier's verdict on the same credential (VER-002). */
   secondOpinion: SecondOpinionSchema.optional(),
+  /** What the catalog predicted before the run started; runs saved before it was recorded have none. */
+  prediction: PredictionSchema.optional(),
   /** Mermaid sequence diagram of the whole run (see sequence.ts); GitHub renders it in Markdown. */
   sequence: z.string().optional(),
   inspectorUrl: z.string(),
@@ -116,15 +119,77 @@ function participantCell(r: RunReport, p: ReportParticipant): string {
     : cell(`${participant(p)} — not used (${r.mode} run)`);
 }
 
-function outcomeCell(r: RunReport): string {
-  if (!runUsesRole(r.mode, 'verifier')) {
-    return cell(
-      `${verdictLabel(r.verdict)} — ${r.passed ? 'credential issued and stored in the wallet' : 'credential not stored'}; not presented (issue-only run)`,
-    );
+/** The error-level reasons a prediction gave for "this cannot work", joined into one sentence. */
+const blockers = (p: Prediction | undefined) =>
+  (p?.reasons ?? []).filter((x) => x.severity === 'error').map((x) => x.message.replace(/\.$/, ''));
+
+/** The prediction in one line, for the report's Prediction field. */
+export function predictionLine(p: Prediction | undefined): string {
+  if (!p) return 'Not recorded for this run';
+  if (p.status === 'unsupported') return `Predicted not to work: ${blockers(p).join('; ') || 'see the compatibility panel'}`;
+  if (p.status === 'unknown') return 'No prediction: the catalog does not describe enough to tell';
+  const warns = p.reasons.filter((x) => x.severity === 'warn').length;
+  return warns ? `Predicted to work, with ${warns} warning${warns === 1 ? '' : 's'}` : 'Predicted to work';
+}
+
+/**
+ * The report's verdict in words: a headline (the verdict's name) and one or two sentences on what it
+ * means for this run. A "Known unsupported" run did not do what it was asked to, but the catalog had
+ * predicted that before it started, so it is not counted as an interoperability failure. The two
+ * views (report page and Markdown) use this so they never disagree.
+ */
+export function verdictSummary(r: RunReport): { headline: string; detail: string } {
+  const headline = verdictLabel(r.verdict);
+  const verifier = r.verifier.displayName;
+  const presents = runUsesRole(r.mode, 'verifier');
+  const stoppedAt = r.error ? ` (stopped at ${stepLabel(r.error.step)})` : '';
+  const happened = !presents
+    ? r.passed
+      ? 'the credential was issued and stored in the wallet'
+      : `the credential was not stored in the wallet${stoppedAt}`
+    : r.observedOutcome
+      ? `${verifier} answered ${outcomeLabel(r.observedOutcome)}`
+      : `${verifier} never gave a verification result${stoppedAt}`;
+  const asked = presents
+    ? `Expected ${outcomeLabel(r.expectedOutcome)}; ${happened}.`
+    : `Issue-only run: ${happened}; nothing was presented.`;
+  const reasons = blockers(r.prediction);
+  const why = reasons.length ? ` (${reasons.join('; ')})` : '';
+  const predictedUnsupported = r.prediction?.status === 'unsupported';
+
+  switch (r.verdict) {
+    case 'PASS':
+    case 'PASS_WITH_WARNINGS': {
+      const warn = r.verdict === 'PASS_WITH_WARNINGS' ? ' The warnings are listed under the findings.' : '';
+      const surprise = predictedUnsupported
+        ? ` The catalog predicted this combination would not work${why}; it did, so the prediction is out of date.`
+        : '';
+      return { headline, detail: `${asked}${warn}${surprise}` };
+    }
+    case 'NOT_APPLICABLE':
+      return {
+        headline,
+        detail: `${asked} Not counted as an interoperability failure: before the run started, the catalog predicted this combination cannot work${why}, and the run confirmed it.`,
+      };
+    case 'INCONCLUSIVE':
+      return {
+        headline,
+        detail:
+          r.error?.message === 'Cancelled by user'
+            ? 'Cancelled before it finished, so there is no verdict.'
+            : `${asked} The playground could not observe enough to judge the run either way.`,
+      };
+    default:
+      return {
+        headline,
+        detail: `${asked}${r.prediction?.status === 'supported' ? ' The catalog predicted this combination would work, so this is an interoperability failure.' : ''}`,
+      };
   }
-  return cell(
-    `${verdictLabel(r.verdict)} — observed ${r.observedOutcome ? outcomeLabel(r.observedOutcome) : 'no result'}, expected ${outcomeLabel(r.expectedOutcome)}`,
-  );
+}
+
+function outcomeCell(r: RunReport): string {
+  const { headline, detail } = verdictSummary(r);
+  return cell(`${headline} — ${detail}`);
 }
 
 /** One line on the tamper and the verifier's reaction to it. */
@@ -152,7 +217,7 @@ export function formatDuration(ms: number | undefined): string {
 
 export function renderReportMarkdown(r: RunReport): string {
   const lines: string[] = [];
-  lines.push(`# Interop run report — ${r.passed ? 'PASS' : 'FAIL'}`, '');
+  lines.push(`# Interop run report — ${verdictLabel(r.verdict).toUpperCase()}`, '');
   lines.push(`Run \`${r.runId}\` · ${r.createdAt}`, '');
   lines.push('| Field | Value |', '| --- | --- |');
   lines.push(`| Run mode | ${modeLabel(r.mode)} |`);
@@ -163,6 +228,7 @@ export function renderReportMarkdown(r: RunReport): string {
   lines.push(`| Credential configuration | ${cell(r.credentialConfigurationId)} |`);
   lines.push(`| Proof type | ${cell(r.proofType)} |`);
   lines.push(`| Outcome | ${outcomeCell(r)} |`);
+  lines.push(`| Prediction | ${cell(predictionLine(r.prediction))} |`);
   if (r.tamper) lines.push(`| Tamper | ${cell(tamperLine(r.tamper, r.verifier.displayName))} |`);
   if (r.secondOpinion) lines.push(`| Second opinion | ${cell(secondOpinionLine(r.secondOpinion))} |`);
   lines.push(
