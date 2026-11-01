@@ -49,6 +49,9 @@ function CatalogStats({
         const { label, Icon } = ROLE_STAT[role];
         const ofRole = entries.filter((c) => c.role === role);
         const online = ofRole.filter((c) => c.health === 'up').length;
+        const down = ofRole.filter((c) => c.health === 'down').length;
+        // A phone wallet has no URL to probe, so its health is 'unknown': not offline, just unchecked.
+        const unchecked = ofRole.length - online - down;
         return (
           <StatCard
             key={role}
@@ -57,8 +60,8 @@ function CatalogStats({
             value={ofRole.length || dash}
             chip={
               ofRole.length > 0 && (
-                <Badge tone={online === ofRole.length ? 'ok' : online === 0 ? 'bad' : 'warn'}>
-                  {online} online
+                <Badge tone={down === 0 ? 'ok' : online === 0 ? 'bad' : 'warn'}>
+                  {online} online{unchecked > 0 ? ` · ${unchecked} not checked` : ''}
                 </Badge>
               )
             }
