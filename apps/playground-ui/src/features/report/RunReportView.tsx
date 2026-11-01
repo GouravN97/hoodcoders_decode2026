@@ -4,9 +4,10 @@ import {
   modeLabel,
   outcomeLabel,
   phaseLabel,
+  predictionLine,
   runUsesRole,
   stepLabel,
-  verdictLabel,
+  verdictSummary,
   type InteropVerdict,
   type ReportParticipant,
   type RunReport,
@@ -81,6 +82,7 @@ function DownloadButtons({ runId }: { runId: string }) {
 function ReportBody({ report }: { report: RunReport }) {
   const tone = VERDICT_TONE[report.verdict];
   const verifies = runUsesRole(report.mode, 'verifier');
+  const summary = verdictSummary(report);
   const usedOrNot = (p: ReportParticipant) =>
     runUsesRole(report.mode, p.role) ? (
       who(p)
@@ -91,27 +93,14 @@ function ReportBody({ report }: { report: RunReport }) {
     );
   return (
     <>
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 pb-4 pt-2">
-        <div>
-          <p className="text-[11px] font-medium uppercase tracking-wider text-muted">Outcome</p>
-          <p className={cx('text-2xl font-bold tracking-tight', TONE_TEXT[tone])} data-testid="report-verdict">
-            {report.passed ? 'Pass' : 'Fail'}
-            {!['PASS', 'FAIL'].includes(report.verdict) && (
-              <span className="ml-2 text-sm font-medium text-muted">{verdictLabel(report.verdict)}</span>
-            )}
-          </p>
-        </div>
-        {verifies ? (
-          <p className="text-[13px] text-muted">
-            Expected <strong className="text-fg">{outcomeLabel(report.expectedOutcome)}</strong>, verifier said{' '}
-            <strong className="text-fg">{report.observedOutcome ? outcomeLabel(report.observedOutcome) : 'nothing'}</strong>
-            .
-          </p>
-        ) : (
-          <p className="text-[13px] text-muted">
-            Issue-only run: passes once the credential is stored in the wallet.
-          </p>
-        )}
+      <div className="flex flex-col gap-1 px-4 pb-4 pt-2">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-muted">Outcome</p>
+        <p className={cx('text-2xl font-bold tracking-tight', TONE_TEXT[tone])} data-testid="report-verdict">
+          {summary.headline}
+        </p>
+        <p className="max-w-3xl text-[13px] leading-relaxed text-muted" data-testid="report-verdict-detail">
+          {summary.detail}
+        </p>
       </div>
       <dl className="border-t border-border" aria-label="Report fields">
         <Row label="Run mode">{modeLabel(report.mode)}</Row>
@@ -125,15 +114,16 @@ function ReportBody({ report }: { report: RunReport }) {
           <span className="font-mono">{report.proofType ?? '—'}</span>
         </Row>
         <Row label="Outcome">
-          {report.passed ? 'Pass' : 'Fail'} —{' '}
+          {summary.headline} —{' '}
           {!verifies
             ? report.passed
               ? 'credential issued and stored'
               : 'credential not stored'
             : report.observedOutcome
-              ? outcomeLabel(report.observedOutcome)
-              : 'no verification result'}
+              ? `verifier answered ${outcomeLabel(report.observedOutcome)}, expected ${outcomeLabel(report.expectedOutcome)}`
+              : `no verification result, expected ${outcomeLabel(report.expectedOutcome)}`}
         </Row>
+        <Row label="Prediction">{predictionLine(report.prediction)}</Row>
         {report.tamper && (
           <Row label="Tamper">
             <TamperVerdict tamper={report.tamper} verifierName={report.verifier.displayName} />

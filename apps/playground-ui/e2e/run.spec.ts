@@ -184,7 +184,8 @@ test('cancelling a run stops it and still produces a report', async ({ page }) =
   ).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Cancel run' }).click();
   await expect(page.getByText('Cancelled', { exact: true })).toBeVisible();
-  await expect(page.getByTestId('report-verdict')).toContainText('Fail');
+  await expect(page.getByTestId('report-verdict')).toHaveText('Inconclusive');
+  await expect(page.getByTestId('report-verdict-detail')).toContainText('Cancelled before it finished');
 });
 
 test('side menu shows one section at a time and remembers the choice in the URL', async ({
