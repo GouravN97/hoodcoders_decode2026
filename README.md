@@ -313,6 +313,7 @@ Then open <http://localhost:8100>. The targets wrap `docker compose` in [`injist
 - [Mandatory tasks explained](docs/mandatory-tasks.md) — what we are building, task by task, in plain language
 - [Implementation plan](docs/implementation-plan.md) — architecture, components, flows, infrastructure and schedule
 - [Adding an implementation](docs/adding-an-implementation.md) — a new issuer, wallet or verifier: catalog YAML, adapter, Protocol Tap
+- [API reference](docs/api.md) — every API the playground creates (BFF, realtime events, Protocol Tap, mock wallet, mock verifier) and uses (Certify, Verify, Collab, Mimoto, Hovi, Animo, Obsrv): endpoints, request and response formats, authentication, examples
 - [Interoperability gaps](docs/gaps/README.md) — every gap found, what is already known upstream, and issue drafts to file
 - [Reports](reports/README.md) — the nightly interop suite and the interoperability matrix from a live run
 
