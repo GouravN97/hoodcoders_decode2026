@@ -229,6 +229,42 @@ warnings** so it does not pretend that the unobserved third-party traffic was ca
 OpenID4VCI-profile mismatches remain selectable on purpose: the compatibility panel predicts the
 risk, while the run lets the team test whether the wallet actually accepts the offer.
 
+### Issue with Animo and verify the credential
+
+Animo is in the catalog as an issuer only. To verify an Animo credential, present it from Inji
+Wallet to the **Mock verifier**: it is the only verifier here that checks `mso_mdoc` (Inji Verify
+0.18.2 refuses mDoc at `direct_post`, and Collab's Inji Verify does not take it). Use `mso_mdoc`,
+not `dc+sd-jwt`: Inji Wallet supports `vc+sd-jwt` only (gap 8).
+
+**Not yet run end to end.** Offer creation has been verified; whether Inji Wallet
+`1.0.0-alpha.1` (OpenID4VCI draft 13) accepts Animo's OpenID4VCI 1.0 offer, and whether the mock
+verifier reads the PID mDoc it presents, has not. Record what happens either way.
+
+1. **Start the stack behind tunnels**, so the phone or emulator can reach the mock verifier:
+   `make up-phone PROFILES="wallet mdoc telemetry"`. Animo itself is public, so issuing does not
+   need the tunnels; presenting does.
+2. **Issue.** Choose **Animo Playground → Inji Wallet (mobile) →** any verifier, **What to run:
+   Issue only**, format `mso_mdoc`, credential **EUDI PID — mDoc**, and press **Run**. Scan the
+   offer in Inji Wallet (**+ → Scan QR code**); on an emulator, send the
+   `openid-credential-offer://…` link with
+   `adb shell "am start -W -a android.intent.action.VIEW -d '<link>'"`
+   ([emulator setup](injistack/README.md#test-with-inji-wallet-on-an-android-emulator)). Once the
+   card is visible, press **I can see the credential in my wallet**. Expected: **Pass with
+   warnings** (`EXTERNAL-ISSUER-MANUAL-EVIDENCE`: the token and credential calls go straight to
+   Animo and are not captured by the Protocol Tap).
+3. **Verify.** Keep **Animo Playground** as issuer, so the request asks for doctype
+   `eu.europa.ec.eudi.pid.1`, and choose **Inji Wallet (mobile) → Mock verifier**, **What to run:
+   Present only**, format `mso_mdoc`, credential **EUDI PID — mDoc**, expected result **Valid**.
+   Confirm that the credential is in the wallet, then scan the request (or send the `openid4vp://…`
+   link with the same `adb` command), pick the PID card and approve sharing.
+4. **Read the result.** A working run is **Valid** with **Issuer trust: warn**: the mock verifier
+   trusts only Certify's mDoc certificate (`TRUSTED_MDOC_CERTS`), so Animo's certificate is accepted
+   as presented. The other stages (COSE signature, element digests, device signature over the
+   session transcript, validity) must pass.
+
+A **Full** run with the same choices (Animo → Inji Wallet → Mock verifier, `mso_mdoc`) does both
+halves in one run.
+
 ## Architecture
 
 ```mermaid
