@@ -12,6 +12,7 @@ Inji products per role: **Inji Certify** (issuer), **Inji Wallet** mobile app / 
 | --- | --- |
 | [`docs/gaps/README.md`](docs/gaps/README.md) | Every interop gap found, upstream status, issue drafts (none filed yet) |
 | [`docs/adding-an-implementation.md`](docs/adding-an-implementation.md) | New issuer / wallet / verifier: catalog YAML, adapter, Protocol Tap |
+| [`docs/api.md`](docs/api.md) | Every API created or used: endpoints, request/response formats, authentication, example use cases |
 | [`docs/mandatory-tasks.md`](docs/mandatory-tasks.md) | Plain-language explanation of the seven mandatory tasks, glossary, done-criteria, order of work, open team questions |
 | [`docs/implementation-plan.md`](docs/implementation-plan.md) | Full design: architecture, Protocol Tap, repo layout, domain model, class catalogue, flows, data model and APIs, compliance checks, tamper catalogue, test matrix, infra/networking, CI, schedule, risks |
 
