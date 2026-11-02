@@ -1,0 +1,32 @@
+# Paradym Wallet — Animo's mobile wallet (iOS / Android), a non-Inji holder. A person scans the QR
+# codes on a phone and confirms each step, like Inji Wallet; the same human-in-the-loop adapter
+# delivers the QR codes and links.
+id: paradym-wallet
+role: wallet
+displayName: Paradym Wallet (mobile)
+description: "Animo's EUDI-style mobile wallet. A person scans the QR codes on a phone and confirms each step. Speaks OpenID4VCI 1.0 and OpenID4VP 1.0 with DCQL."
+vendor: external
+adapter: InjiMobileWalletAdapter
+publicUrl: https://paradym.id
+# The app reports no version to the playground.
+versionProbe:
+  kind: static
+  value: store
+capabilities:
+  formats: [dc+sd-jwt, mso_mdoc]
+  proofSuites: [ES256]
+  grantTypes: [pre-authorized_code]
+  vciProfiles: [oid4vci-1.0]
+  vpProfiles: [oid4vp-1.0]
+  queryLanguages: [dcql]
+  responseModes: [direct_post]
+  presentationFlows: [cross-device-qr]
+  deliveryChannels: [qr]
+  automation: human-in-the-loop
+  supportsTamper: false
+notes: >-
+  Issuance from Animo Playground was confirmed on a phone on 2 November 2026.
+  The phone talks to Animo and to MOSIP Collab directly, outside the local Protocol Tap, so the
+  holder confirms storage from the run page. Presenting to the playground's mock verifier is not
+  expected to work: it sends OpenID4VP draft 23 requests (presentation_definition), the profile
+  Inji Wallet uses. Use Inji Verify (MOSIP Collab), which speaks OpenID4VP 1.0 with DCQL.
