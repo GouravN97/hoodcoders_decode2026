@@ -105,7 +105,8 @@ Live runs work end to end: [`injistack/`](injistack) starts Inji Certify, Inji V
 | Certify → mock wallet → Inji Verify, JSON-LD (`ldp_vc`) | Valid runs pass against the real stack (checked 25 October 2026; the JSON-LD contexts need internet access) |
 | Certify → Inji Wallet (Android app, `v1.0.0-alpha.1`) → Inji Verify | SD-JWT (`vc+sd-jwt`) verifies **VALID** on an emulator through Cloudflare quick tunnels ([how to test](injistack/README.md#test-with-inji-wallet-on-an-android-emulator)). JSON-LD (`ldp_vc`) also verifies **VALID** (24 October 2026, runs `2e946c94` and `33d84bb6`) since Certify's Farmer template issues a bare `did:jwk` subject id; with a `…#0` subject id the wallet's holder became `…#0#0` and Verify rejected it (gap 4). |
 | Hovi Playground → Inji Wallet | Selectable for Issue-only PID tests in `dc+sd-jwt` and `mso_mdoc`; live offer creation verified, wallet acceptance still needs a phone scan |
-| Animo Playground → Inji Wallet | Selectable for Issue-only EUDI PID tests in `dc+sd-jwt` and `mso_mdoc`; live offer creation verified, wallet acceptance still needs a phone scan |
+| Animo Playground → Paradym → Inji Verify (MOSIP Collab) | **Valid**, end to end (11 November 2026, physical phone): an Animo Tax-ID in `dc+sd-jwt`, held in Paradym (Animo's wallet app) and presented to Collab's Inji Verify 1.0 over OpenID4VP 1.0 with DCQL. Issuer, wallet and verifier come from three different parties; only the verifier is Inji ([results](docs/external-credential-interoperability-results.md#animo--paradym--inji-verify-mosip-collab)) |
+| Animo Playground → Inji Wallet | Selectable for Issue-only tests in `dc+sd-jwt` and `mso_mdoc` (every credential Animo publishes); live offer creation verified, Inji Wallet acceptance still needs a phone scan |
 | Inji Web | Mimoto, Inji Web and the eSignet login work once the keystore and `wallet-demo` client are set up ([`register-wallet-client.sh`](injistack/scripts/register-wallet-client.sh)); the download still fails because eSignet rejects the client assertion with `invalid_client` ([details and what was ruled out](injistack/README.md#current-local-web-wallet-limitation)) |
 | Valid-but-expired | `FarmerCredentialExpired` (ldp_vc) and `FarmerCredentialSdJwtExpired` (vc+sd-jwt) are signed with validity in the past; Inji Verify reports **EXPIRED** (also the T-EXPIRED tamper) |
 | History and matrix | `/history` with filters by module version, format, outcome, mode, tamper and date; matrix exported as Markdown. Checked against the real stack's saved runs and the mocks |
@@ -211,6 +212,20 @@ With `pnpm dev` the history starts with a few runs marked **sample**, generated 
 | `interop_exchange_errors` | component, step, status | Messages answered with HTTP 4xx/5xx or not at all |
 
 **Obsrv.** Inji Wallet reports telemetry to an Obsrv host, which stores it in Druid. The BFF writes each finished run as one `INTEROP_RUN` event in the same Sunbird telemetry v3 envelope (`eid`, `ets`, `mid`, `actor`, `context.pdata`/`cdata`, `object`, `edata` with the participants, versions, format, verdict, step durations and error). The events go to `/data/telemetry/interop-runs-<date>.jsonl` in the `playground-data` volume (a Druid batch-ingestion source). When `OBSRV_INGEST_URL` is set in `injistack/.env` (an Obsrv dataset endpoint, `…/data/v1/in/<dataset>`), each event is also posted there; `OBSRV_AUTHORIZATION` is sent as the `Authorization` header. The plan's OpenTelemetry traces (plan §16.3) are not implemented: the Protocol Tap already records every message with its timing per run.
+
+### Run Animo → Paradym → Inji Verify end to end
+
+Paradym is Animo's wallet app (OpenID4VCI 1.0, OpenID4VP 1.0 with DCQL, `dc+sd-jwt`). Install it on a phone; the phone needs internet, not tunnels, because Animo and Collab are public.
+
+1. Start the live Compose stack and open <http://localhost:8100>.
+2. Issuer **Animo Playground**, wallet **Paradym (mobile)**, verifier **Inji Verify (MOSIP Collab)**.
+3. Under **What to run**, choose **Full cycle**; format `dc+sd-jwt`; credential **Bundeszentralamt fur Steuern · Tax-ID — SD-JWT VC**. Press **Run**.
+4. Scan the offer QR with Paradym and accept the card, then press **I can see the credential in my wallet**.
+5. Scan the presentation request QR with Paradym and approve sharing. The run ends with Collab's verdict.
+
+If Paradym already holds the Tax-ID, **Present & verify only** skips the offer in step 4 and goes straight to the request.
+
+Use `dc+sd-jwt`, not `mso_mdoc`: Collab's adapter does not request mDoc, and the mock verifier's draft-23 requests are not readable by Paradym (`presentation information could not be extracted`). Only credentials whose type the adapter knows can be presented (`ANIMO_KNOWN_TYPES` in [`external-playgrounds.ts`](apps/playground-bff/src/adapters/external-playgrounds.ts), plus PIDs): a request must name the exact `vct`, which Animo's issuer list does not publish.
 
 ### Test Hovi or Animo issuance in Inji Wallet
 

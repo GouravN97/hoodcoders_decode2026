@@ -36,7 +36,7 @@ Drafts 01 and 02 below were generated this way from the 26 October 2026 nightly 
 The `gaps` command also groups these failures. They are listed here so they are not filed:
 
 - **Infrastructure:** credential and offer requests to tunnel hostnames that had changed (`*.trycloudflare.com`). See the tunnel notes in [injistack](../../injistack/README.md#phones-and-tunnels).
-- **Holder:** `access_denied`, where the person declined in Inji Wallet.
+- **Holder:** `access_denied`, where the person declined in the wallet. Paradym also sends it when it holds no card matching the request (seen when the request asked for the wrong `vct`), so check the request's `vct_values` before treating it as a decline.
 - **Our own setup:**
   - Three mock wallet `ldp_vc` runs returned Invalid. Run `93d3d8b1` (26 October 2026) was gap 3: it ran before the local issuer DID became portless. Runs `73c9c037` and `b28d045e` (24 October 2026) came from the same setup period, and their cause was not recorded.
   - Three `vc+sd-jwt` runs (23 October 2026) expected Expired from the normal configuration, a day before the expired copy was added (commit `ef81dd9`). Run `d54f2981` expected Valid from the expired copy.

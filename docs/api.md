@@ -712,10 +712,10 @@ The playground does not call these APIs itself. A person starts the download in 
 | Service | Call | Body |
 | --- | --- | --- |
 | Hovi | `POST <supabase>/functions/v1/issue-credential` with `apikey` and `Authorization: Bearer <anon key>` | `{ "credentialType": "<config id>", "sessionId": "<uuid>", "ecosystem": "eudiw" }` → `{ "request_uri": "openid-credential-offer://…" }` |
-| Animo | `GET <publicUrl>/api/issuers` | Lists issuers. The adapter takes the Bundesdruckerei EUDI PID configurations from it. |
+| Animo | `GET <publicUrl>/api/issuers` | Lists issuers. The adapter offers every credential in `dc+sd-jwt` or `mso_mdoc`, PIDs first. The list has no `vct` or doctype, so types come from the adapter's `ANIMO_KNOWN_TYPES` (read from each issuer's `/.well-known/openid-credential-issuer`). The Bundesdruckerei issuer was removed by November 2026; the EUDI PID is now under Utopia Government. |
 | Animo | `POST <publicUrl>/api/offers/create` | `{ "credentialSupportedIds": ["…"], "authorization": "none", "deferBy": "none", "requireDpop": false, "requireWalletAttestation": false, "requireKeyAttestation": false }` → `{ "credentialOffer": "openid-credential-offer://…", "issuanceSession": { … } }` |
 
-Both are used for issue-only runs to Inji Wallet on a phone. The run ends once a person confirms the credential arrived.
+Both are used for issue-only runs to a phone wallet; the run's issuing steps end once a person confirms the credential arrived. Animo credentials with a known type can also be presented: with Paradym as wallet and Collab's Inji Verify as verifier the run continues to a verdict.
 
 ### Obsrv (telemetry)
 
