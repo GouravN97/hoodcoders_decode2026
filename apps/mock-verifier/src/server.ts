@@ -18,15 +18,23 @@ import {
   type MockVerifierCreateResponse,
 } from '@playground/shared';
 import type { z } from 'zod';
-import type { VerifierConfig } from './config.ts';
+import { oid4vp1ClientId, type VerifierConfig } from './config.ts';
 import { signRequestObject, type VerifierKey } from './keys.ts';
-import { TransactionStore } from './transactions.ts';
+import { isOid4vp1, TransactionStore } from './transactions.ts';
 import { verifyCredentialOnly, verifyDcApiResponse, verifyResponse } from './verify.ts';
 
+/** Draft 23 `client_metadata.vp_formats`. */
 const VP_FORMATS = {
   'vc+sd-jwt': { 'sd-jwt_alg_values': ['ES256', 'EdDSA'], 'kb-jwt_alg_values': ['ES256', 'EdDSA'] },
   'dc+sd-jwt': { 'sd-jwt_alg_values': ['ES256', 'EdDSA'], 'kb-jwt_alg_values': ['ES256', 'EdDSA'] },
   mso_mdoc: { alg: ['ES256'] },
+};
+
+/** OpenID4VP 1.0 `client_metadata.vp_formats_supported` (§11.1; mso_mdoc takes COSE algorithm ids, -7 = ES256). */
+const VP_FORMATS_SUPPORTED = {
+  'dc+sd-jwt': { 'sd-jwt_alg_values': ['ES256', 'EdDSA'], 'kb-jwt_alg_values': ['ES256', 'EdDSA'] },
+  'vc+sd-jwt': { 'sd-jwt_alg_values': ['ES256', 'EdDSA'], 'kb-jwt_alg_values': ['ES256', 'EdDSA'] },
+  mso_mdoc: { issuerauth_alg_values: [-7], deviceauth_alg_values: [-7] },
 };
 
 class HttpError extends Error {
@@ -131,10 +139,14 @@ export function createVerifierServer(config: VerifierConfig, key: VerifierKey, s
         };
         return send(res, 201, answer);
       }
+      // openid4vp:// by reference. OpenID4VP 1.0 (a DCQL query) names the DID with its client
+      // identifier prefix, as Inji Verify 1.0 does; draft 23 uses the bare DID.
+      const clientId = body.dcqlQuery ? oid4vp1ClientId(config.clientId) : config.clientId;
       const requestUri = `${config.publicUrl}/oid4vp/request/${requestId}`;
-      const params = new URLSearchParams({ client_id: config.clientId, request_uri: requestUri });
+      const params = new URLSearchParams({ client_id: clientId, request_uri: requestUri });
       const answer: MockVerifierCreateResponse = {
         ...common,
+        clientId,
         authorizationRequestUri: `openid4vp://authorize?${params}`,
         requestUri,
       };
@@ -177,8 +189,24 @@ export function createVerifierServer(config: VerifierConfig, key: VerifierKey, s
       const tx = store.byRequestId(decodeURIComponent(m[1]!));
       if (!tx) throw new HttpError(404, 'Unknown request', 'invalid_request_uri');
       if (store.status(tx) === 'EXPIRED') throw new HttpError(400, 'The request has expired', 'invalid_request_uri');
-      if (!tx.presentationDefinition) throw new HttpError(400, 'This request is for the Digital Credentials API', 'invalid_request_uri');
+      if (tx.responseMode === 'dc_api') throw new HttpError(400, 'This request is for the Digital Credentials API', 'invalid_request_uri');
       if (method === 'POST') await readBody(req);
+      if (isOid4vp1(tx)) {
+        // OpenID4VP 1.0: DCQL, the prefixed client_id (the kid's DID is the client_id without it),
+        // vp_formats_supported, and aud for a wallet with static metadata (§5.8).
+        const jwt = await signRequestObject(key, {
+          aud: 'https://self-issued.me/v2',
+          client_id: oid4vp1ClientId(config.clientId),
+          response_type: 'vp_token',
+          response_mode: 'direct_post',
+          response_uri: responseUriFor(tx.requestId),
+          nonce: tx.nonce,
+          state: tx.requestId,
+          dcql_query: tx.dcqlQuery,
+          client_metadata: { client_name: 'Playground mock verifier', vp_formats_supported: VP_FORMATS_SUPPORTED },
+        });
+        return send(res, 200, jwt, 'application/oauth-authz-req+jwt');
+      }
       const jwt = await signRequestObject(key, {
         iss: config.clientId,
         client_id: config.clientId,

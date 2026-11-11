@@ -2,7 +2,7 @@
 id: animo-playground
 role: issuer
 displayName: Animo Playground
-description: 'Public Animo test issuer. Creates Bundesdruckerei EUDI PID offers for testing external OpenID4VCI 1.0 issuance into a wallet. Use Issue only for wallet-import checks.'
+description: 'Public Animo test issuer. Creates offers for any credential Animo publishes (dc+sd-jwt or mso_mdoc) to test external OpenID4VCI 1.0 issuance into a wallet. Use Issue only for wallet-import checks.'
 vendor: external
 adapter: AnimoPlaygroundIssuerAdapter
 publicUrl: https://playground.animo.id

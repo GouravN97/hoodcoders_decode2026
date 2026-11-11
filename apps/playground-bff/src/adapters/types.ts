@@ -57,6 +57,12 @@ export interface PresentationSpec {
   purpose: string;
   /** dc_api: a DCQL request for the browser's Digital Credentials API instead of an openid4vp:// URI. */
   responseMode?: 'direct_post' | 'dc_api';
+  /**
+   * The query language the run's wallet reads, for a verifier that speaks more than one: `dcql`
+   * (OpenID4VP 1.0) when the wallet's catalog entry lists DCQL but not Presentation Exchange.
+   * Absent means Presentation Exchange (draft 23), the default.
+   */
+  queryLanguage?: 'presentation_exchange' | 'dcql';
 }
 
 export interface PresentationRequestHandle {

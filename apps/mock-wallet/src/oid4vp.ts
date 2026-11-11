@@ -187,6 +187,7 @@ export function dcqlMatches(c: HeldCredential, q: DcqlCredentialQuery): boolean 
   const sameFormat = q.format === c.format || (SD_JWT_FORMATS.includes(q.format) && SD_JWT_FORMATS.includes(c.format));
   if (!sameFormat) return false;
   const claims = claimsOf(c);
+  if (q.meta?.doctype_value && claims.docType !== q.meta.doctype_value) return false;
   if (q.meta?.vct_values && !q.meta.vct_values.includes(String(claims.vct))) return false;
   if (q.meta?.type_values) {
     const held = typesOf(claims);
@@ -202,6 +203,17 @@ export function dcqlMatches(c: HeldCredential, q: DcqlCredentialQuery): boolean 
 /** Claim names a DCQL query asks for (top-level SD-JWT claims); all of them when it names none. */
 const dcqlRequestedClaims = (q: DcqlCredentialQuery) =>
   q.claims?.length ? q.claims.map((cl) => String(cl.path[0])) : undefined;
+
+/** mDoc elements a DCQL query asks for, by namespace (claim paths are [namespace, element]); all when it names none. */
+function dcqlRequestedElements(q: DcqlCredentialQuery): Record<string, string[]> | undefined {
+  if (!q.claims?.length) return undefined;
+  const out: Record<string, string[]> = {};
+  for (const { path } of q.claims) {
+    const [ns, element] = path;
+    if (typeof ns === 'string' && typeof element === 'string') (out[ns] ??= []).push(element);
+  }
+  return out;
+}
 
 /** Claim names a `limit_disclosure: required` descriptor asks for (top-level SD-JWT claims). */
 function requestedClaims(d: InputDescriptor): string[] | undefined {
@@ -370,13 +382,16 @@ export async function respond(
     );
   }
 
-  // mDoc elements the presentation discloses (all when the request does not limit disclosure).
-  if (dcqlQuery && credential.format === 'mso_mdoc')
-    throw new WalletError(step, 'mso_mdoc over DCQL is not implemented in this wallet', 501);
+  // mDoc elements the presentation discloses: a DCQL query's [namespace, element] claim paths, a
+  // `limit_disclosure: required` descriptor's fields, or all elements otherwise.
   const mdocDisclosed =
-    credential.format === 'mso_mdoc' && descriptor?.constraints?.limit_disclosure === 'required'
-      ? requestedElements(descriptor.constraints.fields ?? [])
-      : undefined;
+    credential.format !== 'mso_mdoc'
+      ? undefined
+      : dcqlQuery
+        ? dcqlRequestedElements(dcqlQuery)
+        : descriptor?.constraints?.limit_disclosure === 'required'
+          ? requestedElements(descriptor.constraints.fields ?? [])
+          : undefined;
   let raw = credential.raw;
   let tamperEvidence: TamperEvidence | undefined;
   if (req.tamper === 'T-SIG-FLIP' || req.tamper === 'T-CLAIM-EDIT') {
@@ -425,7 +440,13 @@ export async function respond(
       ? await buildDeviceResponse({
           credential: raw,
           deviceKey: holder.privateKey,
-          handover: { clientId: request.client_id, responseUri: request.response_uri, nonce },
+          // A DCQL request is OpenID4VP 1.0, whose session transcript is the OpenID4VPHandover.
+          handover: {
+            clientId: request.client_id,
+            responseUri: request.response_uri,
+            nonce,
+            ...(dcqlQuery ? { profile: 'oid4vp-1.0' as const, jwkThumbprint: null } : {}),
+          },
           ...(mdocDisclosed ? { disclose: mdocDisclosed } : {}),
         })
       : isSdJwt
@@ -452,7 +473,7 @@ export async function respond(
   if (dcqlQuery) {
     // OpenID4VP 1.0: one array of presentations per credential query id, no presentation_submission.
     fields = {
-      vp_token: JSON.stringify({ [dcqlQuery.id]: [isSdJwt ? vpToken : (JSON.parse(vpToken) as object)] }),
+      vp_token: JSON.stringify({ [dcqlQuery.id]: [isSdJwt || isMdoc ? vpToken : (JSON.parse(vpToken) as object)] }),
       ...state,
     };
   } else {

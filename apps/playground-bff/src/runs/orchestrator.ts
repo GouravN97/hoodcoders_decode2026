@@ -797,12 +797,20 @@ class RunExecution {
         ? WRONG_CREDENTIAL_TYPE
         : await this.credentialType(held);
     if (config.presentationFlow === 'dc-api') return this.presentDcApi(credentialType);
+    // A wallet that reads only DCQL (OpenID4VP 1.0, e.g. Paradym) gets a 1.0 request from a
+    // verifier that speaks both dialects; every other wallet keeps Presentation Exchange.
+    const walletLanguages = this.walletEntry.capabilities.queryLanguages ?? [];
+    const queryLanguage =
+      walletLanguages.includes('dcql') && !walletLanguages.includes('presentation_exchange')
+        ? ('dcql' as const)
+        : undefined;
     const request = await this.attempt('request_created', () =>
       verifier.createPresentationRequest(this.ctx, {
         id: config.credentialConfigurationId,
         format: config.format,
         credentialType,
         purpose: `Interop playground run ${this.run.id.slice(0, 8)}: present the ${credentialType} credential`,
+        ...(queryLanguage ? { queryLanguage } : {}),
       }),
     );
     register(this.run.id, request.requestId, request.transactionId);

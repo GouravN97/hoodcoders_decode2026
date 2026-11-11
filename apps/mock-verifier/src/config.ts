@@ -14,6 +14,14 @@ export interface VerifierConfig {
   requestTtlMs: number;
 }
 
+/**
+ * The client_id an OpenID4VP 1.0 request uses: a DID gets the `decentralized_identifier:` prefix
+ * (1.0 §5.9.3). Draft 23 requests keep the bare DID. The key-binding JWT's `aud` and the mDoc
+ * session transcript use this full value, prefix included.
+ */
+export const oid4vp1ClientId = (clientId: string) =>
+  clientId.startsWith('did:') ? `decentralized_identifier:${clientId}` : clientId;
+
 /** did:web for a public URL: host (port percent-encoded) then the path segments. */
 export function didWebFor(publicUrl: string): string {
   const u = new URL(publicUrl);

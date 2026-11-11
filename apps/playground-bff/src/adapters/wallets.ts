@@ -90,6 +90,29 @@ export class InjiMobileWalletAdapter extends HumanWalletAdapter {
   }
 }
 
+/** Paradym (Animo's EUDI-style wallet) on a phone: scans standard offer and VP request QR codes. */
+export class ParadymWalletAdapter extends HumanWalletAdapter {
+  issuanceDelivery(handle: IssuanceHandle): DeliveryInstruction {
+    if (!handle.offerUri)
+      throw new AdapterError('offer_delivered', 'Paradym needs a credential offer to scan');
+    return qr(
+      handle.offerUri,
+      'Open Paradym, tap the scan button and scan this credential offer.',
+      300_000,
+      handle.expiresAt,
+    );
+  }
+
+  presentationDelivery(ctx: RunContext, handle: PresentationRequestHandle): DeliveryInstruction {
+    return ctx.config.presentationFlow === 'same-device-deeplink'
+      ? super.presentationDelivery(ctx, handle)
+      : qr(
+          handle.authorizationRequestUri,
+          'Open Paradym, tap the scan button, scan this request and approve sharing.',
+        );
+  }
+}
+
 /** Inji Web: issuance starts inside Inji Web (authorization code through Mimoto). */
 export class InjiWebWalletAdapter extends HumanWalletAdapter {
   issuanceDelivery(): DeliveryInstruction {

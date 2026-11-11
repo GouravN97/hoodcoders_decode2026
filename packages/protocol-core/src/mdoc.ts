@@ -305,14 +305,35 @@ export interface Oid4vpHandoverInput {
   responseUri: string;
   nonce: string;
   /**
+   * Which handover the session transcript uses:
+   * - `iso18013-7` (default): ISO 18013-7 Annex B, what OpenID4VP draft 23 wallets (and Inji) use.
+   * - `oid4vp-1.0`: OpenID4VP 1.0 Appendix B.2.6.1, `OpenID4VPHandover`, what 1.0 wallets such as
+   *   Paradym use with a DCQL request.
+   */
+  profile?: 'iso18013-7' | 'oid4vp-1.0';
+  /**
    * Annex B carries the wallet's nonce in the JWE `apu` header. With plain `direct_post` there is no
-   * JWE, so the playground uses the empty string on both sides.
+   * JWE, so the playground uses the empty string on both sides. (`iso18013-7` only.)
    */
   mdocGeneratedNonce?: string;
+  /**
+   * SHA-256 JWK thumbprint of the verifier's response-encryption key, or null when the response is
+   * not encrypted (plain `direct_post`). (`oid4vp-1.0` only.)
+   */
+  jwkThumbprint?: Uint8Array | null;
 }
 
-/** SessionTranscript = [null, null, [SHA-256([client_id, mdocNonce]), SHA-256([response_uri, mdocNonce]), nonce]]. */
+/**
+ * The OpenID4VP session transcript the device signature covers.
+ * - ISO 18013-7 Annex B: [null, null, [SHA-256([client_id, mdocNonce]), SHA-256([response_uri, mdocNonce]), nonce]].
+ * - OpenID4VP 1.0: [null, null, ["OpenID4VPHandover", SHA-256(cbor([client_id, nonce, jwkThumbprint, response_uri]))]],
+ *   where client_id keeps its prefix (`decentralized_identifier:did:web:…`).
+ */
 export async function oid4vpSessionTranscript(i: Oid4vpHandoverInput): Promise<unknown[]> {
+  if (i.profile === 'oid4vp-1.0') {
+    const info = encodeCbor([i.clientId, i.nonce, i.jwkThumbprint ?? null, i.responseUri]);
+    return [null, null, ['OpenID4VPHandover', await sha256(info)]];
+  }
   const mdocNonce = i.mdocGeneratedNonce ?? '';
   return [
     null,

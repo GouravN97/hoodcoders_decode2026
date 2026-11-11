@@ -27,6 +27,15 @@ beforeAll(async () => {
       res.end(
         JSON.stringify([
           {
+            name: 'Bundeszentralamt fur Steuern',
+            credentials: [
+              {
+                display: { name: 'Tax-ID' },
+                formats: { 'dc+sd-jwt': 'tax-id-sd-jwt', mso_mdoc: 'tax-id-mdoc' },
+              },
+            ],
+          },
+          {
             name: 'Bundesdruckerei',
             credentials: [
               {
@@ -34,6 +43,7 @@ beforeAll(async () => {
                 formats: {
                   'dc+sd-jwt': 'eudi-pid-sd-jwt-bdr',
                   mso_mdoc: 'eudi-pid-mdoc-bdr',
+                  jwt_vc_json: 'eudi-pid-jwt-bdr',
                 },
               },
             ],
@@ -136,10 +146,20 @@ describe('external issuer playground adapters', () => {
     const adapter = new AnimoPlaygroundIssuerAdapter(
       descriptor('animo-playground', 'AnimoPlaygroundIssuerAdapter'),
     );
-    expect(await adapter.listCredentialConfigurations()).toEqual([
-      expect.objectContaining({ id: 'eudi-pid-sd-jwt-bdr', format: 'dc+sd-jwt' }),
-      expect.objectContaining({ id: 'eudi-pid-mdoc-bdr', format: 'mso_mdoc' }),
+    // Every published credential in a supported format, PID first, with its type where known.
+    const configs = await adapter.listCredentialConfigurations();
+    expect(configs).toEqual([
+      expect.objectContaining({ id: 'eudi-pid-sd-jwt-bdr', format: 'dc+sd-jwt', credentialType: 'urn:eudi:pid:1' }),
+      expect.objectContaining({ id: 'eudi-pid-mdoc-bdr', format: 'mso_mdoc', credentialType: 'eu.europa.ec.eudi.pid.1' }),
+      expect.objectContaining({
+        id: 'tax-id-sd-jwt',
+        format: 'dc+sd-jwt',
+        displayName: 'Bundeszentralamt fur Steuern · Tax-ID — SD-JWT VC',
+        credentialType: 'https://example.eudi.ec.europa.eu/tax-id/1',
+      }),
+      expect.objectContaining({ id: 'tax-id-mdoc', format: 'mso_mdoc', credentialType: 'eu.europa.ec.eudi.taxid.1' }),
     ]);
+    expect(configs.map((c) => c.id)).not.toContain('eudi-pid-jwt-bdr');
     const handle = await adapter.prepareIssuance({
       runId: 'run-animo',
       config: config('eudi-pid-sd-jwt-bdr'),

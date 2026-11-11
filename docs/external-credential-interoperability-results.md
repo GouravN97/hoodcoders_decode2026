@@ -50,6 +50,35 @@ Consequently:
 
 Connect an Inji Wallet mobile session, create fresh offers and scan each one using **+ → Scan QR code**. Record the exact wallet message and whether the credential appears in the wallet. This consent-controlled phone action could not be performed from the test environment used for this report.
 
+## Animo → Paradym → Inji Verify (MOSIP Collab)
+
+Date: 11 November 2026  
+Branch: `feat/animo-paradym-inji-verify`  
+Stack: `injistack` Docker Compose (playground UI and BFF), Animo's public playground (`playground.animo.id`) as issuer, Paradym on a physical phone as wallet, MOSIP Collab's Inji Verify (1.0 API: `/v2/vp-request`, DCQL, `decentralized_identifier:` client ID) as verifier.
+
+**Result: VALID.** A Tax-ID from Animo's "Bundeszentralamt fur Steuern" issuer, in `dc+sd-jwt`, was issued to Paradym, presented to Collab's Inji Verify and verified. Issuer, wallet and verifier come from three different parties, and only the verifier is Inji. This is the first lane in the playground where a credential from outside the Inji ecosystem is verified by Inji.
+
+| Step | Observed |
+| --- | --- |
+| Issue (Animo → Paradym) | Offer created through Animo's `/api/offers/create`, scanned and accepted in Paradym (OpenID4VCI 1.0). The phone talks to Animo directly, so the run records the offer and the holder's confirmation (manual evidence) |
+| Request (playground → Collab) | DCQL query `{"format": "dc+sd-jwt", "meta": {"vct_values": ["https://example.eudi.ec.europa.eu/tax-id/1"]}}`, sent through the Protocol Tap; Collab answered `201` with a `requestUri` |
+| Request object (Collab → Paradym) | Signed JAR (`typ: oauth-authz-req+jwt`, `alg: EdDSA`, `kid: did:web:injiverify.collab.mosip.net:v1:verify#key-0`). The DCQL query arrived unchanged; `client_metadata.vp_formats_supported` lists `dc+sd-jwt` with `ES256` among `sd-jwt_alg_values` and `kb-jwt_alg_values`; `response_mode: direct_post`. Collab's `did.json` publishes `#key-0` as an `Ed25519VerificationKey2020` under both `authentication` and `assertionMethod` |
+| Present and verify (Paradym → Collab) | Paradym shared the card; Collab's result was **VALID** |
+
+### What it took
+
+1. **Animo's issuer list changed.** By 11 November 2026 the Bundesdruckerei issuer used on 24 October was gone, so the adapter (which looked only for its "EUDI PID") listed nothing ("No credential for this format"). The adapter now offers every `dc+sd-jwt` and `mso_mdoc` credential Animo publishes, PIDs first. The EUDI PID now sits under "Utopia Government" (`eudi-pid-sd-jwt-utopia`); its type is not in the adapter yet.
+2. **The request must name the credential's real `vct`.** Animo's `/api/issuers` does not publish it. Without it the playground fell back to the configuration id (`vct = tax-id-sd-jwt`), Paradym found no matching card and posted `error=access_denied`, which Collab returned as the result. The Tax-ID types were read from the issuer's `/.well-known/openid-credential-issuer` and added to the adapter (`ANIMO_KNOWN_TYPES`).
+3. **A wallet that speaks `dc+sd-jwt`.** Present-only and full runs offer only formats the issuer and wallet share; Inji Wallet's catalog entry has no `dc+sd-jwt`, so with Animo only `mso_mdoc` was offered. Paradym was added to the catalog (`catalog/paradym-wallet.yaml`, human in the loop).
+
+### Not working: Animo mDoc → Paradym → mock verifier
+
+Paradym answers the mock verifier's request with "presentation information could not be extracted". The mock verifier speaks OpenID4VP draft 23 (`presentation_definition`, a bare `did:web` client ID, `client_metadata.vp_formats`), which Paradym (OpenID4VP 1.0) does not read; on a local stack its `verify.localhost` host is also unreachable from a phone without tunnels. Collab's adapter does not request `mso_mdoc`. External mDoc verification therefore remains untested.
+
+### What was not observed
+
+The phone's traffic to Animo and to Collab bypasses the Protocol Tap, so the inspector shows request creation and Collab's result, not the presented `vp_token`. The request object above was fetched separately with the same query, not captured from the run.
+
 ## Replay and tamper runs against Inji Verify 0.18.2
 
 Date: 25 October 2026  

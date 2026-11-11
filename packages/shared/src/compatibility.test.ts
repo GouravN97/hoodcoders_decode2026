@@ -85,3 +85,28 @@ describe('predict with a tamper', () => {
     );
   });
 });
+
+describe('predict with a phone wallet and a party only this machine can reach', () => {
+  const local = (e: CatalogEntry): CatalogEntry => ({ ...e, publicUrl: 'https://verify.localhost:8443/mock-verifier' });
+  const phone = entry('paradym', 'wallet', { automation: 'human-in-the-loop', deliveryChannels: ['qr'] });
+  const browser = entry('inji-web', 'wallet', { automation: 'human-in-the-loop', deliveryChannels: ['open-url'] });
+
+  it('warns that a phone cannot reach a localhost verifier, and says how to fix it', () => {
+    const p = predict({ ...config, walletId: 'paradym' }, [catalog[0]!, phone, local(catalog[3]!)]);
+    expect(p.status).toBe('supported');
+    expect(p.reasons).toContainEqual({
+      role: 'verifier',
+      severity: 'warn',
+      message: 'paradym on a phone cannot reach verify at verify.localhost:8443; start the stack behind tunnels (make up-phone)',
+    });
+  });
+
+  it('does not warn behind tunnels, for a wallet in this machine’s browser, or for a party the run does not use', () => {
+    const atTunnel = predict({ ...config, walletId: 'paradym' }, [catalog[0]!, phone, catalog[3]!]);
+    expect(atTunnel.reasons.some((r) => r.message.includes('cannot reach'))).toBe(false);
+    const inBrowser = predict({ ...config, walletId: 'inji-web' }, [catalog[0]!, browser, local(catalog[3]!)]);
+    expect(inBrowser.reasons.some((r) => r.message.includes('cannot reach'))).toBe(false);
+    const issueOnly = predict({ ...config, walletId: 'paradym', mode: 'issue-only' }, [catalog[0]!, phone, local(catalog[3]!)]);
+    expect(issueOnly.reasons.some((r) => r.message.includes('cannot reach'))).toBe(false);
+  });
+});

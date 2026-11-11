@@ -1,5 +1,6 @@
-# Mock verifier (apps/mock-verifier): the playground's own OpenID4VP draft-23 verifier, not Inji.
-# Published as /mock-verifier/… on the Verify host, with client_id did:web:<verify-host>:mock-verifier.
+# Mock verifier (apps/mock-verifier): the playground's own OpenID4VP verifier, not Inji.
+# Published as /mock-verifier/… on the Verify host, with client_id did:web:<verify-host>:mock-verifier
+# (decentralized_identifier:did:web:… in OpenID4VP 1.0 requests).
 id: mock-verifier
 role: verifier
 displayName: Mock verifier
@@ -16,8 +17,10 @@ capabilities:
   # presentation is answered "not checked by this verifier".
   formats: [vc+sd-jwt, dc+sd-jwt, mso_mdoc]
   proofSuites: [ES256, EdDSA]
-  # draft 23 + Presentation Exchange for openid4vp:// requests; OpenID4VP 1.0 + DCQL over the
-  # Digital Credentials API (unsigned requests, SD-JWT VC only).
+  # openid4vp:// requests in two dialects, chosen per run from the wallet's query languages:
+  # draft 23 + Presentation Exchange (Inji Wallet, the mock wallet), or OpenID4VP 1.0 + DCQL for a
+  # wallet that reads only DCQL (Paradym), SD-JWT VC and mDoc. Also 1.0 + DCQL over the Digital
+  # Credentials API (unsigned requests, SD-JWT VC only).
   vpProfiles: [oid4vp-draft23, oid4vp-1.0]
   queryLanguages: [presentation_exchange, dcql]
   responseModes: [direct_post, dc_api]
