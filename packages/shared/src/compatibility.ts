@@ -156,10 +156,33 @@ export function predict(
       message: 'Needs a person to scan QR codes and confirm steps',
     });
   }
+  // A phone wallet fetches offers, request objects and DID documents itself, so a party on a
+  // name that only exists on this machine (certify.localhost, verify.localhost) is out of reach.
+  if (wallet.capabilities.automation === 'human-in-the-loop' && wallet.capabilities.deliveryChannels.includes('qr')) {
+    for (const party of [issuing ? issuer : undefined, presenting ? verifier : undefined]) {
+      const host = party && localOnlyHost(party.publicUrl);
+      if (party && host)
+        reasons.push({
+          role: party.role,
+          severity: 'warn',
+          message: `${wallet.displayName} on a phone cannot reach ${party.displayName} at ${host}; start the stack behind tunnels (make up-phone)`,
+        });
+    }
+  }
   return {
     status: reasons.some((r) => r.severity === 'error') ? 'unsupported' : 'supported',
     reasons,
   };
+}
+
+/** The host of a URL a phone cannot resolve (localhost, *.localhost, 127.0.0.1), or undefined. */
+function localOnlyHost(url: string): string | undefined {
+  try {
+    const { hostname, host } = new URL(url);
+    return /^(localhost|127\.0\.0\.1|.+\.localhost)$/i.test(hostname) ? host : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Why a run's tamper can or cannot be applied with this selection. */
