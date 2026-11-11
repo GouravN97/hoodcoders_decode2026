@@ -32,6 +32,7 @@ import {
   InjiMobileWalletAdapter,
   InjiWebWalletAdapter,
   MockWalletAdapter,
+  ParadymWalletAdapter,
 } from '../adapters/wallets.ts';
 
 export interface AdapterSettings {
@@ -65,6 +66,7 @@ const FACTORIES: Record<string, Factory> = {
   InjiMobileWalletAdapter: (d) => new InjiMobileWalletAdapter(d),
   InjiWebWalletAdapter: (d) => new InjiWebWalletAdapter(d),
   MockWalletAdapter: (d) => new MockWalletAdapter(d),
+  ParadymWalletAdapter: (d) => new ParadymWalletAdapter(d),
 };
 
 interface Slot {

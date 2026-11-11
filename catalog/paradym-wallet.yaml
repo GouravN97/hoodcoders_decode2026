@@ -1,0 +1,28 @@
+# Paradym: Animo's wallet app (OpenID4VCI 1.0, OpenID4VP 1.0 with DCQL, EUDI formats).
+# A person scans the QR codes on a phone, as with Inji Wallet.
+id: paradym-wallet
+role: wallet
+displayName: Paradym (mobile)
+description: "Animo's EUDI-style wallet app, outside the Inji ecosystem. A person scans the QR codes on a phone and confirms each step."
+vendor: external
+adapter: ParadymWalletAdapter
+publicUrl: https://paradym.id
+versionProbe:
+  kind: static
+  value: phone app
+capabilities:
+  formats: [dc+sd-jwt, mso_mdoc]
+  proofSuites: [ES256]
+  grantTypes: [pre-authorized_code, authorization_code]
+  vciProfiles: [oid4vci-1.0]
+  vpProfiles: [oid4vp-1.0]
+  queryLanguages: [dcql]
+  responseModes: [direct_post, direct_post.jwt]
+  presentationFlows: [cross-device-qr, same-device-deeplink]
+  deliveryChannels: [qr, deeplink]
+  automation: human-in-the-loop
+  supportsTamper: false
+notes: >-
+  Capabilities are as observed with the public app in November 2026, not from a published
+  conformance statement. The phone talks to issuers and verifiers directly, so traffic to
+  non-local services (Animo, Hovi, MOSIP Collab) is outside the Protocol Tap.
