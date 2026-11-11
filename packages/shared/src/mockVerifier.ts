@@ -1,5 +1,7 @@
 // REST contract of apps/mock-verifier (plan §8.4), used by the BFF's MockVerifierAdapter: a generic
-// OpenID4VP draft-23 verifier (Presentation Exchange, direct_post) that reports every check it makes.
+// OpenID4VP verifier that reports every check it makes. Two dialects over openid4vp:// (direct_post):
+// draft 23 with Presentation Exchange (Inji Verify 0.18's, Inji Wallet's), and 1.0 with DCQL
+// (Paradym's, Inji Verify 1.0's); plus 1.0 with DCQL over the Digital Credentials API.
 import { z } from 'zod';
 import { CredentialFormatSchema, VerificationOutcomeSchema, VerificationStageSchema } from './domain';
 
@@ -10,15 +12,28 @@ export const DcqlQuerySchema = z.object({
       z.object({
         id: z.string(),
         format: z.string(),
+        /** `vct_values` (SD-JWT VC), `type_values` (W3C VC) or `doctype_value` (mso_mdoc). */
         meta: z.record(z.string(), z.unknown()).optional(),
-        claims: z.array(z.object({ path: z.array(z.union([z.string(), z.number(), z.null()])) })).optional(),
+        claims: z
+          .array(
+            z.object({
+              path: z.array(z.union([z.string(), z.number(), z.null()])),
+              intent_to_retain: z.boolean().optional(),
+            }),
+          )
+          .optional(),
       }),
     )
     .min(1),
 });
 export type DcqlQuery = z.infer<typeof DcqlQuerySchema>;
 
-/** POST /mock-verifier/api/requests: draft 23 with Presentation Exchange, or a DC API request with DCQL. */
+/**
+ * POST /mock-verifier/api/requests:
+ * - direct_post + presentationDefinition: OpenID4VP draft 23 (Presentation Exchange);
+ * - direct_post + dcqlQuery: OpenID4VP 1.0 (DCQL), signed request object by reference;
+ * - dc_api + dcqlQuery: OpenID4VP 1.0 over the Digital Credentials API, unsigned.
+ */
 export const MockVerifierCreateRequestSchema = z
   .object({
     /** Reuse the run's id so the Protocol Tap correlates it; generated when absent. */
@@ -33,9 +48,13 @@ export const MockVerifierCreateRequestSchema = z
       .optional(),
     dcqlQuery: DcqlQuerySchema.optional(),
   })
-  .refine((b) => (b.responseMode === 'dc_api' ? Boolean(b.dcqlQuery) : Boolean(b.presentationDefinition)), {
-    message: 'direct_post needs a presentationDefinition; dc_api needs a dcqlQuery',
-  });
+  .refine(
+    (b) =>
+      b.responseMode === 'dc_api'
+        ? Boolean(b.dcqlQuery)
+        : Boolean(b.presentationDefinition) !== Boolean(b.dcqlQuery),
+    { message: 'direct_post needs a presentationDefinition (draft 23) or a dcqlQuery (1.0), not both; dc_api needs a dcqlQuery' },
+  );
 export type MockVerifierCreateRequest = z.infer<typeof MockVerifierCreateRequestSchema>;
 
 export const MockVerifierCreateResponseSchema = z.object({

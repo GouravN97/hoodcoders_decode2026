@@ -8,7 +8,7 @@ import { createVerifierKey } from '../../../mock-verifier/src/keys.ts';
 import { createVerifierServer } from '../../../mock-verifier/src/server.ts';
 import { createHolderKey, type HolderKey } from '../../../mock-wallet/src/keys.ts';
 import { respond } from '../../../mock-wallet/src/oid4vp.ts';
-import { MockVerifierAdapter } from './mock-verifier.ts';
+import { dcqlQueryForDirectPost, MockVerifierAdapter } from './mock-verifier.ts';
 import type { RunContext } from './types.ts';
 
 const ISSUER = 'https://certify.test';
@@ -110,6 +110,41 @@ describe('MockVerifierAdapter', () => {
       expect.arrayContaining(['response-shape', 'state', 'submission', 'requested-credential', 'issuer-signature', 'disclosures', 'holder-binding', 'validity']),
     );
     expect(result.reason).toBeUndefined();
+  });
+
+  it('sends an OpenID4VP 1.0 (DCQL) request when the wallet reads only DCQL, and verifies the answer', async () => {
+    const run = ctx();
+    const handle = await adapter.createPresentationRequest(run, {
+      id: 'FarmerCredentialSdJwt',
+      format: 'vc+sd-jwt',
+      credentialType: 'FarmerCredentialSdJwt',
+      purpose: 'test',
+      queryLanguage: 'dcql',
+    });
+    expect(handle.dcqlQuery).toEqual({ credentials: [{ id: 'FarmerCredentialSdJwt', format: 'vc+sd-jwt', meta: { vct_values: ['FarmerCredentialSdJwt'] } }] });
+    expect(handle.authorizationRequestUri).toMatch(/^openid4vp:\/\/authorize\?client_id=decentralized_identifier%3Adid%3Aweb%3Averify\.test%3Amock-verifier&request_uri=/);
+    await respond({ authorizationRequestUri: handle.authorizationRequestUri }, holder, [await issue()]);
+    const result = await adapter.fetchResult(run, handle);
+    expect(result.outcome).toBe('VALID');
+    expect(result.stages?.find((s) => s.id === 'submission')?.status).toBe('skip');
+  });
+
+  it('builds DCQL for mDoc with doctype_value and [namespace, element] claims', () => {
+    expect(dcqlQueryForDirectPost({ id: 'pid-mdoc', format: 'mso_mdoc', credentialType: 'eu.europa.ec.eudi.pid.1', purpose: 'test' })).toEqual({
+      credentials: [
+        {
+          id: 'pid-mdoc',
+          format: 'mso_mdoc',
+          meta: { doctype_value: 'eu.europa.ec.eudi.pid.1' },
+          claims: [
+            { path: ['eu.europa.ec.eudi.pid.1', 'family_name'], intent_to_retain: false },
+            { path: ['eu.europa.ec.eudi.pid.1', 'given_name'], intent_to_retain: false },
+          ],
+        },
+      ],
+    });
+    // A docType without known elements names none: the wallet discloses what it chooses.
+    expect(dcqlQueryForDirectPost({ id: 'tax-id-mdoc', format: 'mso_mdoc', credentialType: 'eu.europa.ec.eudi.taxid.1', purpose: 'test' }).credentials[0]).not.toHaveProperty('claims');
   });
 
   it('names the failing stage of an Invalid result', async () => {

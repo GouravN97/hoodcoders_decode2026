@@ -10,15 +10,19 @@ export interface Transaction {
   transactionId: string;
   nonce: string;
   responseMode: 'direct_post' | 'dc_api';
-  /** direct_post requests (Presentation Exchange). */
+  /** draft 23 direct_post requests (Presentation Exchange). */
   presentationDefinition?: PresentationDefinition;
-  /** dc_api requests (DCQL). */
+  /** OpenID4VP 1.0 requests (DCQL): over direct_post, or over the Digital Credentials API. */
   dcqlQuery?: DcqlQuery;
   createdAt: number;
   expiresAt: number;
   submitted: boolean;
   result?: MockVerifierResult;
 }
+
+/** An openid4vp:// request in the OpenID4VP 1.0 dialect: direct_post with a DCQL query. */
+export const isOid4vp1 = (tx: Pick<Transaction, 'responseMode' | 'dcqlQuery'>) =>
+  tx.responseMode === 'direct_post' && Boolean(tx.dcqlQuery);
 
 export class TransactionStore {
   private readonly byRequest = new Map<string, Transaction>();

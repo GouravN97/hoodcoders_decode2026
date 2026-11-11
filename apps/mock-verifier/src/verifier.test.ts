@@ -5,6 +5,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  buildDeviceResponse,
   createMdoc,
   ed25519MultibaseToJwk,
   pemToDer,
@@ -97,6 +98,29 @@ async function createRequest(vct = 'FarmerCredentialSdJwt', format = 'vc+sd-jwt'
   expect(res.status).toBe(201);
   return (await res.json()) as { requestId: string; transactionId: string; authorizationRequestUri: string };
 }
+
+/** An OpenID4VP 1.0 request: direct_post with one DCQL credential query. */
+async function dcqlRequest(credentialQuery: object) {
+  const res = await fetch(`${base}/api/requests`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ dcqlQuery: { credentials: [credentialQuery] } }),
+  });
+  expect(res.status).toBe(201);
+  return (await res.json()) as { requestId: string; transactionId: string; authorizationRequestUri: string; clientId: string };
+}
+
+/** The request object behind an openid4vp:// URI, decoded. */
+const requestObjectOf = async (authorizationRequestUri: string) =>
+  decodeJwt(await (await fetch(new URL(authorizationRequestUri).searchParams.get('request_uri')!)).text()) as {
+    client_id: string;
+    nonce: string;
+    response_uri: string;
+    state: string;
+    dcql_query?: unknown;
+    presentation_definition?: unknown;
+    client_metadata: Record<string, unknown>;
+  };
 
 const resultOf = async (txn: string) => (await (await fetch(`${base}/api/results/${txn}`)).json()) as MockVerifierResult;
 const stageStatus = (r: MockVerifierResult) => Object.fromEntries(r.stages.map((s) => [s.id, s.status]));
@@ -321,6 +345,116 @@ describe('mock verifier', () => {
       const result = (await res.json()) as MockVerifierResult;
       expect(result.outcome).toBe('VALID');
       expect(stageStatus(result)['holder-binding']).toBe('skip');
+    });
+
+    describe('over OpenID4VP 1.0 (DCQL), as Paradym asks for it', () => {
+      const mdlQuery = (doctype = MDL) => ({
+        id: 'mdl',
+        format: 'mso_mdoc',
+        meta: { doctype_value: doctype },
+        claims: [{ path: ['org.iso.18013.5.1', 'family_name'], intent_to_retain: false }],
+      });
+
+      it('verifies a DeviceResponse signed over the 1.0 OpenID4VPHandover', async () => {
+        const req = await dcqlRequest(mdlQuery());
+        expect((await respond({ authorizationRequestUri: req.authorizationRequestUri }, holder, [await issueMdoc()])).status).toBe(200);
+        const result = await resultOf(req.transactionId);
+        expect(result).toMatchObject({ outcome: 'VALID', format: 'mso_mdoc', credentialType: MDL });
+        expect(stageStatus(result)).toMatchObject({
+          'response-shape': 'pass',
+          state: 'pass',
+          submission: 'skip',
+          'requested-credential': 'pass',
+          'issuer-signature': 'pass',
+          digests: 'pass',
+          'holder-binding': 'pass',
+          validity: 'pass',
+        });
+      });
+
+      it('fails holder binding for a device signature over the draft-23 (ISO 18013-7 Annex B) transcript', async () => {
+        const req = await dcqlRequest(mdlQuery());
+        const ro = await requestObjectOf(req.authorizationRequestUri);
+        const vpToken = await buildDeviceResponse({
+          credential: (await issueMdoc()).raw,
+          deviceKey: holder.privateKey,
+          handover: { clientId: ro.client_id, responseUri: ro.response_uri, nonce: ro.nonce },
+        });
+        await fetch(ro.response_uri, {
+          method: 'POST',
+          headers: { 'content-type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ vp_token: JSON.stringify({ mdl: [vpToken] }), state: ro.state }),
+        });
+        expect(stageStatus(await resultOf(req.transactionId))['holder-binding']).toBe('fail');
+      });
+
+      it('rejects an mDoc of another docType', async () => {
+        const req = await dcqlRequest(mdlQuery('org.example.other.1'));
+        await respond({ authorizationRequestUri: req.authorizationRequestUri, tamper: 'T-WRONG-TYPE' }, holder, [await issueMdoc()]);
+        const result = await resultOf(req.transactionId);
+        expect(result.outcome).toBe('INVALID');
+        expect(result.stages.find((s) => s.id === 'requested-credential')).toMatchObject({ status: 'fail', message: expect.stringContaining('org.example.other.1') });
+      });
+    });
+  });
+
+  describe('OpenID4VP 1.0 over openid4vp:// (DCQL, direct_post)', () => {
+    const sdJwtQuery = { id: 'farmer', format: 'dc+sd-jwt', meta: { vct_values: ['FarmerCredentialSdJwt'] } };
+
+    it('signs a 1.0 request object: prefixed client_id, dcql_query, vp_formats_supported', async () => {
+      const req = await dcqlRequest(sdJwtQuery);
+      const prefixed = `decentralized_identifier:${config.clientId}`;
+      expect(req.clientId).toBe(prefixed);
+      expect(new URL(req.authorizationRequestUri).searchParams.get('client_id')).toBe(prefixed);
+      const requestUri = new URL(req.authorizationRequestUri).searchParams.get('request_uri')!;
+      const jwt = await (await fetch(requestUri)).text();
+      const did = (await (await fetch(`${base}/did.json`)).json()) as { verificationMethod: Array<{ publicKeyMultibase: string }> };
+      const { protectedHeader } = await compactVerify(jwt, await importJWK(ed25519MultibaseToJwk(did.verificationMethod[0]!.publicKeyMultibase), 'EdDSA'));
+      // The kid's DID is the client_id without its prefix.
+      expect(protectedHeader.kid).toBe(`${config.clientId}#key-0`);
+      const ro = decodeJwt(jwt);
+      expect(ro).toMatchObject({ client_id: prefixed, response_mode: 'direct_post', state: req.requestId, dcql_query: { credentials: [sdJwtQuery] } });
+      expect(ro.presentation_definition).toBeUndefined();
+      expect(ro.client_metadata).toHaveProperty('vp_formats_supported.mso_mdoc');
+    });
+
+    it('accepts a presentation keyed by the credential query id, bound to the prefixed client_id', async () => {
+      const req = await dcqlRequest(sdJwtQuery);
+      expect((await respond({ authorizationRequestUri: req.authorizationRequestUri }, holder, [await issue({ typ: 'dc+sd-jwt' })])).status).toBe(200);
+      const result = await resultOf(req.transactionId);
+      expect(result.outcome).toBe('VALID');
+      expect(stageStatus(result)).toMatchObject({ 'response-shape': 'pass', state: 'pass', submission: 'skip', 'requested-credential': 'pass', 'holder-binding': 'pass' });
+    });
+
+    it('fails holder binding when the key-binding aud is the bare DID', async () => {
+      const req = await dcqlRequest(sdJwtQuery);
+      const ro = await requestObjectOf(req.authorizationRequestUri);
+      const vp = await presentSdJwt({ raw: (await issue({ typ: 'dc+sd-jwt' })).raw, holder, nonce: ro.nonce, audience: config.clientId });
+      await fetch(ro.response_uri, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ vp_token: JSON.stringify({ farmer: [vp] }), state: ro.state }),
+      });
+      expect(stageStatus(await resultOf(req.transactionId))['holder-binding']).toBe('fail');
+    });
+
+    it('refuses a wrong state at direct_post and records a declining wallet as Rejected', async () => {
+      const req = await dcqlRequest(sdJwtQuery);
+      const ro = await requestObjectOf(req.authorizationRequestUri);
+      const bad = await fetch(ro.response_uri, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ vp_token: JSON.stringify({ farmer: ['x~'] }), state: 'other' }),
+      });
+      expect(bad.status).toBe(400);
+      const declined = await dcqlRequest(sdJwtQuery);
+      const ro2 = await requestObjectOf(declined.authorizationRequestUri);
+      await fetch(ro2.response_uri, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ error: 'access_denied', state: ro2.state }),
+      });
+      expect((await resultOf(declined.transactionId)).outcome).toBe('REJECTED');
     });
   });
 

@@ -13,7 +13,7 @@ import {
 import type { z } from 'zod';
 import { CALLER_HEADER } from '../tap/proxy.ts';
 import { AdapterError, probeHealth, staticVersion, upstream, type UpstreamResponse } from './http.ts';
-import { presentationDefinitionFor, transactionIdFor } from './inji-verify.ts';
+import { mdocNamespace, presentationDefinitionFor, transactionIdFor } from './inji-verify.ts';
 import type {
   PresentationRequestHandle,
   PresentationSpec,
@@ -44,6 +44,38 @@ export function dcqlQueryFor(spec: PresentationSpec) {
       },
     ],
   };
+}
+
+/** mDoc elements a 1.0 request asks for, by docType; other docTypes name none (the wallet's choice). */
+const MDOC_REQUESTED_ELEMENTS: Record<string, string[]> = {
+  'org.iso.18013.5.1.mDL': ['family_name', 'given_name'],
+  'eu.europa.ec.eudi.pid.1': ['family_name', 'given_name'],
+};
+
+/**
+ * The DCQL query of an openid4vp:// request in the OpenID4VP 1.0 dialect (a wallet such as
+ * Paradym): `vct_values` for SD-JWT VC, `doctype_value` and [namespace, element] claims for mDoc.
+ * SD-JWT names no claims, as Inji Verify 1.0's queries do, so any credential of the type matches.
+ */
+export function dcqlQueryForDirectPost(spec: PresentationSpec) {
+  const id = spec.id.replace(/[^A-Za-z0-9_-]/g, '_');
+  if (spec.format === 'mso_mdoc') {
+    const ns = mdocNamespace(spec.credentialType);
+    const elements = MDOC_REQUESTED_ELEMENTS[spec.credentialType] ?? [];
+    return {
+      credentials: [
+        {
+          id,
+          format: 'mso_mdoc',
+          meta: { doctype_value: spec.credentialType },
+          ...(elements.length ? { claims: elements.map((e) => ({ path: [ns, e], intent_to_retain: false })) } : {}),
+        },
+      ],
+    };
+  }
+  if (spec.format === 'ldp_vc')
+    throw new AdapterError('request_created', 'The mock verifier does not check ldp_vc; choose Inji Verify for JSON-LD');
+  return { credentials: [{ id, format: spec.format, meta: { vct_values: [spec.credentialType] } }] };
 }
 
 /** The mock verifier's result → the playground's VerifierResult, keeping every stage. */
@@ -98,6 +130,27 @@ export class MockVerifierAdapter implements VerifierAdapter {
         presentationDefinition: dcqlQuery,
         dcqlQuery,
         dcApiRequest: data.dcApiRequest,
+      };
+    }
+    if (spec.queryLanguage === 'dcql') {
+      // OpenID4VP 1.0 over openid4vp://: a signed request object with a DCQL query and the
+      // `decentralized_identifier:` client_id, for wallets that read no Presentation Exchange.
+      const dcqlQuery = dcqlQueryForDirectPost(spec);
+      const res = await upstream('request_created', `${this.base}/api/requests`, {
+        method: 'POST',
+        runId: ctx.runId,
+        signal: ctx.signal,
+        body: JSON.stringify({ transactionId: transactionIdFor(ctx.runId), responseMode: 'direct_post', dcqlQuery }),
+      });
+      const data = parsed('request_created', res, MockVerifierCreateResponseSchema);
+      if (!data.authorizationRequestUri)
+        throw new AdapterError('request_created', 'The mock verifier returned no openid4vp:// request', res.status, res.text);
+      return {
+        requestId: data.requestId,
+        transactionId: data.transactionId,
+        authorizationRequestUri: data.authorizationRequestUri,
+        presentationDefinition: dcqlQuery,
+        dcqlQuery,
       };
     }
     const presentationDefinition = presentationDefinitionFor(spec);
