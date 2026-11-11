@@ -28,6 +28,16 @@ const HOVI_CONFIGURATIONS: CredentialConfigurationSummary[] = [
   },
 ];
 
+/**
+ * Credential types Animo's issuer list does not publish, read from each issuer's
+ * `/.well-known/openid-credential-issuer` (11 November 2026). A presentation request asks for
+ * exactly this `vct` / doctype, so a missing one means the wallet finds no matching credential.
+ */
+const ANIMO_KNOWN_TYPES: Record<string, string> = {
+  'tax-id-sd-jwt': 'https://example.eudi.ec.europa.eu/tax-id/1',
+  'tax-id-mdoc': 'eu.europa.ec.eudi.taxid.1',
+};
+
 const ANIMO_FORMATS = {
   'dc+sd-jwt': 'dc+sd-jwt',
   mso_mdoc: 'mso_mdoc',
@@ -190,26 +200,41 @@ export class AnimoPlaygroundIssuerAdapter implements IssuerAdapter {
       `${this.descriptor.publicUrl.replace(/\/$/, '')}/api/issuers`,
     );
     const issuers = AnimoIssuersSchema.parse(res.json());
-    const pid = issuers
-      .find((issuer) => issuer.name === 'Bundesdruckerei')
-      ?.credentials.find((credential) => credential.display.name === 'EUDI PID');
-    const value = Object.entries(pid?.formats ?? {}).flatMap(([format, id]) => {
-      const supported = ANIMO_FORMATS[format as keyof typeof ANIMO_FORMATS];
-      if (!supported) return [];
-      return [
-        {
-          id,
-          format: supported,
-          displayName: `EUDI PID — ${supported === 'mso_mdoc' ? 'mDoc' : 'SD-JWT VC'}`,
-          credentialType: supported === 'mso_mdoc' ? 'eu.europa.ec.eudi.pid.1' : 'urn:eudi:pid:1',
-          proofSuites: ['ES256' as const],
-        },
-      ];
-    });
+    // Animo's issuer list changes (the Bundesdruckerei PID issuer was removed in November 2026),
+    // so offer every credential it publishes in a supported format, PID credentials first.
+    const isPid = (name: string) => /\bPID\b/i.test(name);
+    const value = issuers
+      .flatMap((issuer) =>
+        issuer.credentials.flatMap((credential) =>
+          Object.entries(credential.formats).flatMap(([format, id]) => {
+            const supported = ANIMO_FORMATS[format as keyof typeof ANIMO_FORMATS];
+            if (!supported) return [];
+            const pid = isPid(credential.display.name);
+            const credentialType = pid
+              ? supported === 'mso_mdoc'
+                ? 'eu.europa.ec.eudi.pid.1'
+                : 'urn:eudi:pid:1'
+              : ANIMO_KNOWN_TYPES[id];
+            return [
+              {
+                id,
+                format: supported,
+                displayName: `${issuer.name} · ${credential.display.name} — ${supported === 'mso_mdoc' ? 'mDoc' : 'SD-JWT VC'}`,
+                // The issuer list does not publish vct/doctype: the PID's and ANIMO_KNOWN_TYPES only.
+                ...(credentialType ? { credentialType } : {}),
+                proofSuites: ['ES256' as const],
+                pid,
+              },
+            ];
+          }),
+        ),
+      )
+      .sort((a, b) => Number(b.pid) - Number(a.pid))
+      .map(({ pid: _pid, ...summary }) => summary);
     if (value.length === 0) {
       throw new AdapterError(
         ProtocolStep.VCI_ISSUER_METADATA,
-        'Animo currently publishes no Bundesdruckerei EUDI PID configurations',
+        'Animo currently publishes no dc+sd-jwt or mso_mdoc credentials',
       );
     }
     this.configurations = { at: Date.now(), value };
