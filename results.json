@@ -1,8 +1,8 @@
 {
   "matrix": "nightly",
   "bff": "http://localhost:8101",
-  "startedAt": "2026-11-18T02:32:02.388Z",
-  "finishedAt": "2026-11-18T02:32:57.060Z",
+  "startedAt": "2026-11-19T01:58:03.389Z",
+  "finishedAt": "2026-11-19T01:58:50.410Z",
   "matrixFile": "nightly.yaml",
   "lanes": [
     {
@@ -21,12 +21,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "0e0d0db3-bad5-4c3f-9976-e16900f51951",
+      "runId": "acb98ba7-e626-4b8a-9771-40d167e443a8",
       "report": {
-        "runId": "0e0d0db3-bad5-4c3f-9976-e16900f51951",
-        "createdAt": "2026-11-18T02:32:09.544Z",
-        "finishedAt": "2026-11-18T02:32:11.694Z",
-        "durationMs": 2150,
+        "runId": "acb98ba7-e626-4b8a-9771-40d167e443a8",
+        "createdAt": "2026-11-19T01:58:04.803Z",
+        "finishedAt": "2026-11-19T01:58:06.481Z",
+        "durationMs": 1678,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -61,28 +61,28 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 92
+            "durationMs": 93
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 50
+            "durationMs": 60
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 207
+            "durationMs": 161
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 495
+            "durationMs": 445
           },
           {
             "phase": "holding",
@@ -96,14 +96,14 @@
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 366
+            "durationMs": 256
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 212
+            "durationMs": 126
           },
           {
             "phase": "presenting",
@@ -117,26 +117,26 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 125
+            "durationMs": 100
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 573
+            "durationMs": 407
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "be191ab4-d206-4f66-98a3-0147c06f7c9e",
+            "id": "fbdd0e29-e403-4fe6-9e26-209c63085db9",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion agrees: Inji Verify and Mock verifier both say Valid",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "d5e2021c-b8a5-4165-94a4-2a81c679dc2d"
+            "exchangeId": "cb8b3b6e-3a27-4063-9777-2b6013d5af61"
           }
         ],
         "secondOpinion": {
@@ -183,16 +183,16 @@
           ],
           "comparable": true,
           "agrees": true,
-          "exchangeId": "d5e2021c-b8a5-4165-94a4-2a81c679dc2d"
+          "exchangeId": "cb8b3b6e-3a27-4063-9777-2b6013d5af61"
         },
         "prediction": {
           "status": "supported",
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  L--)W: vp_token built and signed (inferred)\n  W->>V: Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/0e0d0db3-bad5-4c3f-9976-e16900f51951?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/acb98ba7-e626-4b8a-9771-40d167e443a8?view=inspector"
       },
-      "durationMs": 3101
+      "durationMs": 2087
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify · ldp_vc",
@@ -210,12 +210,12 @@
         "format": "ldp_vc"
       },
       "status": "pass",
-      "runId": "b915f29b-3f01-46ea-8ae6-17057cddb65f",
+      "runId": "1adbadee-8077-4117-bee7-94015245dc2f",
       "report": {
-        "runId": "b915f29b-3f01-46ea-8ae6-17057cddb65f",
-        "createdAt": "2026-11-18T02:32:12.582Z",
-        "finishedAt": "2026-11-18T02:32:15.755Z",
-        "durationMs": 3173,
+        "runId": "1adbadee-8077-4117-bee7-94015245dc2f",
+        "createdAt": "2026-11-19T01:58:06.836Z",
+        "finishedAt": "2026-11-19T01:58:09.733Z",
+        "durationMs": 2897,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -250,28 +250,28 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 31
+            "durationMs": 25
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 10
+            "durationMs": 7
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 56
+            "durationMs": 48
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 1246
+            "durationMs": 1031
           },
           {
             "phase": "holding",
@@ -285,14 +285,14 @@
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 16
+            "durationMs": 15
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 15
+            "durationMs": 13
           },
           {
             "phase": "presenting",
@@ -306,14 +306,14 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 201
+            "durationMs": 220
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 1583
+            "durationMs": 1523
           }
         ],
         "correlation": "exact",
@@ -323,9 +323,9 @@
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  L--)W: vp_token built and signed (inferred)\n  W->>V: Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200",
-        "inspectorUrl": "http://localhost:8100/runs/b915f29b-3f01-46ea-8ae6-17057cddb65f?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/1adbadee-8077-4117-bee7-94015245dc2f?view=inspector"
       },
-      "durationMs": 4021
+      "durationMs": 3128
     },
     {
       "key": "inji-certify → mock-wallet → mock-verifier · vc+sd-jwt",
@@ -343,12 +343,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "bce4cdd7-7a39-4d8f-bfdf-0e92a68afd2d",
+      "runId": "49a3ac00-b79e-47b4-b16d-f831f6c76a5c",
       "report": {
-        "runId": "bce4cdd7-7a39-4d8f-bfdf-0e92a68afd2d",
-        "createdAt": "2026-11-18T02:32:16.603Z",
-        "finishedAt": "2026-11-18T02:32:16.909Z",
-        "durationMs": 306,
+        "runId": "49a3ac00-b79e-47b4-b16d-f831f6c76a5c",
+        "createdAt": "2026-11-19T01:58:09.963Z",
+        "finishedAt": "2026-11-19T01:58:10.193Z",
+        "durationMs": 230,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -383,35 +383,35 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 33
+            "durationMs": 24
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 9
+            "durationMs": 8
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 62
+            "durationMs": 44
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 126
+            "durationMs": 81
           },
           {
             "phase": "holding",
             "step": "credential_held",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 1
+            "durationMs": 2
           },
           {
             "phase": "presenting",
@@ -425,7 +425,7 @@
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 6
+            "durationMs": 10
           },
           {
             "phase": "presenting",
@@ -439,26 +439,26 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 18
+            "durationMs": 16
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 24
+            "durationMs": 25
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "97f3af9b-7c7e-4c95-93b2-8353c7e35c2b",
+            "id": "c0d8bc30-2aa4-40f6-a56e-86fe9c87c357",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion agrees: Mock verifier and Inji Verify both say Valid",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "f7af2ef0-95c3-4757-abaf-22f5e9fd324a"
+            "exchangeId": "a910cc48-e31b-4d22-a8a0-4d435870d553"
           }
         ],
         "secondOpinion": {
@@ -467,16 +467,16 @@
           "outcome": "VALID",
           "comparable": true,
           "agrees": true,
-          "exchangeId": "f7af2ef0-95c3-4757-abaf-22f5e9fd324a"
+          "exchangeId": "a910cc48-e31b-4d22-a8a0-4d435870d553"
         },
         "prediction": {
           "status": "supported",
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Mock verifier<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  L--)W: vp_token built and signed (inferred)\n  W->>V: Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/bce4cdd7-7a39-4d8f-bfdf-0e92a68afd2d?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/49a3ac00-b79e-47b4-b16d-f831f6c76a5c?view=inspector"
       },
-      "durationMs": 1008
+      "durationMs": 1011
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify · vc+sd-jwt · issue-only",
@@ -494,12 +494,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "75586211-9089-4110-baff-071eab3a7f71",
+      "runId": "ee52276a-acd5-469c-97ba-f789d122ab16",
       "report": {
-        "runId": "75586211-9089-4110-baff-071eab3a7f71",
-        "createdAt": "2026-11-18T02:32:17.612Z",
-        "finishedAt": "2026-11-18T02:32:17.786Z",
-        "durationMs": 174,
+        "runId": "ee52276a-acd5-469c-97ba-f789d122ab16",
+        "createdAt": "2026-11-19T01:58:10.975Z",
+        "finishedAt": "2026-11-19T01:58:11.124Z",
+        "durationMs": 149,
         "mode": "issue-only",
         "issuer": {
           "role": "issuer",
@@ -533,35 +533,35 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 24
+            "durationMs": 25
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 7
+            "durationMs": 8
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 60
+            "durationMs": 46
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 72
+            "durationMs": 61
           },
           {
             "phase": "holding",
             "step": "credential_held",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 4
+            "durationMs": 2
           }
         ],
         "correlation": "exact",
@@ -571,9 +571,9 @@
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200",
-        "inspectorUrl": "http://localhost:8100/runs/75586211-9089-4110-baff-071eab3a7f71?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/ee52276a-acd5-469c-97ba-f789d122ab16?view=inspector"
       },
-      "durationMs": 1007
+      "durationMs": 1010
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify · ldp_vc · issue-only",
@@ -591,12 +591,12 @@
         "format": "ldp_vc"
       },
       "status": "pass",
-      "runId": "e53a058c-a224-4d97-b537-bbe5d7cfd6d7",
+      "runId": "6b327836-553b-40f2-ab61-e2811d4dbdee",
       "report": {
-        "runId": "e53a058c-a224-4d97-b537-bbe5d7cfd6d7",
-        "createdAt": "2026-11-18T02:32:18.620Z",
-        "finishedAt": "2026-11-18T02:32:18.989Z",
-        "durationMs": 369,
+        "runId": "6b327836-553b-40f2-ab61-e2811d4dbdee",
+        "createdAt": "2026-11-19T01:58:11.985Z",
+        "finishedAt": "2026-11-19T01:58:12.296Z",
+        "durationMs": 311,
         "mode": "issue-only",
         "issuer": {
           "role": "issuer",
@@ -630,35 +630,35 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 20
+            "durationMs": 21
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 6
+            "durationMs": 8
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 44
+            "durationMs": 36
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 291
+            "durationMs": 238
           },
           {
             "phase": "holding",
             "step": "credential_held",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 3
+            "durationMs": 1
           }
         ],
         "correlation": "exact",
@@ -668,7 +668,7 @@
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200",
-        "inspectorUrl": "http://localhost:8100/runs/e53a058c-a224-4d97-b537-bbe5d7cfd6d7?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/6b327836-553b-40f2-ab61-e2811d4dbdee?view=inspector"
       },
       "durationMs": 1007
     },
@@ -688,12 +688,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "444f6e6d-f728-49bc-9162-e3cca2975512",
+      "runId": "a96a0334-8ea6-4f9f-8488-d9a064745a60",
       "report": {
-        "runId": "444f6e6d-f728-49bc-9162-e3cca2975512",
-        "createdAt": "2026-11-18T02:32:19.627Z",
-        "finishedAt": "2026-11-18T02:32:19.725Z",
-        "durationMs": 98,
+        "runId": "a96a0334-8ea6-4f9f-8488-d9a064745a60",
+        "createdAt": "2026-11-19T01:58:12.991Z",
+        "finishedAt": "2026-11-19T01:58:13.084Z",
+        "durationMs": 93,
         "mode": "present-only",
         "issuer": {
           "role": "issuer",
@@ -735,14 +735,14 @@
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 11
+            "durationMs": 13
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 11
+            "durationMs": 12
           },
           {
             "phase": "presenting",
@@ -756,26 +756,26 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 39
+            "durationMs": 29
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 27
+            "durationMs": 28
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "023a200e-3a0e-42eb-a84e-941178fbd9e9",
+            "id": "e5a47a90-6348-4321-8ee6-b1721e620336",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion agrees: Inji Verify and Mock verifier both say Valid",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "6ecd0aeb-cbb9-4772-9df9-41b53ab95c60"
+            "exchangeId": "710e3618-cdf1-4e50-9145-45082b5b698c"
           }
         ],
         "secondOpinion": {
@@ -822,16 +822,16 @@
           ],
           "comparable": true,
           "agrees": true,
-          "exchangeId": "6ecd0aeb-cbb9-4772-9df9-41b53ab95c60"
+          "exchangeId": "710e3618-cdf1-4e50-9145-45082b5b698c"
         },
         "prediction": {
           "status": "supported",
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify<br/>(behind the Protocol Tap)\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  L--)W: vp_token built and signed (inferred)\n  W->>V: Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/444f6e6d-f728-49bc-9162-e3cca2975512?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/a96a0334-8ea6-4f9f-8488-d9a064745a60?view=inspector"
       },
-      "durationMs": 1009
+      "durationMs": 1008
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify · vc+sd-jwt · T-SIG-FLIP · expect INVALID",
@@ -852,12 +852,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "d7b169dd-c1c7-49ba-9871-ad88e03d08fd",
+      "runId": "b75e59dc-f611-472c-8fbc-f857320649b3",
       "report": {
-        "runId": "d7b169dd-c1c7-49ba-9871-ad88e03d08fd",
-        "createdAt": "2026-11-18T02:32:20.635Z",
-        "finishedAt": "2026-11-18T02:32:20.899Z",
-        "durationMs": 264,
+        "runId": "b75e59dc-f611-472c-8fbc-f857320649b3",
+        "createdAt": "2026-11-19T01:58:14.000Z",
+        "finishedAt": "2026-11-19T01:58:14.218Z",
+        "durationMs": 218,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -899,35 +899,35 @@
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 9
+            "durationMs": 8
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 42
+            "durationMs": 36
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 70
+            "durationMs": 54
           },
           {
             "phase": "holding",
             "step": "credential_held",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 2
+            "durationMs": 1
           },
           {
             "phase": "presenting",
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 22
+            "durationMs": 17
           },
           {
             "phase": "presenting",
@@ -948,35 +948,35 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 41
+            "durationMs": 29
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 30
+            "durationMs": 23
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "2b041d03-305d-4855-8c09-55266aa9160c",
+            "id": "2ca67f2c-0d52-4339-aaf2-ae066380cdf5",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion agrees: Inji Verify and Mock verifier both say Invalid",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "eda5a009-8e1c-4f27-b2d8-e894fa01d430"
+            "exchangeId": "a5a0d5b1-18d7-4525-9e4c-1248e985f02a"
           },
           {
-            "id": "0c34839d-3193-4d92-ba3e-a443da1f2ede",
+            "id": "4b9c7093-3d0e-48fd-917b-0b1fedb7752f",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "PASS",
             "message": "Inji Verify rejected the T-SIG-FLIP presentation as expected",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "69b274cc-6519-4508-b029-a40bde7d5da3"
+            "exchangeId": "702855af-64ef-4d4b-b557-7c4c728e2250"
           }
         ],
         "tamper": {
@@ -985,7 +985,7 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Changed one character of the issuer's signature",
-          "exchangeId": "69b274cc-6519-4508-b029-a40bde7d5da3",
+          "exchangeId": "702855af-64ef-4d4b-b557-7c4c728e2250",
           "observedOutcome": "INVALID",
           "detected": true
         },
@@ -1034,14 +1034,14 @@
           "reason": "Issuer signature: signature verification failed",
           "comparable": true,
           "agrees": true,
-          "exchangeId": "eda5a009-8e1c-4f27-b2d8-e894fa01d430"
+          "exchangeId": "a5a0d5b1-18d7-4525-9e4c-1248e985f02a"
         },
         "prediction": {
           "status": "supported",
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  P->>V: Status poll · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-SIG-FLIP: Changed one character of the issuer's signature\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/d7b169dd-c1c7-49ba-9871-ad88e03d08fd?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/b75e59dc-f611-472c-8fbc-f857320649b3?view=inspector"
       },
       "durationMs": 1013
     },
@@ -1064,12 +1064,12 @@
         "format": "ldp_vc"
       },
       "status": "pass",
-      "runId": "872ce822-12ea-4311-bdce-9878bb893828",
+      "runId": "58483b32-d86e-4a15-87f9-b372ee8685b7",
       "report": {
-        "runId": "872ce822-12ea-4311-bdce-9878bb893828",
-        "createdAt": "2026-11-18T02:32:21.648Z",
-        "finishedAt": "2026-11-18T02:32:22.538Z",
-        "durationMs": 890,
+        "runId": "58483b32-d86e-4a15-87f9-b372ee8685b7",
+        "createdAt": "2026-11-19T01:58:15.013Z",
+        "finishedAt": "2026-11-19T01:58:15.723Z",
+        "durationMs": 710,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -1104,7 +1104,7 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 20
+            "durationMs": 22
           },
           {
             "phase": "issuing",
@@ -1118,35 +1118,35 @@
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 42
+            "durationMs": 38
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 281
+            "durationMs": 192
           },
           {
             "phase": "holding",
             "step": "credential_held",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 2
+            "durationMs": 1
           },
           {
             "phase": "presenting",
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 11
+            "durationMs": 13
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 12
+            "durationMs": 11
           },
           {
             "phase": "presenting",
@@ -1160,26 +1160,26 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 43
+            "durationMs": 39
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 457
+            "durationMs": 376
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "90cff445-afe7-433b-aecb-a895f2a909af",
+            "id": "c0653569-30ac-44f8-9d14-56391dd3f6ef",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "PASS",
             "message": "Inji Verify rejected the T-SIG-FLIP presentation as expected",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "53d541f7-3b9f-4251-b964-096aa0436c02"
+            "exchangeId": "456d14a7-6891-48af-b224-91edd69641a7"
           }
         ],
         "tamper": {
@@ -1188,7 +1188,7 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Changed one character of the issuer's signature",
-          "exchangeId": "53d541f7-3b9f-4251-b964-096aa0436c02",
+          "exchangeId": "456d14a7-6891-48af-b224-91edd69641a7",
           "observedOutcome": "INVALID",
           "detected": true
         },
@@ -1197,9 +1197,9 @@
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-SIG-FLIP: Changed one character of the issuer's signature\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200",
-        "inspectorUrl": "http://localhost:8100/runs/872ce822-12ea-4311-bdce-9878bb893828?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/58483b32-d86e-4a15-87f9-b372ee8685b7?view=inspector"
       },
-      "durationMs": 1010
+      "durationMs": 1013
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify · vc+sd-jwt · T-CLAIM-EDIT · expect INVALID",
@@ -1220,12 +1220,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "189adb19-0300-4f93-b3f1-7ce16c4d3028",
+      "runId": "f7a5d52c-8c8e-481b-b79f-31d76b4d35e5",
       "report": {
-        "runId": "189adb19-0300-4f93-b3f1-7ce16c4d3028",
-        "createdAt": "2026-11-18T02:32:22.659Z",
-        "finishedAt": "2026-11-18T02:32:22.885Z",
-        "durationMs": 226,
+        "runId": "f7a5d52c-8c8e-481b-b79f-31d76b4d35e5",
+        "createdAt": "2026-11-19T01:58:16.026Z",
+        "finishedAt": "2026-11-19T01:58:16.237Z",
+        "durationMs": 211,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -1260,28 +1260,28 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 22
+            "durationMs": 21
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 7
+            "durationMs": 6
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 37
+            "durationMs": 36
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 66
+            "durationMs": 60
           },
           {
             "phase": "holding",
@@ -1295,14 +1295,14 @@
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 17
+            "durationMs": 14
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 12
+            "durationMs": 13
           },
           {
             "phase": "presenting",
@@ -1316,7 +1316,7 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 31
+            "durationMs": 28
           },
           {
             "phase": "verifying",
@@ -1329,22 +1329,22 @@
         "correlation": "exact",
         "findings": [
           {
-            "id": "ac34cbb3-57a2-43fa-909d-5a2f0cb73ca8",
+            "id": "474c70f4-3ea0-4580-a3ec-43a3333ac2fc",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion agrees: Inji Verify and Mock verifier both say Invalid",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "d2b876d4-30f3-4f9e-aad0-e0b68594fc59"
+            "exchangeId": "a6b972ed-4dc4-4d39-90da-7d20daee5748"
           },
           {
-            "id": "b3a00925-4461-4805-9de7-66ede11dbdff",
+            "id": "0e86660b-c395-4c14-b79c-7b6dcd99aa2d",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "PASS",
             "message": "Inji Verify rejected the T-CLAIM-EDIT presentation as expected",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "5896ea92-48bc-410a-9b90-7be679052538"
+            "exchangeId": "b63614bd-b44d-4fab-b7f6-d618023c58a1"
           }
         ],
         "tamper": {
@@ -1353,7 +1353,7 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Changed one claim value after issuance",
-          "exchangeId": "5896ea92-48bc-410a-9b90-7be679052538",
+          "exchangeId": "b63614bd-b44d-4fab-b7f6-d618023c58a1",
           "observedOutcome": "INVALID",
           "detected": true
         },
@@ -1402,16 +1402,16 @@
           "reason": "Disclosures: Not committed to by the issuer: gender",
           "comparable": true,
           "agrees": true,
-          "exchangeId": "d2b876d4-30f3-4f9e-aad0-e0b68594fc59"
+          "exchangeId": "a6b972ed-4dc4-4d39-90da-7d20daee5748"
         },
         "prediction": {
           "status": "supported",
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-CLAIM-EDIT: Changed one claim value after issuance\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/189adb19-0300-4f93-b3f1-7ce16c4d3028?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/f7a5d52c-8c8e-481b-b79f-31d76b4d35e5?view=inspector"
       },
-      "durationMs": 1009
+      "durationMs": 1012
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify · ldp_vc · T-CLAIM-EDIT · expect INVALID",
@@ -1432,12 +1432,12 @@
         "format": "ldp_vc"
       },
       "status": "pass",
-      "runId": "a7edebd2-32f2-4466-ab3b-e23bdadfa73a",
+      "runId": "b4278ce1-16ed-4e74-a19f-255625b9832c",
       "report": {
-        "runId": "a7edebd2-32f2-4466-ab3b-e23bdadfa73a",
-        "createdAt": "2026-11-18T02:32:23.668Z",
-        "finishedAt": "2026-11-18T02:32:24.528Z",
-        "durationMs": 860,
+        "runId": "b4278ce1-16ed-4e74-a19f-255625b9832c",
+        "createdAt": "2026-11-19T01:58:17.039Z",
+        "finishedAt": "2026-11-19T01:58:17.756Z",
+        "durationMs": 717,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -1472,28 +1472,28 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 22
+            "durationMs": 20
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 7
+            "durationMs": 6
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 41
+            "durationMs": 37
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 278
+            "durationMs": 207
           },
           {
             "phase": "holding",
@@ -1507,14 +1507,14 @@
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 11
+            "durationMs": 13
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 9
+            "durationMs": 10
           },
           {
             "phase": "presenting",
@@ -1528,26 +1528,26 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 38
+            "durationMs": 43
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 443
+            "durationMs": 369
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "ff91bcff-344e-4b22-b3c0-8f4cea7642fb",
+            "id": "f4e42184-137f-4dd9-a84a-b79bec4e89b8",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "PASS",
             "message": "Inji Verify rejected the T-CLAIM-EDIT presentation as expected",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "9ced9ba5-8062-4d42-a0ca-002cd57ca1de"
+            "exchangeId": "865a23d4-3567-44ed-8abb-9e2720f296b1"
           }
         ],
         "tamper": {
@@ -1556,7 +1556,7 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Changed one claim value after issuance",
-          "exchangeId": "9ced9ba5-8062-4d42-a0ca-002cd57ca1de",
+          "exchangeId": "865a23d4-3567-44ed-8abb-9e2720f296b1",
           "observedOutcome": "INVALID",
           "detected": true
         },
@@ -1565,9 +1565,9 @@
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-CLAIM-EDIT: Changed one claim value after issuance\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200",
-        "inspectorUrl": "http://localhost:8100/runs/a7edebd2-32f2-4466-ab3b-e23bdadfa73a?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/b4278ce1-16ed-4e74-a19f-255625b9832c?view=inspector"
       },
-      "durationMs": 1010
+      "durationMs": 1012
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify · vc+sd-jwt · T-EXPIRED · expect EXPIRED",
@@ -1588,12 +1588,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "924503b5-9750-42c0-8c22-e32deac10d00",
+      "runId": "c17d0bc8-9f61-4329-96d9-adb20a936915",
       "report": {
-        "runId": "924503b5-9750-42c0-8c22-e32deac10d00",
-        "createdAt": "2026-11-18T02:32:24.678Z",
-        "finishedAt": "2026-11-18T02:32:24.932Z",
-        "durationMs": 254,
+        "runId": "c17d0bc8-9f61-4329-96d9-adb20a936915",
+        "createdAt": "2026-11-19T01:58:18.051Z",
+        "finishedAt": "2026-11-19T01:58:18.263Z",
+        "durationMs": 212,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -1628,7 +1628,7 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 23
+            "durationMs": 19
           },
           {
             "phase": "issuing",
@@ -1642,14 +1642,14 @@
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 42
+            "durationMs": 36
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 67
+            "durationMs": 62
           },
           {
             "phase": "holding",
@@ -1663,14 +1663,14 @@
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 13
+            "durationMs": 14
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 16
+            "durationMs": 9
           },
           {
             "phase": "presenting",
@@ -1684,29 +1684,29 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 41
+            "durationMs": 28
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 34
+            "durationMs": 24
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "93d12be2-3cea-4ad9-bcf1-312900e72c4b",
+            "id": "13fc2077-13fa-4355-af3d-af028447017a",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion agrees: Inji Verify and Mock verifier both say Valid but expired",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "5d2174c9-1f0b-443d-8879-e06758a593e8"
+            "exchangeId": "b283e9fe-8584-434d-a1ce-d293931a139e"
           },
           {
-            "id": "022d5374-c5d7-4683-90f4-8a5d1c892072",
+            "id": "47176052-3759-4c45-9f5c-9f44f1c30c35",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "PASS",
@@ -1768,7 +1768,7 @@
           "reason": "Validity period: Expired at 2025-01-01T00:00:00.000Z",
           "comparable": true,
           "agrees": true,
-          "exchangeId": "5d2174c9-1f0b-443d-8879-e06758a593e8"
+          "exchangeId": "b283e9fe-8584-434d-a1ce-d293931a139e"
         },
         "prediction": {
           "status": "supported",
@@ -1781,9 +1781,9 @@
           ]
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify<br/>(behind the Protocol Tap)\n  Note over I: T-EXPIRED: Issued FarmerCredentialSdJwtExpired (signed with validity in the past) instead of FarmerCredentialSdJwt\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  L--)W: vp_token built and signed (inferred)\n  W->>V: Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/924503b5-9750-42c0-8c22-e32deac10d00?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/c17d0bc8-9f61-4329-96d9-adb20a936915?view=inspector"
       },
-      "durationMs": 1010
+      "durationMs": 1009
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify · ldp_vc · T-EXPIRED · expect EXPIRED",
@@ -1804,12 +1804,12 @@
         "format": "ldp_vc"
       },
       "status": "pass",
-      "runId": "1af07da9-e3dc-4bd7-a086-ca34aae966eb",
+      "runId": "48ca157c-5a65-4970-ae3a-92070f50697f",
       "report": {
-        "runId": "1af07da9-e3dc-4bd7-a086-ca34aae966eb",
-        "createdAt": "2026-11-18T02:32:25.688Z",
-        "finishedAt": "2026-11-18T02:32:26.558Z",
-        "durationMs": 870,
+        "runId": "48ca157c-5a65-4970-ae3a-92070f50697f",
+        "createdAt": "2026-11-19T01:58:19.060Z",
+        "finishedAt": "2026-11-19T01:58:19.775Z",
+        "durationMs": 715,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -1844,28 +1844,28 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 19
+            "durationMs": 18
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 6
+            "durationMs": 7
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 41
+            "durationMs": 44
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 266
+            "durationMs": 195
           },
           {
             "phase": "holding",
@@ -1879,14 +1879,14 @@
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 18
+            "durationMs": 12
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 11
+            "durationMs": 19
           },
           {
             "phase": "presenting",
@@ -1900,20 +1900,20 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 43
+            "durationMs": 35
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 452
+            "durationMs": 373
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "e33f3d42-3ccb-441d-9dce-c4b841ce6af6",
+            "id": "056ff833-92a9-417d-b179-797227bf2660",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "PASS",
@@ -1941,7 +1941,7 @@
           ]
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify<br/>(behind the Protocol Tap)\n  Note over I: T-EXPIRED: Issued FarmerCredentialExpired (signed with validity in the past) instead of FarmerCredential\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  L--)W: vp_token built and signed (inferred)\n  W->>V: Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200",
-        "inspectorUrl": "http://localhost:8100/runs/1af07da9-e3dc-4bd7-a086-ca34aae966eb?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/48ca157c-5a65-4970-ae3a-92070f50697f?view=inspector"
       },
       "durationMs": 1008
     },
@@ -1965,12 +1965,12 @@
       },
       "knownGap": "gap 1: Inji Verify accepts a wrong credential type",
       "status": "known-gap",
-      "runId": "8f9646dd-7688-4a44-b8c0-193d299b33c8",
+      "runId": "10b7df5d-2e9e-4d0b-abe9-815323b9d09e",
       "report": {
-        "runId": "8f9646dd-7688-4a44-b8c0-193d299b33c8",
-        "createdAt": "2026-11-18T02:32:26.697Z",
-        "finishedAt": "2026-11-18T02:32:26.917Z",
-        "durationMs": 220,
+        "runId": "10b7df5d-2e9e-4d0b-abe9-815323b9d09e",
+        "createdAt": "2026-11-19T01:58:20.068Z",
+        "finishedAt": "2026-11-19T01:58:20.277Z",
+        "durationMs": 209,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -2009,7 +2009,7 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 16
+            "durationMs": 22
           },
           {
             "phase": "issuing",
@@ -2030,28 +2030,28 @@
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 54
+            "durationMs": 53
           },
           {
             "phase": "holding",
             "step": "credential_held",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 2
+            "durationMs": 1
           },
           {
             "phase": "presenting",
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 13
+            "durationMs": 15
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 27
+            "durationMs": 12
           },
           {
             "phase": "presenting",
@@ -2065,35 +2065,35 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 36
+            "durationMs": 34
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 25
+            "durationMs": 24
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "c64ad666-0184-459c-bcf2-e4a38ac16417",
+            "id": "874d9d66-8111-4cd4-be25-7ef978ee0689",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion on the presented credential alone: Mock verifier says Valid. Not compared with Inji Verify's Valid: this run is judged on presentation checks (requested type, holder binding, nonce) that a credential-only check does not make",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "bd27527b-09b7-4956-9f2f-8718703160d9"
+            "exchangeId": "868e53ec-de4f-49c1-9db3-c888d533034c"
           },
           {
-            "id": "68c10342-5d38-42d5-9283-4fe358af915b",
+            "id": "c5d7bdac-55de-4412-90d1-41d8861a6523",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "FAIL",
             "message": "Inji Verify accepted a presentation the playground had tampered with (T-WRONG-TYPE wrong credential type)",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "de4b703f-badf-441b-bae3-f0b3d9e54d97"
+            "exchangeId": "c27fecad-bb77-4dc2-b8f1-0e6c0cfe9a54"
           }
         ],
         "tamper": {
@@ -2102,7 +2102,7 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Presented a credential that does not satisfy the request",
-          "exchangeId": "de4b703f-badf-441b-bae3-f0b3d9e54d97",
+          "exchangeId": "c27fecad-bb77-4dc2-b8f1-0e6c0cfe9a54",
           "observedOutcome": "VALID",
           "detected": false
         },
@@ -2150,7 +2150,7 @@
           ],
           "comparable": false,
           "agrees": true,
-          "exchangeId": "bd27527b-09b7-4956-9f2f-8718703160d9"
+          "exchangeId": "868e53ec-de4f-49c1-9db3-c888d533034c"
         },
         "prediction": {
           "status": "supported",
@@ -2162,9 +2162,9 @@
           ]
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-WRONG-TYPE: Presented a credential that does not satisfy the request\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/8f9646dd-7688-4a44-b8c0-193d299b33c8?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/10b7df5d-2e9e-4d0b-abe9-815323b9d09e?view=inspector"
       },
-      "durationMs": 1009
+      "durationMs": 1011
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify · ldp_vc · T-WRONG-TYPE · expect INVALID",
@@ -2186,12 +2186,12 @@
       },
       "knownGap": "gap 1: Inji Verify accepts a wrong credential type",
       "status": "known-gap",
-      "runId": "fff9cb22-8e66-466a-85e9-d6aa127f20d1",
+      "runId": "24e6b4c2-05df-4541-898f-bd63b73e425d",
       "report": {
-        "runId": "fff9cb22-8e66-466a-85e9-d6aa127f20d1",
-        "createdAt": "2026-11-18T02:32:27.706Z",
-        "finishedAt": "2026-11-18T02:32:28.597Z",
-        "durationMs": 891,
+        "runId": "24e6b4c2-05df-4541-898f-bd63b73e425d",
+        "createdAt": "2026-11-19T01:58:21.079Z",
+        "finishedAt": "2026-11-19T01:58:21.763Z",
+        "durationMs": 684,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -2230,14 +2230,14 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 32
+            "durationMs": 25
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 7
+            "durationMs": 17
           },
           {
             "phase": "issuing",
@@ -2251,7 +2251,7 @@
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 266
+            "durationMs": 200
           },
           {
             "phase": "holding",
@@ -2265,14 +2265,14 @@
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 10
+            "durationMs": 14
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 10
+            "durationMs": 14
           },
           {
             "phase": "presenting",
@@ -2286,26 +2286,26 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 49
+            "durationMs": 35
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 469
+            "durationMs": 332
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "226e291a-ab68-4873-aae5-d99bc99b4ff7",
+            "id": "d62b6463-6291-43ab-b628-b64839fb9652",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "FAIL",
             "message": "Inji Verify accepted a presentation the playground had tampered with (T-WRONG-TYPE wrong credential type)",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "d3ce1da1-a776-4d18-abcb-b0d9d0733d68"
+            "exchangeId": "1a6916d0-c0b2-4a8f-b84f-eba93e4c6887"
           }
         ],
         "tamper": {
@@ -2314,7 +2314,7 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Presented a credential that does not satisfy the request",
-          "exchangeId": "d3ce1da1-a776-4d18-abcb-b0d9d0733d68",
+          "exchangeId": "1a6916d0-c0b2-4a8f-b84f-eba93e4c6887",
           "observedOutcome": "VALID",
           "detected": false
         },
@@ -2328,9 +2328,9 @@
           ]
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-WRONG-TYPE: Presented a credential that does not satisfy the request\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200",
-        "inspectorUrl": "http://localhost:8100/runs/fff9cb22-8e66-466a-85e9-d6aa127f20d1?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/24e6b4c2-05df-4541-898f-bd63b73e425d?view=inspector"
       },
-      "durationMs": 1008
+      "durationMs": 1007
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify · vc+sd-jwt · T-NONCE-REPLAY · expect INVALID",
@@ -2352,12 +2352,12 @@
       },
       "knownGap": "gap 2: Inji Verify does not check the SD-JWT key-binding nonce",
       "status": "known-gap",
-      "runId": "1fcbb9f2-72d7-465b-a112-c6b71b5a7a90",
+      "runId": "b05533cb-4da8-4c46-b655-b7b90968c5eb",
       "report": {
-        "runId": "1fcbb9f2-72d7-465b-a112-c6b71b5a7a90",
-        "createdAt": "2026-11-18T02:32:28.715Z",
-        "finishedAt": "2026-11-18T02:32:28.945Z",
-        "durationMs": 230,
+        "runId": "b05533cb-4da8-4c46-b655-b7b90968c5eb",
+        "createdAt": "2026-11-19T01:58:22.087Z",
+        "finishedAt": "2026-11-19T01:58:22.300Z",
+        "durationMs": 213,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -2396,7 +2396,7 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 21
+            "durationMs": 20
           },
           {
             "phase": "issuing",
@@ -2410,14 +2410,14 @@
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 34
+            "durationMs": 38
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 53
+            "durationMs": 46
           },
           {
             "phase": "holding",
@@ -2431,14 +2431,14 @@
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 11
+            "durationMs": 15
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 23
+            "durationMs": 16
           },
           {
             "phase": "presenting",
@@ -2452,35 +2452,35 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 38
+            "durationMs": 30
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 33
+            "durationMs": 29
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "74424e17-b339-4740-bae6-8c00a3b3ef0b",
+            "id": "6b10cf67-c3b8-4473-bc94-1e155850f61d",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion on the presented credential alone: Mock verifier says Valid. Not compared with Inji Verify's Valid: this run is judged on presentation checks (requested type, holder binding, nonce) that a credential-only check does not make",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "625ff2df-a0f3-4f50-bb7e-a97f6033cc7e"
+            "exchangeId": "ec7092ff-7492-4572-bfba-b958cd49fa28"
           },
           {
-            "id": "60df8ee4-3031-49ff-8343-c7aca9ba3177",
+            "id": "dd3258ba-79df-4f2e-bab4-a48acef9f13b",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "FAIL",
             "message": "Inji Verify accepted a presentation the playground had tampered with (T-NONCE-REPLAY replayed presentation)",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "858ee4c8-ab77-499b-8ee3-12a1ade6a45c"
+            "exchangeId": "e76b293e-96b4-4604-9ec3-9c9d439996f3"
           }
         ],
         "tamper": {
@@ -2489,8 +2489,8 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Resubmitted a vp_token captured in an earlier run to this new request",
-          "exchangeId": "858ee4c8-ab77-499b-8ee3-12a1ade6a45c",
-          "sourceRunId": "444f6e6d-f728-49bc-9162-e3cca2975512",
+          "exchangeId": "e76b293e-96b4-4604-9ec3-9c9d439996f3",
+          "sourceRunId": "a96a0334-8ea6-4f9f-8488-d9a064745a60",
           "observedOutcome": "VALID",
           "detected": false
         },
@@ -2538,16 +2538,16 @@
           ],
           "comparable": false,
           "agrees": true,
-          "exchangeId": "625ff2df-a0f3-4f50-bb7e-a97f6033cc7e"
+          "exchangeId": "ec7092ff-7492-4572-bfba-b958cd49fa28"
         },
         "prediction": {
           "status": "supported",
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-NONCE-REPLAY: Resubmitted a vp_token captured in an earlier run to this new request\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/1fcbb9f2-72d7-465b-a112-c6b71b5a7a90?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/b05533cb-4da8-4c46-b655-b7b90968c5eb?view=inspector"
       },
-      "durationMs": 1010
+      "durationMs": 1011
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify · ldp_vc · T-NONCE-REPLAY · expect INVALID",
@@ -2568,12 +2568,12 @@
         "format": "ldp_vc"
       },
       "status": "pass",
-      "runId": "f27c9b75-d911-4659-af8f-917508bef5f3",
+      "runId": "d2318867-427d-4f28-8206-f132f1c79e08",
       "report": {
-        "runId": "f27c9b75-d911-4659-af8f-917508bef5f3",
-        "createdAt": "2026-11-18T02:32:29.724Z",
-        "finishedAt": "2026-11-18T02:32:30.107Z",
-        "durationMs": 383,
+        "runId": "d2318867-427d-4f28-8206-f132f1c79e08",
+        "createdAt": "2026-11-19T01:58:23.097Z",
+        "finishedAt": "2026-11-19T01:58:23.557Z",
+        "durationMs": 460,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -2608,28 +2608,28 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 15
+            "durationMs": 19
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 5
+            "durationMs": 7
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 31
+            "durationMs": 34
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 253
+            "durationMs": 327
           },
           {
             "phase": "holding",
@@ -2650,7 +2650,7 @@
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 9
+            "durationMs": 10
           },
           {
             "phase": "presenting",
@@ -2664,35 +2664,35 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 32
+            "durationMs": 28
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 18
+            "durationMs": 15
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "54e813e8-a174-4642-9f39-d590a523aac8",
+            "id": "fb375f58-6172-47b1-aab6-628215a8e4d6",
             "checkId": "TAMPER-002",
             "stage": "presentation",
             "severity": "INFO",
             "message": "The verifier refused the tampered submission at direct_post with HTTP 400",
             "specRef": "OpenID4VP — response mode direct_post",
-            "exchangeId": "b3b8187f-2c09-47c5-b5e5-e00121347d5c"
+            "exchangeId": "4993bb4d-fcd7-466f-83fa-edd58badc387"
           },
           {
-            "id": "e66e3e18-e1d5-4418-a17a-afe8c446859c",
+            "id": "b0c31951-8171-4d64-8c62-5708e4b15f29",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "WARN",
             "message": "Inji Verify rejected the T-NONCE-REPLAY presentation as REJECTED, not the expected INVALID",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "b3b8187f-2c09-47c5-b5e5-e00121347d5c"
+            "exchangeId": "4993bb4d-fcd7-466f-83fa-edd58badc387"
           }
         ],
         "tamper": {
@@ -2701,8 +2701,8 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Resubmitted a vp_token captured in an earlier run to this new request",
-          "exchangeId": "b3b8187f-2c09-47c5-b5e5-e00121347d5c",
-          "sourceRunId": "b915f29b-3f01-46ea-8ae6-17057cddb65f",
+          "exchangeId": "4993bb4d-fcd7-466f-83fa-edd58badc387",
+          "sourceRunId": "1adbadee-8077-4117-bee7-94015245dc2f",
           "observedOutcome": "REJECTED",
           "detected": true
         },
@@ -2711,9 +2711,9 @@
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-NONCE-REPLAY: Resubmitted a vp_token captured in an earlier run to this new request\n  L--)W: vp_token built and signed (inferred)\n  W-xV: TAMPERED · Presentation response · 400\n  P-xV: Verification result · 404",
-        "inspectorUrl": "http://localhost:8100/runs/f27c9b75-d911-4659-af8f-917508bef5f3?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/d2318867-427d-4f28-8206-f132f1c79e08?view=inspector"
       },
-      "durationMs": 1007
+      "durationMs": 1008
     },
     {
       "key": "inji-certify → mock-wallet → mock-verifier · vc+sd-jwt · T-SIG-FLIP · expect INVALID",
@@ -2734,12 +2734,360 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "14445fe8-a638-4aea-a2fb-9fb099eacc63",
+      "runId": "78cb633c-d15d-4561-9697-f818534a03fb",
       "report": {
-        "runId": "14445fe8-a638-4aea-a2fb-9fb099eacc63",
-        "createdAt": "2026-11-18T02:32:30.731Z",
-        "finishedAt": "2026-11-18T02:32:30.870Z",
-        "durationMs": 139,
+        "runId": "78cb633c-d15d-4561-9697-f818534a03fb",
+        "createdAt": "2026-11-19T01:58:24.105Z",
+        "finishedAt": "2026-11-19T01:58:24.289Z",
+        "durationMs": 184,
+        "mode": "full",
+        "issuer": {
+          "role": "issuer",
+          "id": "inji-certify",
+          "displayName": "Inji Certify",
+          "version": "0.14.0"
+        },
+        "wallet": {
+          "role": "wallet",
+          "id": "mock-wallet",
+          "displayName": "Mock wallet",
+          "version": "0.1.0"
+        },
+        "verifier": {
+          "role": "verifier",
+          "id": "mock-verifier",
+          "displayName": "Mock verifier",
+          "version": "0.1.0"
+        },
+        "format": "vc+sd-jwt",
+        "credentialConfigurationId": "FarmerCredentialSdJwt",
+        "proofType": "ES256",
+        "grantType": "pre-authorized_code",
+        "presentationFlow": "cross-device-qr",
+        "expectedOutcome": "INVALID",
+        "observedOutcome": "INVALID",
+        "verdict": "PASS",
+        "passed": true,
+        "steps": [
+          {
+            "phase": "issuing",
+            "step": "offer_prepared",
+            "status": "done",
+            "evidenceKind": "adapter",
+            "durationMs": 18
+          },
+          {
+            "phase": "issuing",
+            "step": "offer_delivered",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 6
+          },
+          {
+            "phase": "issuing",
+            "step": "oid4vci.token",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 31
+          },
+          {
+            "phase": "issuing",
+            "step": "oid4vci.credential",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 75
+          },
+          {
+            "phase": "holding",
+            "step": "credential_held",
+            "status": "done",
+            "evidenceKind": "adapter",
+            "durationMs": 2
+          },
+          {
+            "phase": "presenting",
+            "step": "request_created",
+            "status": "done",
+            "evidenceKind": "adapter",
+            "durationMs": 5
+          },
+          {
+            "phase": "presenting",
+            "step": "request_delivered",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 11
+          },
+          {
+            "phase": "presenting",
+            "step": "oid4vp.request_object",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 0
+          },
+          {
+            "phase": "presenting",
+            "step": "oid4vp.response",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 15
+          },
+          {
+            "phase": "verifying",
+            "step": "verify.result",
+            "status": "done",
+            "evidenceKind": "adapter",
+            "durationMs": 14
+          }
+        ],
+        "correlation": "exact",
+        "findings": [
+          {
+            "id": "f8538b77-d6e2-43d8-bb22-ae253b4a0cde",
+            "checkId": "VER-002",
+            "stage": "verification",
+            "severity": "INFO",
+            "message": "Second opinion agrees: Mock verifier and Inji Verify both say Invalid",
+            "specRef": "Playground differential verification (plan §12)",
+            "exchangeId": "34431880-7d8f-4b21-8239-e481e8e51533"
+          },
+          {
+            "id": "9bb0c81a-38b9-4188-9bc7-ebe09448c37f",
+            "checkId": "TAMPER-001",
+            "stage": "verification",
+            "severity": "PASS",
+            "message": "Mock verifier rejected the T-SIG-FLIP presentation as expected",
+            "specRef": "Playground tamper catalogue (plan §13)",
+            "exchangeId": "cd6d409d-a3e3-4fcd-8de6-68e58d92df93"
+          }
+        ],
+        "tamper": {
+          "id": "T-SIG-FLIP",
+          "label": "Broken signature",
+          "mechanism": "wallet-hook",
+          "expectedOutcome": "INVALID",
+          "summary": "Changed one character of the issuer's signature",
+          "exchangeId": "cd6d409d-a3e3-4fcd-8de6-68e58d92df93",
+          "observedOutcome": "INVALID",
+          "detected": true
+        },
+        "secondOpinion": {
+          "verifierId": "inji-verify",
+          "displayName": "Inji Verify",
+          "outcome": "INVALID",
+          "reason": "verificationStatus INVALID",
+          "comparable": true,
+          "agrees": true,
+          "exchangeId": "34431880-7d8f-4b21-8239-e481e8e51533"
+        },
+        "prediction": {
+          "status": "supported",
+          "reasons": []
+        },
+        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Mock verifier<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-SIG-FLIP: Changed one character of the issuer's signature\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
+        "inspectorUrl": "http://localhost:8100/runs/78cb633c-d15d-4561-9697-f818534a03fb?view=inspector"
+      },
+      "durationMs": 1009
+    },
+    {
+      "key": "inji-certify → mock-wallet → mock-verifier · vc+sd-jwt · T-CLAIM-EDIT · expect INVALID",
+      "config": {
+        "mode": "full",
+        "grantType": "pre-authorized_code",
+        "presentationFlow": "cross-device-qr",
+        "expectedOutcome": "INVALID",
+        "labels": {
+          "suite": "nightly"
+        },
+        "tamper": {
+          "id": "T-CLAIM-EDIT"
+        },
+        "issuerId": "inji-certify",
+        "walletId": "mock-wallet",
+        "verifierId": "mock-verifier",
+        "format": "vc+sd-jwt"
+      },
+      "status": "pass",
+      "runId": "994d6644-e186-4b50-8454-80ae9fe146ff",
+      "report": {
+        "runId": "994d6644-e186-4b50-8454-80ae9fe146ff",
+        "createdAt": "2026-11-19T01:58:25.115Z",
+        "finishedAt": "2026-11-19T01:58:25.261Z",
+        "durationMs": 146,
+        "mode": "full",
+        "issuer": {
+          "role": "issuer",
+          "id": "inji-certify",
+          "displayName": "Inji Certify",
+          "version": "0.14.0"
+        },
+        "wallet": {
+          "role": "wallet",
+          "id": "mock-wallet",
+          "displayName": "Mock wallet",
+          "version": "0.1.0"
+        },
+        "verifier": {
+          "role": "verifier",
+          "id": "mock-verifier",
+          "displayName": "Mock verifier",
+          "version": "0.1.0"
+        },
+        "format": "vc+sd-jwt",
+        "credentialConfigurationId": "FarmerCredentialSdJwt",
+        "proofType": "ES256",
+        "grantType": "pre-authorized_code",
+        "presentationFlow": "cross-device-qr",
+        "expectedOutcome": "INVALID",
+        "observedOutcome": "INVALID",
+        "verdict": "PASS",
+        "passed": true,
+        "steps": [
+          {
+            "phase": "issuing",
+            "step": "offer_prepared",
+            "status": "done",
+            "evidenceKind": "adapter",
+            "durationMs": 21
+          },
+          {
+            "phase": "issuing",
+            "step": "offer_delivered",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 8
+          },
+          {
+            "phase": "issuing",
+            "step": "oid4vci.token",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 33
+          },
+          {
+            "phase": "issuing",
+            "step": "oid4vci.credential",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 50
+          },
+          {
+            "phase": "holding",
+            "step": "credential_held",
+            "status": "done",
+            "evidenceKind": "adapter",
+            "durationMs": 2
+          },
+          {
+            "phase": "presenting",
+            "step": "request_created",
+            "status": "done",
+            "evidenceKind": "adapter",
+            "durationMs": 3
+          },
+          {
+            "phase": "presenting",
+            "step": "request_delivered",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 3
+          },
+          {
+            "phase": "presenting",
+            "step": "oid4vp.request_object",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 0
+          },
+          {
+            "phase": "presenting",
+            "step": "oid4vp.response",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 9
+          },
+          {
+            "phase": "verifying",
+            "step": "verify.result",
+            "status": "done",
+            "evidenceKind": "adapter",
+            "durationMs": 8
+          }
+        ],
+        "correlation": "exact",
+        "findings": [
+          {
+            "id": "97b2f780-47d9-43bb-ba07-443b1323330f",
+            "checkId": "VER-002",
+            "stage": "verification",
+            "severity": "INFO",
+            "message": "Second opinion agrees: Mock verifier and Inji Verify both say Invalid",
+            "specRef": "Playground differential verification (plan §12)",
+            "exchangeId": "b4b02b3d-8c89-4f0c-bfc8-43dfa3506ce4"
+          },
+          {
+            "id": "e65ebfc4-6d54-4f80-b90e-bcab9e08e68f",
+            "checkId": "TAMPER-001",
+            "stage": "verification",
+            "severity": "PASS",
+            "message": "Mock verifier rejected the T-CLAIM-EDIT presentation as expected",
+            "specRef": "Playground tamper catalogue (plan §13)",
+            "exchangeId": "37df4a76-2af3-4629-96d9-3449cb9966a3"
+          }
+        ],
+        "tamper": {
+          "id": "T-CLAIM-EDIT",
+          "label": "Edited claim",
+          "mechanism": "wallet-hook",
+          "expectedOutcome": "INVALID",
+          "summary": "Changed one claim value after issuance",
+          "exchangeId": "37df4a76-2af3-4629-96d9-3449cb9966a3",
+          "observedOutcome": "INVALID",
+          "detected": true
+        },
+        "secondOpinion": {
+          "verifierId": "inji-verify",
+          "displayName": "Inji Verify",
+          "outcome": "INVALID",
+          "reason": "verificationStatus INVALID",
+          "comparable": true,
+          "agrees": true,
+          "exchangeId": "b4b02b3d-8c89-4f0c-bfc8-43dfa3506ce4"
+        },
+        "prediction": {
+          "status": "supported",
+          "reasons": []
+        },
+        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Mock verifier<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-CLAIM-EDIT: Changed one claim value after issuance\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
+        "inspectorUrl": "http://localhost:8100/runs/994d6644-e186-4b50-8454-80ae9fe146ff?view=inspector"
+      },
+      "durationMs": 1008
+    },
+    {
+      "key": "inji-certify → mock-wallet → mock-verifier · vc+sd-jwt · T-WRONG-TYPE · expect INVALID",
+      "config": {
+        "mode": "full",
+        "grantType": "pre-authorized_code",
+        "presentationFlow": "cross-device-qr",
+        "expectedOutcome": "INVALID",
+        "labels": {
+          "suite": "nightly"
+        },
+        "tamper": {
+          "id": "T-WRONG-TYPE"
+        },
+        "issuerId": "inji-certify",
+        "walletId": "mock-wallet",
+        "verifierId": "mock-verifier",
+        "format": "vc+sd-jwt"
+      },
+      "status": "pass",
+      "runId": "6656e698-7735-4a8e-9fee-0069a43a6972",
+      "report": {
+        "runId": "6656e698-7735-4a8e-9fee-0069a43a6972",
+        "createdAt": "2026-11-19T01:58:26.123Z",
+        "finishedAt": "2026-11-19T01:58:26.265Z",
+        "durationMs": 142,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -2789,180 +3137,6 @@
             "status": "done",
             "evidenceKind": "tap",
             "durationMs": 32
-          },
-          {
-            "phase": "issuing",
-            "step": "oid4vci.credential",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 47
-          },
-          {
-            "phase": "holding",
-            "step": "credential_held",
-            "status": "done",
-            "evidenceKind": "adapter",
-            "durationMs": 1
-          },
-          {
-            "phase": "presenting",
-            "step": "request_created",
-            "status": "done",
-            "evidenceKind": "adapter",
-            "durationMs": 4
-          },
-          {
-            "phase": "presenting",
-            "step": "request_delivered",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 6
-          },
-          {
-            "phase": "presenting",
-            "step": "oid4vp.request_object",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 0
-          },
-          {
-            "phase": "presenting",
-            "step": "oid4vp.response",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 10
-          },
-          {
-            "phase": "verifying",
-            "step": "verify.result",
-            "status": "done",
-            "evidenceKind": "adapter",
-            "durationMs": 10
-          }
-        ],
-        "correlation": "exact",
-        "findings": [
-          {
-            "id": "cb0d5152-57a9-4d59-8ff1-b665308a428c",
-            "checkId": "VER-002",
-            "stage": "verification",
-            "severity": "INFO",
-            "message": "Second opinion agrees: Mock verifier and Inji Verify both say Invalid",
-            "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "c57422a9-b4ba-410f-9db9-30e86209de4a"
-          },
-          {
-            "id": "a1a878c4-8905-4138-91c9-eb542893a155",
-            "checkId": "TAMPER-001",
-            "stage": "verification",
-            "severity": "PASS",
-            "message": "Mock verifier rejected the T-SIG-FLIP presentation as expected",
-            "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "ea9413f0-412d-4c95-a70f-e7e277ceb2da"
-          }
-        ],
-        "tamper": {
-          "id": "T-SIG-FLIP",
-          "label": "Broken signature",
-          "mechanism": "wallet-hook",
-          "expectedOutcome": "INVALID",
-          "summary": "Changed one character of the issuer's signature",
-          "exchangeId": "ea9413f0-412d-4c95-a70f-e7e277ceb2da",
-          "observedOutcome": "INVALID",
-          "detected": true
-        },
-        "secondOpinion": {
-          "verifierId": "inji-verify",
-          "displayName": "Inji Verify",
-          "outcome": "INVALID",
-          "reason": "verificationStatus INVALID",
-          "comparable": true,
-          "agrees": true,
-          "exchangeId": "c57422a9-b4ba-410f-9db9-30e86209de4a"
-        },
-        "prediction": {
-          "status": "supported",
-          "reasons": []
-        },
-        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Mock verifier<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-SIG-FLIP: Changed one character of the issuer's signature\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/14445fe8-a638-4aea-a2fb-9fb099eacc63?view=inspector"
-      },
-      "durationMs": 1008
-    },
-    {
-      "key": "inji-certify → mock-wallet → mock-verifier · vc+sd-jwt · T-CLAIM-EDIT · expect INVALID",
-      "config": {
-        "mode": "full",
-        "grantType": "pre-authorized_code",
-        "presentationFlow": "cross-device-qr",
-        "expectedOutcome": "INVALID",
-        "labels": {
-          "suite": "nightly"
-        },
-        "tamper": {
-          "id": "T-CLAIM-EDIT"
-        },
-        "issuerId": "inji-certify",
-        "walletId": "mock-wallet",
-        "verifierId": "mock-verifier",
-        "format": "vc+sd-jwt"
-      },
-      "status": "pass",
-      "runId": "c1392009-33ec-4cdd-a580-aaa6aac2a663",
-      "report": {
-        "runId": "c1392009-33ec-4cdd-a580-aaa6aac2a663",
-        "createdAt": "2026-11-18T02:32:31.739Z",
-        "finishedAt": "2026-11-18T02:32:31.889Z",
-        "durationMs": 150,
-        "mode": "full",
-        "issuer": {
-          "role": "issuer",
-          "id": "inji-certify",
-          "displayName": "Inji Certify",
-          "version": "0.14.0"
-        },
-        "wallet": {
-          "role": "wallet",
-          "id": "mock-wallet",
-          "displayName": "Mock wallet",
-          "version": "0.1.0"
-        },
-        "verifier": {
-          "role": "verifier",
-          "id": "mock-verifier",
-          "displayName": "Mock verifier",
-          "version": "0.1.0"
-        },
-        "format": "vc+sd-jwt",
-        "credentialConfigurationId": "FarmerCredentialSdJwt",
-        "proofType": "ES256",
-        "grantType": "pre-authorized_code",
-        "presentationFlow": "cross-device-qr",
-        "expectedOutcome": "INVALID",
-        "observedOutcome": "INVALID",
-        "verdict": "PASS",
-        "passed": true,
-        "steps": [
-          {
-            "phase": "issuing",
-            "step": "offer_prepared",
-            "status": "done",
-            "evidenceKind": "adapter",
-            "durationMs": 15
-          },
-          {
-            "phase": "issuing",
-            "step": "offer_delivered",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 6
-          },
-          {
-            "phase": "issuing",
-            "step": "oid4vci.token",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 34
           },
           {
             "phase": "issuing",
@@ -3004,209 +3178,35 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 20
+            "durationMs": 8
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 11
+            "durationMs": 16
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "5a2586ed-84f3-44db-a312-bb6ff16f461a",
-            "checkId": "VER-002",
-            "stage": "verification",
-            "severity": "INFO",
-            "message": "Second opinion agrees: Mock verifier and Inji Verify both say Invalid",
-            "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "b72cec74-546b-4ba9-869b-0054a8c3e2de"
-          },
-          {
-            "id": "bea56551-a57c-46a1-8350-aa99a6eebde4",
-            "checkId": "TAMPER-001",
-            "stage": "verification",
-            "severity": "PASS",
-            "message": "Mock verifier rejected the T-CLAIM-EDIT presentation as expected",
-            "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "39737114-b2e1-47bc-bb52-dc32e3cc8f4d"
-          }
-        ],
-        "tamper": {
-          "id": "T-CLAIM-EDIT",
-          "label": "Edited claim",
-          "mechanism": "wallet-hook",
-          "expectedOutcome": "INVALID",
-          "summary": "Changed one claim value after issuance",
-          "exchangeId": "39737114-b2e1-47bc-bb52-dc32e3cc8f4d",
-          "observedOutcome": "INVALID",
-          "detected": true
-        },
-        "secondOpinion": {
-          "verifierId": "inji-verify",
-          "displayName": "Inji Verify",
-          "outcome": "INVALID",
-          "reason": "verificationStatus INVALID",
-          "comparable": true,
-          "agrees": true,
-          "exchangeId": "b72cec74-546b-4ba9-869b-0054a8c3e2de"
-        },
-        "prediction": {
-          "status": "supported",
-          "reasons": []
-        },
-        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Mock verifier<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-CLAIM-EDIT: Changed one claim value after issuance\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/c1392009-33ec-4cdd-a580-aaa6aac2a663?view=inspector"
-      },
-      "durationMs": 1008
-    },
-    {
-      "key": "inji-certify → mock-wallet → mock-verifier · vc+sd-jwt · T-WRONG-TYPE · expect INVALID",
-      "config": {
-        "mode": "full",
-        "grantType": "pre-authorized_code",
-        "presentationFlow": "cross-device-qr",
-        "expectedOutcome": "INVALID",
-        "labels": {
-          "suite": "nightly"
-        },
-        "tamper": {
-          "id": "T-WRONG-TYPE"
-        },
-        "issuerId": "inji-certify",
-        "walletId": "mock-wallet",
-        "verifierId": "mock-verifier",
-        "format": "vc+sd-jwt"
-      },
-      "status": "pass",
-      "runId": "6dffce6b-9424-4c5d-8b5b-1d25da7a59b4",
-      "report": {
-        "runId": "6dffce6b-9424-4c5d-8b5b-1d25da7a59b4",
-        "createdAt": "2026-11-18T02:32:32.747Z",
-        "finishedAt": "2026-11-18T02:32:32.890Z",
-        "durationMs": 143,
-        "mode": "full",
-        "issuer": {
-          "role": "issuer",
-          "id": "inji-certify",
-          "displayName": "Inji Certify",
-          "version": "0.14.0"
-        },
-        "wallet": {
-          "role": "wallet",
-          "id": "mock-wallet",
-          "displayName": "Mock wallet",
-          "version": "0.1.0"
-        },
-        "verifier": {
-          "role": "verifier",
-          "id": "mock-verifier",
-          "displayName": "Mock verifier",
-          "version": "0.1.0"
-        },
-        "format": "vc+sd-jwt",
-        "credentialConfigurationId": "FarmerCredentialSdJwt",
-        "proofType": "ES256",
-        "grantType": "pre-authorized_code",
-        "presentationFlow": "cross-device-qr",
-        "expectedOutcome": "INVALID",
-        "observedOutcome": "INVALID",
-        "verdict": "PASS",
-        "passed": true,
-        "steps": [
-          {
-            "phase": "issuing",
-            "step": "offer_prepared",
-            "status": "done",
-            "evidenceKind": "adapter",
-            "durationMs": 15
-          },
-          {
-            "phase": "issuing",
-            "step": "offer_delivered",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 5
-          },
-          {
-            "phase": "issuing",
-            "step": "oid4vci.token",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 30
-          },
-          {
-            "phase": "issuing",
-            "step": "oid4vci.credential",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 51
-          },
-          {
-            "phase": "holding",
-            "step": "credential_held",
-            "status": "done",
-            "evidenceKind": "adapter",
-            "durationMs": 5
-          },
-          {
-            "phase": "presenting",
-            "step": "request_created",
-            "status": "done",
-            "evidenceKind": "adapter",
-            "durationMs": 5
-          },
-          {
-            "phase": "presenting",
-            "step": "request_delivered",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 3
-          },
-          {
-            "phase": "presenting",
-            "step": "oid4vp.request_object",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 0
-          },
-          {
-            "phase": "presenting",
-            "step": "oid4vp.response",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 10
-          },
-          {
-            "phase": "verifying",
-            "step": "verify.result",
-            "status": "done",
-            "evidenceKind": "adapter",
-            "durationMs": 11
-          }
-        ],
-        "correlation": "exact",
-        "findings": [
-          {
-            "id": "129e7291-3fc7-4b76-a749-73afac9d8fbb",
+            "id": "4c1bb1ab-4d75-4362-a7ca-3cfdf2f2976a",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion on the presented credential alone: Inji Verify says Valid. Not compared with Mock verifier's Invalid: this run is judged on presentation checks (requested type, holder binding, nonce) that a credential-only check does not make",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "9308dbea-d500-4de3-9654-977ba92dee97"
+            "exchangeId": "b8728c01-7ace-4cc0-b9a6-2d4c242f5184"
           },
           {
-            "id": "c39c425e-5e7f-44ca-9626-99e1ac50ee76",
+            "id": "2d668a19-5db0-487f-be6f-438e7bc009ef",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "PASS",
             "message": "Mock verifier rejected the T-WRONG-TYPE presentation as expected",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "e8830533-36cc-4a3b-8f07-3a44da0884b5"
+            "exchangeId": "7cc691f2-c598-48ea-bf9f-460923bc47f9"
           }
         ],
         "tamper": {
@@ -3215,7 +3215,7 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Presented a credential that does not satisfy the request",
-          "exchangeId": "e8830533-36cc-4a3b-8f07-3a44da0884b5",
+          "exchangeId": "7cc691f2-c598-48ea-bf9f-460923bc47f9",
           "observedOutcome": "INVALID",
           "detected": true
         },
@@ -3225,7 +3225,7 @@
           "outcome": "VALID",
           "comparable": false,
           "agrees": false,
-          "exchangeId": "9308dbea-d500-4de3-9654-977ba92dee97"
+          "exchangeId": "b8728c01-7ace-4cc0-b9a6-2d4c242f5184"
         },
         "prediction": {
           "status": "supported",
@@ -3237,9 +3237,9 @@
           ]
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Mock verifier<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-WRONG-TYPE: Presented a credential that does not satisfy the request\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/6dffce6b-9424-4c5d-8b5b-1d25da7a59b4?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/6656e698-7735-4a8e-9fee-0069a43a6972?view=inspector"
       },
-      "durationMs": 1007
+      "durationMs": 1008
     },
     {
       "key": "inji-certify → mock-wallet → mock-verifier · vc+sd-jwt · T-NONCE-REPLAY · expect INVALID",
@@ -3260,12 +3260,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "d5740bc6-12d1-45cf-94ab-91ec2faa4746",
+      "runId": "89f7a565-d7cc-40ec-bd37-cc1578066817",
       "report": {
-        "runId": "d5740bc6-12d1-45cf-94ab-91ec2faa4746",
-        "createdAt": "2026-11-18T02:32:33.754Z",
-        "finishedAt": "2026-11-18T02:32:33.883Z",
-        "durationMs": 129,
+        "runId": "89f7a565-d7cc-40ec-bd37-cc1578066817",
+        "createdAt": "2026-11-19T01:58:27.132Z",
+        "finishedAt": "2026-11-19T01:58:27.361Z",
+        "durationMs": 229,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -3300,35 +3300,35 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 16
+            "durationMs": 36
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 4
+            "durationMs": 7
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 28
+            "durationMs": 98
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 47
+            "durationMs": 51
           },
           {
             "phase": "holding",
             "step": "credential_held",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 0
+            "durationMs": 2
           },
           {
             "phase": "presenting",
@@ -3369,22 +3369,22 @@
         "correlation": "exact",
         "findings": [
           {
-            "id": "2c3b6f04-6eb9-42ea-88dd-04fcafef7cc0",
+            "id": "d6706abe-5487-4766-8f55-7a1548f7050a",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion on the presented credential alone: Inji Verify says Valid. Not compared with Mock verifier's Invalid: this run is judged on presentation checks (requested type, holder binding, nonce) that a credential-only check does not make",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "a9b3c69e-4564-4f7f-8884-ec4a54a44abd"
+            "exchangeId": "211a7e72-80bb-42be-8249-3e48f0fc6daa"
           },
           {
-            "id": "1cd70699-f7be-4e88-b075-e00eadda96f9",
+            "id": "1eba498f-c518-4bc7-86e4-e992ccd92484",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "PASS",
             "message": "Mock verifier rejected the T-NONCE-REPLAY presentation as expected",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "adb005f4-d26c-4ef2-957c-4d180900373d"
+            "exchangeId": "da2dff97-fe84-422c-85ec-dbc2a19b63b2"
           }
         ],
         "tamper": {
@@ -3393,8 +3393,8 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Resubmitted a vp_token captured in an earlier run to this new request",
-          "exchangeId": "adb005f4-d26c-4ef2-957c-4d180900373d",
-          "sourceRunId": "bce4cdd7-7a39-4d8f-bfdf-0e92a68afd2d",
+          "exchangeId": "da2dff97-fe84-422c-85ec-dbc2a19b63b2",
+          "sourceRunId": "49a3ac00-b79e-47b4-b16d-f831f6c76a5c",
           "observedOutcome": "INVALID",
           "detected": true
         },
@@ -3404,16 +3404,16 @@
           "outcome": "VALID",
           "comparable": false,
           "agrees": false,
-          "exchangeId": "a9b3c69e-4564-4f7f-8884-ec4a54a44abd"
+          "exchangeId": "211a7e72-80bb-42be-8249-3e48f0fc6daa"
         },
         "prediction": {
           "status": "supported",
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Mock verifier<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-NONCE-REPLAY: Resubmitted a vp_token captured in an earlier run to this new request\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/d5740bc6-12d1-45cf-94ab-91ec2faa4746?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/89f7a565-d7cc-40ec-bd37-cc1578066817?view=inspector"
       },
-      "durationMs": 1009
+      "durationMs": 1010
     },
     {
       "key": "inji-certify → mock-wallet → mock-verifier · vc+sd-jwt · T-EXPIRED · expect EXPIRED",
@@ -3434,12 +3434,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "6c57a3ca-a546-4651-94e4-0a871ccf5984",
+      "runId": "8b45b877-cdc6-49f8-bb93-e09015baaa16",
       "report": {
-        "runId": "6c57a3ca-a546-4651-94e4-0a871ccf5984",
-        "createdAt": "2026-11-18T02:32:34.764Z",
-        "finishedAt": "2026-11-18T02:32:34.911Z",
-        "durationMs": 147,
+        "runId": "8b45b877-cdc6-49f8-bb93-e09015baaa16",
+        "createdAt": "2026-11-19T01:58:28.140Z",
+        "finishedAt": "2026-11-19T01:58:28.319Z",
+        "durationMs": 179,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -3474,49 +3474,49 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 16
+            "durationMs": 19
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 4
+            "durationMs": 6
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 31
+            "durationMs": 35
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 49
+            "durationMs": 58
           },
           {
             "phase": "holding",
             "step": "credential_held",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 2
+            "durationMs": 1
           },
           {
             "phase": "presenting",
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 8
+            "durationMs": 4
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 4
+            "durationMs": 5
           },
           {
             "phase": "presenting",
@@ -3530,29 +3530,29 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 12
+            "durationMs": 10
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 15
+            "durationMs": 32
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "7cc72da3-952f-4dd2-95be-df010c4ea504",
+            "id": "5ca4090e-bd43-41b4-8e45-1a6a9b43248d",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion agrees: Mock verifier and Inji Verify both say Valid but expired",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "9f8a8d10-2361-4318-a337-e1e2298d3404"
+            "exchangeId": "fd61ec8d-1523-43f0-9492-da631183c8a6"
           },
           {
-            "id": "8686ab67-fb47-499e-a855-6b79ee4219da",
+            "id": "e661d996-b676-4745-a4b4-293039c9eb32",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "PASS",
@@ -3576,7 +3576,7 @@
           "reason": "verificationStatus EXPIRED",
           "comparable": true,
           "agrees": true,
-          "exchangeId": "9f8a8d10-2361-4318-a337-e1e2298d3404"
+          "exchangeId": "fd61ec8d-1523-43f0-9492-da631183c8a6"
         },
         "prediction": {
           "status": "supported",
@@ -3589,9 +3589,9 @@
           ]
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Mock verifier<br/>(behind the Protocol Tap)\n  Note over I: T-EXPIRED: Issued FarmerCredentialSdJwtExpired (signed with validity in the past) instead of FarmerCredentialSdJwt\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  L--)W: vp_token built and signed (inferred)\n  W->>V: Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/6c57a3ca-a546-4651-94e4-0a871ccf5984?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/8b45b877-cdc6-49f8-bb93-e09015baaa16?view=inspector"
       },
-      "durationMs": 1009
+      "durationMs": 1008
     },
     {
       "key": "inji-certify-mdoc → mock-wallet → mock-verifier · mso_mdoc",
@@ -3609,12 +3609,12 @@
         "format": "mso_mdoc"
       },
       "status": "pass",
-      "runId": "c9fcc33b-4e0d-4f86-bedb-afc0c80f008f",
+      "runId": "eb556068-57b4-4cfe-ae78-632c2cce51aa",
       "report": {
-        "runId": "c9fcc33b-4e0d-4f86-bedb-afc0c80f008f",
-        "createdAt": "2026-11-18T02:32:35.964Z",
-        "finishedAt": "2026-11-18T02:32:36.493Z",
-        "durationMs": 529,
+        "runId": "eb556068-57b4-4cfe-ae78-632c2cce51aa",
+        "createdAt": "2026-11-19T01:58:29.296Z",
+        "finishedAt": "2026-11-19T01:58:29.725Z",
+        "durationMs": 429,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -3648,28 +3648,163 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 61
+            "durationMs": 56
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 21
+            "durationMs": 17
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 143
+            "durationMs": 117
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 255
+            "durationMs": 193
+          },
+          {
+            "phase": "holding",
+            "step": "credential_held",
+            "status": "done",
+            "evidenceKind": "adapter",
+            "durationMs": 1
+          },
+          {
+            "phase": "presenting",
+            "step": "request_created",
+            "status": "done",
+            "evidenceKind": "adapter",
+            "durationMs": 6
+          },
+          {
+            "phase": "presenting",
+            "step": "request_delivered",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 7
+          },
+          {
+            "phase": "presenting",
+            "step": "oid4vp.request_object",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 0
+          },
+          {
+            "phase": "presenting",
+            "step": "oid4vp.response",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 21
+          },
+          {
+            "phase": "verifying",
+            "step": "verify.result",
+            "status": "done",
+            "evidenceKind": "adapter",
+            "durationMs": 2
+          }
+        ],
+        "correlation": "exact",
+        "findings": [],
+        "prediction": {
+          "status": "supported",
+          "reasons": []
+        },
+        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify (mock mDoc)<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Mock verifier<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  L--)W: vp_token built and signed (inferred)\n  W->>V: Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200",
+        "inspectorUrl": "http://localhost:8100/runs/eb556068-57b4-4cfe-ae78-632c2cce51aa?view=inspector"
+      },
+      "durationMs": 1158
+    },
+    {
+      "key": "inji-certify-mdoc → mock-wallet → mock-verifier · mso_mdoc · T-SIG-FLIP · expect INVALID",
+      "config": {
+        "mode": "full",
+        "grantType": "pre-authorized_code",
+        "presentationFlow": "cross-device-qr",
+        "expectedOutcome": "INVALID",
+        "labels": {
+          "suite": "nightly"
+        },
+        "tamper": {
+          "id": "T-SIG-FLIP"
+        },
+        "issuerId": "inji-certify-mdoc",
+        "walletId": "mock-wallet",
+        "verifierId": "mock-verifier",
+        "format": "mso_mdoc"
+      },
+      "status": "pass",
+      "runId": "b506273f-9411-4496-bba7-805aa9464433",
+      "report": {
+        "runId": "b506273f-9411-4496-bba7-805aa9464433",
+        "createdAt": "2026-11-19T01:58:30.306Z",
+        "finishedAt": "2026-11-19T01:58:30.448Z",
+        "durationMs": 142,
+        "mode": "full",
+        "issuer": {
+          "role": "issuer",
+          "id": "inji-certify-mdoc",
+          "displayName": "Inji Certify (mock mDoc)",
+          "version": "0.14.0"
+        },
+        "wallet": {
+          "role": "wallet",
+          "id": "mock-wallet",
+          "displayName": "Mock wallet",
+          "version": "0.1.0"
+        },
+        "verifier": {
+          "role": "verifier",
+          "id": "mock-verifier",
+          "displayName": "Mock verifier",
+          "version": "0.1.0"
+        },
+        "format": "mso_mdoc",
+        "credentialConfigurationId": "MockMDL",
+        "grantType": "pre-authorized_code",
+        "presentationFlow": "cross-device-qr",
+        "expectedOutcome": "INVALID",
+        "observedOutcome": "INVALID",
+        "verdict": "PASS",
+        "passed": true,
+        "steps": [
+          {
+            "phase": "issuing",
+            "step": "offer_prepared",
+            "status": "done",
+            "evidenceKind": "adapter",
+            "durationMs": 19
+          },
+          {
+            "phase": "issuing",
+            "step": "offer_delivered",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 8
+          },
+          {
+            "phase": "issuing",
+            "step": "oid4vci.token",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 59
+          },
+          {
+            "phase": "issuing",
+            "step": "oid4vci.credential",
+            "status": "done",
+            "evidenceKind": "tap",
+            "durationMs": 26
           },
           {
             "phase": "holding",
@@ -3704,29 +3839,49 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 22
+            "durationMs": 8
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 5
+            "durationMs": 3
           }
         ],
         "correlation": "exact",
-        "findings": [],
+        "findings": [
+          {
+            "id": "612e5d97-68b9-4595-95e8-6fbdcef50db1",
+            "checkId": "TAMPER-001",
+            "stage": "verification",
+            "severity": "PASS",
+            "message": "Mock verifier rejected the T-SIG-FLIP presentation as expected",
+            "specRef": "Playground tamper catalogue (plan §13)",
+            "exchangeId": "0835a92f-fc69-48f6-a252-3587163ca487"
+          }
+        ],
+        "tamper": {
+          "id": "T-SIG-FLIP",
+          "label": "Broken signature",
+          "mechanism": "wallet-hook",
+          "expectedOutcome": "INVALID",
+          "summary": "Changed one character of the issuer's signature",
+          "exchangeId": "0835a92f-fc69-48f6-a252-3587163ca487",
+          "observedOutcome": "INVALID",
+          "detected": true
+        },
         "prediction": {
           "status": "supported",
           "reasons": []
         },
-        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify (mock mDoc)<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Mock verifier<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  L--)W: vp_token built and signed (inferred)\n  W->>V: Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200",
-        "inspectorUrl": "http://localhost:8100/runs/c9fcc33b-4e0d-4f86-bedb-afc0c80f008f?view=inspector"
+        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify (mock mDoc)<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Mock verifier<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-SIG-FLIP: Changed one character of the issuer's signature\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200",
+        "inspectorUrl": "http://localhost:8100/runs/b506273f-9411-4496-bba7-805aa9464433?view=inspector"
       },
-      "durationMs": 1201
+      "durationMs": 1012
     },
     {
-      "key": "inji-certify-mdoc → mock-wallet → mock-verifier · mso_mdoc · T-SIG-FLIP · expect INVALID",
+      "key": "inji-certify-mdoc → mock-wallet → mock-verifier · mso_mdoc · T-CLAIM-EDIT · expect INVALID",
       "config": {
         "mode": "full",
         "grantType": "pre-authorized_code",
@@ -3736,7 +3891,7 @@
           "suite": "nightly"
         },
         "tamper": {
-          "id": "T-SIG-FLIP"
+          "id": "T-CLAIM-EDIT"
         },
         "issuerId": "inji-certify-mdoc",
         "walletId": "mock-wallet",
@@ -3744,12 +3899,12 @@
         "format": "mso_mdoc"
       },
       "status": "pass",
-      "runId": "82db80eb-457f-4549-b3b1-1f6560c46bf5",
+      "runId": "4efc6c24-3896-440f-98fd-5b79fba4e7fe",
       "report": {
-        "runId": "82db80eb-457f-4549-b3b1-1f6560c46bf5",
-        "createdAt": "2026-11-18T02:32:36.974Z",
-        "finishedAt": "2026-11-18T02:32:37.120Z",
-        "durationMs": 146,
+        "runId": "4efc6c24-3896-440f-98fd-5b79fba4e7fe",
+        "createdAt": "2026-11-19T01:58:31.318Z",
+        "finishedAt": "2026-11-19T01:58:31.431Z",
+        "durationMs": 113,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -3783,28 +3938,28 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 18
+            "durationMs": 16
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 7
+            "durationMs": 6
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 61
+            "durationMs": 38
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 30
+            "durationMs": 23
           },
           {
             "phase": "holding",
@@ -3846,174 +4001,19 @@
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 2
-          }
-        ],
-        "correlation": "exact",
-        "findings": [
-          {
-            "id": "65319bbb-fc81-4cd0-859a-46e92e989f55",
-            "checkId": "TAMPER-001",
-            "stage": "verification",
-            "severity": "PASS",
-            "message": "Mock verifier rejected the T-SIG-FLIP presentation as expected",
-            "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "e2fe8b61-c7cc-4bb1-b238-ab073ac7419c"
-          }
-        ],
-        "tamper": {
-          "id": "T-SIG-FLIP",
-          "label": "Broken signature",
-          "mechanism": "wallet-hook",
-          "expectedOutcome": "INVALID",
-          "summary": "Changed one character of the issuer's signature",
-          "exchangeId": "e2fe8b61-c7cc-4bb1-b238-ab073ac7419c",
-          "observedOutcome": "INVALID",
-          "detected": true
-        },
-        "prediction": {
-          "status": "supported",
-          "reasons": []
-        },
-        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify (mock mDoc)<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Mock verifier<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-SIG-FLIP: Changed one character of the issuer's signature\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200",
-        "inspectorUrl": "http://localhost:8100/runs/82db80eb-457f-4549-b3b1-1f6560c46bf5?view=inspector"
-      },
-      "durationMs": 1007
-    },
-    {
-      "key": "inji-certify-mdoc → mock-wallet → mock-verifier · mso_mdoc · T-CLAIM-EDIT · expect INVALID",
-      "config": {
-        "mode": "full",
-        "grantType": "pre-authorized_code",
-        "presentationFlow": "cross-device-qr",
-        "expectedOutcome": "INVALID",
-        "labels": {
-          "suite": "nightly"
-        },
-        "tamper": {
-          "id": "T-CLAIM-EDIT"
-        },
-        "issuerId": "inji-certify-mdoc",
-        "walletId": "mock-wallet",
-        "verifierId": "mock-verifier",
-        "format": "mso_mdoc"
-      },
-      "status": "pass",
-      "runId": "4f7308aa-a74f-449c-80b3-e7fe7ca5aa22",
-      "report": {
-        "runId": "4f7308aa-a74f-449c-80b3-e7fe7ca5aa22",
-        "createdAt": "2026-11-18T02:32:37.982Z",
-        "finishedAt": "2026-11-18T02:32:38.099Z",
-        "durationMs": 117,
-        "mode": "full",
-        "issuer": {
-          "role": "issuer",
-          "id": "inji-certify-mdoc",
-          "displayName": "Inji Certify (mock mDoc)",
-          "version": "0.14.0"
-        },
-        "wallet": {
-          "role": "wallet",
-          "id": "mock-wallet",
-          "displayName": "Mock wallet",
-          "version": "0.1.0"
-        },
-        "verifier": {
-          "role": "verifier",
-          "id": "mock-verifier",
-          "displayName": "Mock verifier",
-          "version": "0.1.0"
-        },
-        "format": "mso_mdoc",
-        "credentialConfigurationId": "MockMDL",
-        "grantType": "pre-authorized_code",
-        "presentationFlow": "cross-device-qr",
-        "expectedOutcome": "INVALID",
-        "observedOutcome": "INVALID",
-        "verdict": "PASS",
-        "passed": true,
-        "steps": [
-          {
-            "phase": "issuing",
-            "step": "offer_prepared",
-            "status": "done",
-            "evidenceKind": "adapter",
-            "durationMs": 17
-          },
-          {
-            "phase": "issuing",
-            "step": "offer_delivered",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 7
-          },
-          {
-            "phase": "issuing",
-            "step": "oid4vci.token",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 33
-          },
-          {
-            "phase": "issuing",
-            "step": "oid4vci.credential",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 23
-          },
-          {
-            "phase": "holding",
-            "step": "credential_held",
-            "status": "done",
-            "evidenceKind": "adapter",
-            "durationMs": 1
-          },
-          {
-            "phase": "presenting",
-            "step": "request_created",
-            "status": "done",
-            "evidenceKind": "adapter",
             "durationMs": 3
-          },
-          {
-            "phase": "presenting",
-            "step": "request_delivered",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 4
-          },
-          {
-            "phase": "presenting",
-            "step": "oid4vp.request_object",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 0
-          },
-          {
-            "phase": "presenting",
-            "step": "oid4vp.response",
-            "status": "done",
-            "evidenceKind": "tap",
-            "durationMs": 18
-          },
-          {
-            "phase": "verifying",
-            "step": "verify.result",
-            "status": "done",
-            "evidenceKind": "adapter",
-            "durationMs": 2
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "d9113c24-bf86-443c-b1d5-5b5fbdad5ca5",
+            "id": "12930883-c11d-44af-abb8-70a9d18d81c3",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "PASS",
             "message": "Mock verifier rejected the T-CLAIM-EDIT presentation as expected",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "e3d417b6-6e5b-4580-8731-5cfa425579e5"
+            "exchangeId": "239ff442-e76d-4394-9c9f-6610dfdf9ad3"
           }
         ],
         "tamper": {
@@ -4022,7 +4022,7 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Changed one claim value after issuance",
-          "exchangeId": "e3d417b6-6e5b-4580-8731-5cfa425579e5",
+          "exchangeId": "239ff442-e76d-4394-9c9f-6610dfdf9ad3",
           "observedOutcome": "INVALID",
           "detected": true
         },
@@ -4031,9 +4031,9 @@
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify (mock mDoc)<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Mock verifier<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-CLAIM-EDIT: Changed one claim value after issuance\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200",
-        "inspectorUrl": "http://localhost:8100/runs/4f7308aa-a74f-449c-80b3-e7fe7ca5aa22?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/4efc6c24-3896-440f-98fd-5b79fba4e7fe?view=inspector"
       },
-      "durationMs": 1009
+      "durationMs": 1011
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify-collab · vc+sd-jwt",
@@ -4051,12 +4051,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "f9e1ec7e-9468-4e84-9b12-612fb69568bb",
+      "runId": "c44cdbff-fbc9-4b46-b202-b9d09a96a705",
       "report": {
-        "runId": "f9e1ec7e-9468-4e84-9b12-612fb69568bb",
-        "createdAt": "2026-11-18T02:32:38.990Z",
-        "finishedAt": "2026-11-18T02:32:44.455Z",
-        "durationMs": 5465,
+        "runId": "c44cdbff-fbc9-4b46-b202-b9d09a96a705",
+        "createdAt": "2026-11-19T01:58:32.329Z",
+        "finishedAt": "2026-11-19T01:58:37.918Z",
+        "durationMs": 5589,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -4091,49 +4091,49 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 16
+            "durationMs": 24
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 5
+            "durationMs": 7
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 26
+            "durationMs": 32
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 45
+            "durationMs": 46
           },
           {
             "phase": "holding",
             "step": "credential_held",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 0
+            "durationMs": 2
           },
           {
             "phase": "presenting",
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 271
+            "durationMs": 273
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 265
+            "durationMs": 269
           },
           {
             "phase": "presenting",
@@ -4147,26 +4147,26 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 3568
+            "durationMs": 549
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 275
+            "durationMs": 3338
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "f9a491ac-25b5-4b82-9c72-e07f0917e0ac",
+            "id": "df140621-c455-46b0-8ad9-3d18ffb2ab5d",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion agrees: Inji Verify (MOSIP Collab) and Inji Verify both say Valid",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "d8b6067e-ad56-41e6-954a-c99dc3f76f74"
+            "exchangeId": "6414facf-a5b7-4eec-9e72-ebf965627e67"
           }
         ],
         "secondOpinion": {
@@ -4175,16 +4175,16 @@
           "outcome": "VALID",
           "comparable": true,
           "agrees": true,
-          "exchangeId": "d8b6067e-ad56-41e6-954a-c99dc3f76f74"
+          "exchangeId": "6414facf-a5b7-4eec-9e72-ebf965627e67"
         },
         "prediction": {
           "status": "supported",
           "reasons": []
         },
-        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify (MOSIP Collab)<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  L--)W: vp_token built and signed (inferred)\n  W->>V: Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/f9e1ec7e-9468-4e84-9b12-612fb69568bb?view=inspector"
+        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify (MOSIP Collab)<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  P->>V: Status poll · 200\n  W--)L: Request to library (inferred)\n  L--)W: vp_token built and signed (inferred)\n  W->>V: Presentation response · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
+        "inspectorUrl": "http://localhost:8100/runs/c44cdbff-fbc9-4b46-b202-b9d09a96a705?view=inspector"
       },
-      "durationMs": 6020
+      "durationMs": 6021
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify-collab · vc+sd-jwt · T-SIG-FLIP · expect INVALID",
@@ -4205,12 +4205,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "8839378f-7483-4084-abef-fd0044dd8dee",
+      "runId": "892a6a54-1965-4ca4-be54-c8cb70a332ce",
       "report": {
-        "runId": "8839378f-7483-4084-abef-fd0044dd8dee",
-        "createdAt": "2026-11-18T02:32:45.010Z",
-        "finishedAt": "2026-11-18T02:32:46.632Z",
-        "durationMs": 1622,
+        "runId": "892a6a54-1965-4ca4-be54-c8cb70a332ce",
+        "createdAt": "2026-11-19T01:58:38.352Z",
+        "finishedAt": "2026-11-19T01:58:40.568Z",
+        "durationMs": 2216,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -4245,28 +4245,28 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 15
+            "durationMs": 20
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 10
+            "durationMs": 12
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 36
+            "durationMs": 40
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 45
+            "durationMs": 48
           },
           {
             "phase": "holding",
@@ -4280,14 +4280,14 @@
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 251
+            "durationMs": 254
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 244
+            "durationMs": 768
           },
           {
             "phase": "presenting",
@@ -4301,35 +4301,35 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 502
+            "durationMs": 548
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 269
+            "durationMs": 272
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "5f9d9f56-7e7d-4731-be1b-9fec1dc6984a",
+            "id": "c45214b9-8a68-4a95-bee9-5b0f6363302f",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion agrees: Inji Verify (MOSIP Collab) and Inji Verify both say Invalid",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "709dde2c-c230-47fb-9b0d-d6b45768021f"
+            "exchangeId": "bb14ab82-a146-4d88-8454-8af565479f14"
           },
           {
-            "id": "c8497b59-93b9-4edb-a7bf-3bf1ee20251f",
+            "id": "66fae22c-2eaa-4a15-a3fb-4d07f8cacb6b",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "PASS",
             "message": "Inji Verify (MOSIP Collab) rejected the T-SIG-FLIP presentation as expected",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "cf3d772d-2188-4d1a-a0ce-ca517ad3aee4"
+            "exchangeId": "ddf24bba-1b77-4f65-afa5-c4d7f6cb9ee9"
           }
         ],
         "tamper": {
@@ -4338,7 +4338,7 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Changed one character of the issuer's signature",
-          "exchangeId": "cf3d772d-2188-4d1a-a0ce-ca517ad3aee4",
+          "exchangeId": "ddf24bba-1b77-4f65-afa5-c4d7f6cb9ee9",
           "observedOutcome": "INVALID",
           "detected": true
         },
@@ -4349,16 +4349,16 @@
           "reason": "verificationStatus INVALID",
           "comparable": true,
           "agrees": true,
-          "exchangeId": "709dde2c-c230-47fb-9b0d-d6b45768021f"
+          "exchangeId": "bb14ab82-a146-4d88-8454-8af565479f14"
         },
         "prediction": {
           "status": "supported",
           "reasons": []
         },
-        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify (MOSIP Collab)<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-SIG-FLIP: Changed one character of the issuer's signature\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/8839378f-7483-4084-abef-fd0044dd8dee?view=inspector"
+        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify (MOSIP Collab)<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  P->>V: Status poll · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-SIG-FLIP: Changed one character of the issuer's signature\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
+        "inspectorUrl": "http://localhost:8100/runs/892a6a54-1965-4ca4-be54-c8cb70a332ce?view=inspector"
       },
-      "durationMs": 2009
+      "durationMs": 3016
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify-collab · vc+sd-jwt · T-CLAIM-EDIT · expect INVALID",
@@ -4379,12 +4379,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "a9a7b798-a3ad-47d3-b3c7-60336d1a957b",
+      "runId": "5b805ec7-78b8-4b25-90c8-f31e1d9c0bac",
       "report": {
-        "runId": "a9a7b798-a3ad-47d3-b3c7-60336d1a957b",
-        "createdAt": "2026-11-18T02:32:47.019Z",
-        "finishedAt": "2026-11-18T02:32:48.677Z",
-        "durationMs": 1658,
+        "runId": "5b805ec7-78b8-4b25-90c8-f31e1d9c0bac",
+        "createdAt": "2026-11-19T01:58:41.366Z",
+        "finishedAt": "2026-11-19T01:58:43.056Z",
+        "durationMs": 1690,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -4419,49 +4419,49 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 17
+            "durationMs": 19
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 5
+            "durationMs": 7
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 38
+            "durationMs": 33
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 58
+            "durationMs": 49
           },
           {
             "phase": "holding",
             "step": "credential_held",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 2
+            "durationMs": 1
           },
           {
             "phase": "presenting",
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 252
+            "durationMs": 254
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 248
+            "durationMs": 264
           },
           {
             "phase": "presenting",
@@ -4475,35 +4475,35 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 522
+            "durationMs": 548
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 262
+            "durationMs": 266
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "d7616641-d18e-49e1-adc8-538b5f8e6a56",
+            "id": "a7371703-df8a-49be-90e0-284aaf4240f1",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion agrees: Inji Verify (MOSIP Collab) and Inji Verify both say Invalid",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "5fe606bd-6654-47f4-ac2c-2dde56869f97"
+            "exchangeId": "4a46cde7-cbd1-4536-89c7-e1cd04e84917"
           },
           {
-            "id": "d2b1964a-7237-4b5d-95b4-d2e25bd6419c",
+            "id": "a2285572-407b-4466-a4f2-cdfa8c17a79f",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "PASS",
             "message": "Inji Verify (MOSIP Collab) rejected the T-CLAIM-EDIT presentation as expected",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "7e2fe37d-d131-463e-a83f-ca002de2b58e"
+            "exchangeId": "fdc4e3e0-c342-448a-87fe-d33e6068589d"
           }
         ],
         "tamper": {
@@ -4512,7 +4512,7 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Changed one claim value after issuance",
-          "exchangeId": "7e2fe37d-d131-463e-a83f-ca002de2b58e",
+          "exchangeId": "fdc4e3e0-c342-448a-87fe-d33e6068589d",
           "observedOutcome": "INVALID",
           "detected": true
         },
@@ -4523,16 +4523,16 @@
           "reason": "verificationStatus INVALID",
           "comparable": true,
           "agrees": true,
-          "exchangeId": "5fe606bd-6654-47f4-ac2c-2dde56869f97"
+          "exchangeId": "4a46cde7-cbd1-4536-89c7-e1cd04e84917"
         },
         "prediction": {
           "status": "supported",
           "reasons": []
         },
-        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify (MOSIP Collab)<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-CLAIM-EDIT: Changed one claim value after issuance\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/a9a7b798-a3ad-47d3-b3c7-60336d1a957b?view=inspector"
+        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify (MOSIP Collab)<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  P->>V: Status poll · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-CLAIM-EDIT: Changed one claim value after issuance\n  L--)W: vp_token built and signed (inferred)\n  W->>V: TAMPERED · Presentation response · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
+        "inspectorUrl": "http://localhost:8100/runs/5b805ec7-78b8-4b25-90c8-f31e1d9c0bac?view=inspector"
       },
-      "durationMs": 2010
+      "durationMs": 2009
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify-collab · vc+sd-jwt · T-WRONG-TYPE · expect INVALID",
@@ -4553,12 +4553,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "6cbb57fc-43fe-4dcf-9463-3ce767b37964",
+      "runId": "d99f4685-f370-4573-8b39-1f51c34dc2ea",
       "report": {
-        "runId": "6cbb57fc-43fe-4dcf-9463-3ce767b37964",
-        "createdAt": "2026-11-18T02:32:49.029Z",
-        "finishedAt": "2026-11-18T02:32:50.620Z",
-        "durationMs": 1591,
+        "runId": "d99f4685-f370-4573-8b39-1f51c34dc2ea",
+        "createdAt": "2026-11-19T01:58:43.375Z",
+        "finishedAt": "2026-11-19T01:58:45.057Z",
+        "durationMs": 1682,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -4593,28 +4593,28 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 16
+            "durationMs": 18
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 4
+            "durationMs": 5
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 26
+            "durationMs": 29
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 39
+            "durationMs": 44
           },
           {
             "phase": "holding",
@@ -4628,14 +4628,14 @@
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 253
+            "durationMs": 254
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 245
+            "durationMs": 271
           },
           {
             "phase": "presenting",
@@ -4649,44 +4649,44 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 501
+            "durationMs": 530
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 258
+            "durationMs": 275
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "4bbbbe7f-09c9-4dc6-bee3-8086afac7420",
+            "id": "68342a21-a919-423c-8cb0-e854c9d4f4a1",
             "checkId": "TAMPER-002",
             "stage": "presentation",
             "severity": "INFO",
             "message": "The verifier refused the tampered submission at direct_post with HTTP 400",
             "specRef": "OpenID4VP — response mode direct_post",
-            "exchangeId": "c13e1579-48e7-4799-a330-a282934e7eb5"
+            "exchangeId": "4bebc51e-1fe1-4614-9cfc-6af9156e6f5e"
           },
           {
-            "id": "bfa58f91-2898-4932-b9cd-7082f19c333a",
+            "id": "73b05e48-ef13-4ce5-98d2-68142459a7a6",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion on the presented credential alone: Inji Verify says Valid. Not compared with Inji Verify (MOSIP Collab)'s Rejected: this run is judged on presentation checks (requested type, holder binding, nonce) that a credential-only check does not make",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "9cc134f8-c41d-4ea0-b309-fde995d22781"
+            "exchangeId": "c1278b22-855a-40bb-93ac-3e084487b120"
           },
           {
-            "id": "85b23b8d-6799-4367-ab3a-4d78f5784dda",
+            "id": "bc7a890a-d5c6-4e0f-902a-ea5c412dfd3d",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "WARN",
             "message": "Inji Verify (MOSIP Collab) rejected the T-WRONG-TYPE presentation as REJECTED, not the expected INVALID",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "c13e1579-48e7-4799-a330-a282934e7eb5"
+            "exchangeId": "4bebc51e-1fe1-4614-9cfc-6af9156e6f5e"
           }
         ],
         "tamper": {
@@ -4695,7 +4695,7 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Presented a credential that does not satisfy the request",
-          "exchangeId": "c13e1579-48e7-4799-a330-a282934e7eb5",
+          "exchangeId": "4bebc51e-1fe1-4614-9cfc-6af9156e6f5e",
           "observedOutcome": "REJECTED",
           "detected": true
         },
@@ -4705,7 +4705,7 @@
           "outcome": "VALID",
           "comparable": false,
           "agrees": false,
-          "exchangeId": "9cc134f8-c41d-4ea0-b309-fde995d22781"
+          "exchangeId": "c1278b22-855a-40bb-93ac-3e084487b120"
         },
         "prediction": {
           "status": "supported",
@@ -4717,7 +4717,7 @@
           ]
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify (MOSIP Collab)<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-WRONG-TYPE: Presented a credential that does not satisfy the request\n  L--)W: vp_token built and signed (inferred)\n  W-xV: TAMPERED · Presentation response · 400\n  P-xV: Verification result · 404\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/6cbb57fc-43fe-4dcf-9463-3ce767b37964?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/d99f4685-f370-4573-8b39-1f51c34dc2ea?view=inspector"
       },
       "durationMs": 2009
     },
@@ -4740,12 +4740,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "75f06415-bc21-4b86-bcf7-ecada737467b",
+      "runId": "86883be0-4ac8-4d01-8e64-9339bffcc85e",
       "report": {
-        "runId": "75f06415-bc21-4b86-bcf7-ecada737467b",
-        "createdAt": "2026-11-18T02:32:51.038Z",
-        "finishedAt": "2026-11-18T02:32:53.104Z",
-        "durationMs": 2066,
+        "runId": "86883be0-4ac8-4d01-8e64-9339bffcc85e",
+        "createdAt": "2026-11-19T01:58:45.385Z",
+        "finishedAt": "2026-11-19T01:58:47.703Z",
+        "durationMs": 2318,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -4780,49 +4780,49 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 17
+            "durationMs": 19
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 5
+            "durationMs": 6
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 28
+            "durationMs": 36
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 42
+            "durationMs": 43
           },
           {
             "phase": "holding",
             "step": "credential_held",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 2
+            "durationMs": 1
           },
           {
             "phase": "presenting",
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 253
+            "durationMs": 275
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 703
+            "durationMs": 855
           },
           {
             "phase": "presenting",
@@ -4836,44 +4836,44 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 508
+            "durationMs": 539
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 258
+            "durationMs": 275
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "6dadc180-baec-402a-a22b-8d5d37a00a00",
+            "id": "c8b3f497-a46b-481f-859b-bb1cce8aa4df",
             "checkId": "TAMPER-002",
             "stage": "presentation",
             "severity": "INFO",
             "message": "The verifier refused the tampered submission at direct_post with HTTP 400",
             "specRef": "OpenID4VP — response mode direct_post",
-            "exchangeId": "187cf6ec-f424-4d22-b3b0-14360d6be62c"
+            "exchangeId": "46310a2d-6b3c-4710-a98d-43d419f3b7e1"
           },
           {
-            "id": "fca38fff-8c07-4351-abee-bcebb278cd35",
+            "id": "eda74581-9427-44c4-9cdd-5d4b8918f66d",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion on the presented credential alone: Inji Verify says Valid. Not compared with Inji Verify (MOSIP Collab)'s Rejected: this run is judged on presentation checks (requested type, holder binding, nonce) that a credential-only check does not make",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "d14b6052-0111-44f1-87d4-84f49ddf23e8"
+            "exchangeId": "b74319a2-ad3d-45c2-977d-8323cbe47819"
           },
           {
-            "id": "1f179497-5acd-45ee-b6ac-75464c2b0a6a",
+            "id": "50e31688-d735-4b07-a77d-944bbb36747e",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "WARN",
             "message": "Inji Verify (MOSIP Collab) rejected the T-NONCE-REPLAY presentation as REJECTED, not the expected INVALID",
             "specRef": "Playground tamper catalogue (plan §13)",
-            "exchangeId": "187cf6ec-f424-4d22-b3b0-14360d6be62c"
+            "exchangeId": "46310a2d-6b3c-4710-a98d-43d419f3b7e1"
           }
         ],
         "tamper": {
@@ -4882,8 +4882,8 @@
           "mechanism": "wallet-hook",
           "expectedOutcome": "INVALID",
           "summary": "Resubmitted a vp_token captured in an earlier run to this new request",
-          "exchangeId": "187cf6ec-f424-4d22-b3b0-14360d6be62c",
-          "sourceRunId": "f9e1ec7e-9468-4e84-9b12-612fb69568bb",
+          "exchangeId": "46310a2d-6b3c-4710-a98d-43d419f3b7e1",
+          "sourceRunId": "c44cdbff-fbc9-4b46-b202-b9d09a96a705",
           "observedOutcome": "REJECTED",
           "detected": true
         },
@@ -4893,16 +4893,16 @@
           "outcome": "VALID",
           "comparable": false,
           "agrees": false,
-          "exchangeId": "d14b6052-0111-44f1-87d4-84f49ddf23e8"
+          "exchangeId": "b74319a2-ad3d-45c2-977d-8323cbe47819"
         },
         "prediction": {
           "status": "supported",
           "reasons": []
         },
         "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify (MOSIP Collab)<br/>(behind the Protocol Tap)\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  Note over L: T-NONCE-REPLAY: Resubmitted a vp_token captured in an earlier run to this new request\n  L--)W: vp_token built and signed (inferred)\n  W-xV: TAMPERED · Presentation response · 400\n  P-xV: Verification result · 404\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/75f06415-bc21-4b86-bcf7-ecada737467b?view=inspector"
+        "inspectorUrl": "http://localhost:8100/runs/86883be0-4ac8-4d01-8e64-9339bffcc85e?view=inspector"
       },
-      "durationMs": 3012
+      "durationMs": 3013
     },
     {
       "key": "inji-certify → mock-wallet → inji-verify-collab · vc+sd-jwt · T-EXPIRED · expect EXPIRED",
@@ -4923,12 +4923,12 @@
         "format": "vc+sd-jwt"
       },
       "status": "pass",
-      "runId": "05d0fd91-0119-4931-b26c-e97f89c5dbfd",
+      "runId": "1815de8f-3f5c-42cc-bddf-8010c2309b2e",
       "report": {
-        "runId": "05d0fd91-0119-4931-b26c-e97f89c5dbfd",
-        "createdAt": "2026-11-18T02:32:54.050Z",
-        "finishedAt": "2026-11-18T02:32:56.129Z",
-        "durationMs": 2079,
+        "runId": "1815de8f-3f5c-42cc-bddf-8010c2309b2e",
+        "createdAt": "2026-11-19T01:58:48.399Z",
+        "finishedAt": "2026-11-19T01:58:50.128Z",
+        "durationMs": 1729,
         "mode": "full",
         "issuer": {
           "role": "issuer",
@@ -4963,49 +4963,49 @@
             "step": "offer_prepared",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 15
+            "durationMs": 16
           },
           {
             "phase": "issuing",
             "step": "offer_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 5
+            "durationMs": 7
           },
           {
             "phase": "issuing",
             "step": "oid4vci.token",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 34
+            "durationMs": 29
           },
           {
             "phase": "issuing",
             "step": "oid4vci.credential",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 40
+            "durationMs": 39
           },
           {
             "phase": "holding",
             "step": "credential_held",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 1
+            "durationMs": 2
           },
           {
             "phase": "presenting",
             "step": "request_created",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 257
+            "durationMs": 269
           },
           {
             "phase": "presenting",
             "step": "request_delivered",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 702
+            "durationMs": 257
           },
           {
             "phase": "presenting",
@@ -5019,29 +5019,29 @@
             "step": "oid4vp.response",
             "status": "done",
             "evidenceKind": "tap",
-            "durationMs": 513
+            "durationMs": 541
           },
           {
             "phase": "verifying",
             "step": "verify.result",
             "status": "done",
             "evidenceKind": "adapter",
-            "durationMs": 265
+            "durationMs": 302
           }
         ],
         "correlation": "exact",
         "findings": [
           {
-            "id": "32f28701-5d5e-40f6-af3d-261ecdb32d5e",
+            "id": "96a70b39-a6cb-4ed4-9ceb-7ecbfc77f9a5",
             "checkId": "VER-002",
             "stage": "verification",
             "severity": "INFO",
             "message": "Second opinion agrees: Inji Verify (MOSIP Collab) and Inji Verify both say Valid but expired",
             "specRef": "Playground differential verification (plan §12)",
-            "exchangeId": "46dccde7-528f-4f4f-8a06-41627666b168"
+            "exchangeId": "d2926700-48b9-4097-baf3-4f294a06d580"
           },
           {
-            "id": "e5a70442-de64-462c-9aff-39ada4b6b287",
+            "id": "5ed3a221-2b04-444f-be0d-8c7249b64672",
             "checkId": "TAMPER-001",
             "stage": "verification",
             "severity": "PASS",
@@ -5065,7 +5065,7 @@
           "reason": "verificationStatus EXPIRED",
           "comparable": true,
           "agrees": true,
-          "exchangeId": "46dccde7-528f-4f4f-8a06-41627666b168"
+          "exchangeId": "d2926700-48b9-4097-baf3-4f294a06d580"
         },
         "prediction": {
           "status": "supported",
@@ -5077,10 +5077,10 @@
             }
           ]
         },
-        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify (MOSIP Collab)<br/>(behind the Protocol Tap)\n  Note over I: T-EXPIRED: Issued FarmerCredentialSdJwtExpired (signed with validity in the past) instead of FarmerCredentialSdJwt\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  P->>V: Status poll · 200\n  W--)L: Request to library (inferred)\n  L--)W: vp_token built and signed (inferred)\n  W->>V: Presentation response · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
-        "inspectorUrl": "http://localhost:8100/runs/05d0fd91-0119-4931-b26c-e97f89c5dbfd?view=inspector"
+        "sequence": "sequenceDiagram\n  participant P as Playground<br/>(BFF)\n  participant I as Inji Certify<br/>(behind the Protocol Tap)\n  participant W as Mock wallet<br/>(wallet)\n  participant L as Mock wallet OpenID4VP code<br/>(inside the wallet, not observable)\n  participant V as Inji Verify (MOSIP Collab)<br/>(behind the Protocol Tap)\n  Note over I: T-EXPIRED: Issued FarmerCredentialSdJwtExpired (signed with validity in the past) instead of FarmerCredentialSdJwt\n  P->>I: Credential offer · 200\n  P-)W: Credential offer (QR / link)\n  W->>I: Credential offer · 200\n  W->>I: Issuer metadata · 200\n  W->>I: Authorization server metadata · 200\n  W->>I: Token exchange · 200\n  W->>I: Credential request · 200\n  P->>V: Create VP request · 201\n  P-)W: Authorization request (QR / link)\n  W->>V: Request object · 200\n  W->>V: DID resolution · 200\n  W--)L: Request to library (inferred)\n  L--)W: vp_token built and signed (inferred)\n  W->>V: Presentation response · 200\n  P->>V: Status poll · 200\n  P->>V: Verification result · 200\n  Note over P: Second opinion from the other verifier · 200 (outside the protocol)",
+        "inspectorUrl": "http://localhost:8100/runs/1815de8f-3f5c-42cc-bddf-8010c2309b2e?view=inspector"
       },
-      "durationMs": 3011
+      "durationMs": 2013
     }
   ]
 }
