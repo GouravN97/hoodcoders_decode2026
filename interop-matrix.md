@@ -1,13 +1,13 @@
 # Inji interoperability matrix
 
-Generated 2026-11-23T01:01:49.659Z from 8 finished runs. Each cell is the latest run of that combination; negative tests (tampers, expected Invalid or Expired) are left out, so each cell says whether the normal path works. Versions are the ones the catalog reported when the run was created.
+Generated 2026-11-24T04:55:39.258Z from 8 finished runs. Each cell is the latest run of that combination; negative tests (tampers, expected Invalid or Expired) are left out, so each cell says whether the normal path works. Versions are the ones the catalog reported when the run was created.
 
 | Issuer | Wallet | Verifier | JSON-LD VC (`ldp_vc`) | SD-JWT VC (`vc+sd-jwt`) | mDoc / mDL (`mso_mdoc`) |
 | --- | --- | --- | --- | --- | --- |
-| Inji Certify (mock mDoc) 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 |  |  | [✅ Pass (Valid)](http://localhost:8100/runs/c5b785f8-4eff-46e5-b30b-66ff28f1b868) |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | — (issue only) | [✅ Pass (issued)](http://localhost:8100/runs/640435c3-634f-486f-823e-d71b09471bb7) | [✅ Pass (issued)](http://localhost:8100/runs/c28081f4-1eba-4b8d-bb9f-c933a4545817) |  |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify (MOSIP Collab) collab |  | [✅ Pass (Valid)](http://localhost:8100/runs/3c7bf004-e837-4e0f-8461-d24126ac978f) |  |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | [✅ Pass (Valid)](http://localhost:8100/runs/8b9510b7-5aec-4ac9-af48-62a7231e1c32) | [✅ Pass (Valid) · 2/2 passed](http://localhost:8100/runs/ac1818f4-fc5e-4bd9-86b7-871aa1eaad58) |  |
-| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 |  | [✅ Pass (Valid)](http://localhost:8100/runs/5af69d09-5d64-4cf7-add9-4ea10be2ea83) |  |
+| Inji Certify (mock mDoc) 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 |  |  | [✅ Pass (Valid)](http://localhost:8100/runs/c092427c-801c-4526-9651-c07bf46a50ee) |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | — (issue only) | [✅ Pass (issued)](http://localhost:8100/runs/22d60074-8360-4ff3-a6a4-9a204083224d) | [✅ Pass (issued)](http://localhost:8100/runs/8c2dbcf2-6d03-4699-b774-a6c737af6884) |  |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify (MOSIP Collab) collab |  | [✅ Pass (Valid)](http://localhost:8100/runs/98c9679b-8ad9-4077-8b04-321c4b46c745) |  |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Inji Verify 0.18.2 | [✅ Pass (Valid)](http://localhost:8100/runs/8a79c5c9-938a-467d-9099-bb6ae239a88c) | [✅ Pass (Valid) · 2/2 passed](http://localhost:8100/runs/843aa414-06fa-4f08-aa5d-516f26e3f6af) |  |
+| Inji Certify 0.14.0 | Mock wallet 0.1.0 | Mock verifier 0.1.0 |  | [✅ Pass (Valid)](http://localhost:8100/runs/95694142-ffa9-471a-b8e2-3a5795619392) |  |
 
 Legend: ✅ pass · ⚠️ pass with warnings · ❌ fail · ❔ inconclusive · ➖ known unsupported. In brackets: what the verifier answered or, for issue-only runs, whether the credential was issued into the wallet.
